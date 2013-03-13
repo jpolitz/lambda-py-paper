@@ -3,3 +3,7 @@
 *.bak
 base/compiled/
 base/builtins/compiled/
+*.aux
+*.log
+*.pdf
+*.ps
