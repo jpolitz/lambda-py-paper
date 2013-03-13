@@ -43,7 +43,8 @@ Python, interact with Python's scope and require a more subtle solution than
 an obvious CPS transformation.
 
 @figure["f:values" "Values in LambdaPy"]{
-  @(render-language λπ #:nts '(val mval εs ε ref))
+  @(with-rewriters
+    (lambda () (render-language λπ #:nts '(val mval εs ε ref))))
 }
 
 @section{Warmup: Pythonic Values and Objects}
