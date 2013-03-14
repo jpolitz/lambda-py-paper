@@ -1,11 +1,19 @@
 #lang racket
 
-(require redex "../redex/lambdapy-core.rkt")
-(provide with-rewriters lp-term)
+(require redex "../redex/lambdapy-core.rkt" "../redex/lambdapy-reduction.rkt")
+(provide with-rewriters lp-term lp-reduction)
 
 (define-syntax-rule (lp-term t)
+  (parameterize
+     [(default-font-size 11)]
   (with-rewriters
-   (λ () (render-term λπ t))))
+   (λ () (render-term λπ t)))))
+(define-syntax-rule (lp-reduction names)
+  (parameterize
+    [(render-reduction-relation-rules names)
+     (default-font-size 11)]
+    (with-rewriters (lambda ()
+      (render-reduction-relation λπ-red #:style 'compact-vertical)))))
 (literal-style "Inconsolata")
 (paren-style "Inconsolata")
 
@@ -47,6 +55,12 @@
     [(list _ _ ref _)
      (list "@" ref)]))
 
+(define (list-literal-rewriter lws)
+  (match lws
+    [(list _ _) (list "[]")]
+    [(list _ elt dots _)
+     (list "[" elt dots "]")]))
+
 (define (undefined-rewriter _) (list "☠"))
 
 (define (metanum-rewriter lws)
@@ -57,10 +71,7 @@
   (match lws [(list _ _ t _) (list "" t "")]))
 (define (metalist-rewriter lws)
   (match lws
-    [(list _ _ l _)
-     (match (lw-e l)
-      [(list _ elt dots _)
-       (list "" "[" elt dots "]")])]))
+    [(list _ _ l _) (list-literal-rewriter (lw-e l))]))
 (define (metadict-rewriter lws)
   (match lws
     [(list _ _ d _)
@@ -73,6 +84,11 @@
        (list "" "{" elt dots "}")])]))
 (define (metanone-rewriter _) (list "None"))
 
+(define (id-rewriter lws)
+  (match lws
+    [(list _ _ x _ _)
+     (list "" x "")]))
+
 (define (getfield-rewriter lws)
   (match lws
     [(list _ _ obj fld _)
@@ -83,12 +99,22 @@
     [(list _ _ fun args _)
      (list "" fun args "")]))
 
+(define (list-rewriter lws)
+  (match lws
+    [(list _ _ cls lst _)
+     (append (list "" cls ":") (list-literal-rewriter (lw-e lst)))]))
+
 (define (object-rewriter lws)
   (match lws
     [(list _ _ cls _)
      (list "" cls "〈〉" "")]
     [(list _ _ cls metaval _)
      (list "" cls "〈" metaval "〉" "")]))
+
+(define (override-rewriter lws)
+  (match lws
+    [(list _ _ sto ref val _)
+     (list "" sto "[" ref ":=" val "]")]))
 
 (define (with-rewriters thnk)
   (with-compound-rewriters
@@ -106,9 +132,13 @@
     ['meta-dict metadict-rewriter]
     ['meta-none metanone-rewriter]
 
+    ['id id-rewriter]
 		['get-field getfield-rewriter]
 		['app app-rewriter]
 		['object object-rewriter]
+		['list list-rewriter]
+
+    ['override-store override-rewriter]
    )
    (thnk)))
 

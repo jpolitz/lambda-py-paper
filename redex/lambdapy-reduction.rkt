@@ -24,9 +24,11 @@
    (==> false
 	vfalse
 	"false")
-   (==> (list val_1 (val ...))
-        (obj-val val_1 (meta-list (val ...)) ())
-        "list")
+   (--> ((in-hole E (list val_c (val ...))) εs Σ)
+        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+        "E-List"
+        (where ref_new ,(new-loc))
+        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-list (val ...)) ()))))
    (==> (tuple (val ...))
         (obj-val tuple (meta-tuple (val ...)) ())
         "tuple")
@@ -44,7 +46,7 @@
         "fun-vararg")
    (--> ((in-hole E (object val mval)) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
-        "object-mval"
+        "E-Object"
         (where ref_new ,(new-loc))
         (where Σ_1 (override-store Σ ref_new (obj-val val mval ()))))
    (--> ((in-hole E (prim1 op val)) εs Σ)

@@ -4,6 +4,7 @@
 @(require redex)
 @(require
   "../redex/lambdapy-core.rkt"
+  "../redex/lambdapy-reduction.rkt"
   "typesetting.rkt")      
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
@@ -95,10 +96,46 @@ can directly get a reference to in Python.
 Every Python object has several elements in common, and has a
 @emph{meta}-value that holds internal primitive data.  As an example, we'll
 step through the various stages of constructing and using a built-in list in
-@(lambda-py).
+@(lambda-py).  Lists are built with object expressions, which have two pieces:
+the @emph{class} of the object being constructed, and the @emph{meta-val}, if
+any, that stores primitive data.  The expression for creating an empty list
+is:
 
+@centered[
+  @(lp-term (list (id %list localid) ()))
+]
 
+Where @(lp-term (id %list localid)) is expected to be bound to the built-in
+list class.  In general, the first position of a list expression is the
+@emph{class} of the list object to create.  This is part of the list
+expression because programmers can subclass the builtin @code{list} class and
+create values that can use all the built-in list primitives, but have their
+own set of methods.  The second part of the expression is a list of
+expressions that will evaluate to the elements of the list.  For example, a
+list containing the numbers 1 and 3 is written:
 
+@centered[
+  @(lp-term (list (id %list localid) ((object (id %int localid) (meta-num 1)) (object (id %int localid) (meta-num 3)))))
+]
+
+The object creation expressions for numbers similarly indicate that the
+@code{%int} class should be used for their methods.  The rule for evaluating
+list expressions themselves allocates a new location on the heap for the
+resulting list, and constructs a value with the given class and a
+@code{meta-list} to hold its elements:
+
+@centered[
+  @(lp-reduction '("E-List"))
+]
+
+Here, the @"@" indicates a reference value, which is pointing to a new object
+which is added to the store Σ.  This also shows the shape of reductions for
+@(lambda-py), which is a small-step relation over triples of expressions e,
+environments εs, and stores Σ.
+
+@figure*["f:steps" (elem (lambda-py) " reduction rules")]{
+  @(lp-reduction '("E-Object"))
+}
 
 For example, the string @code{"a-str"} evaluates to:
 
