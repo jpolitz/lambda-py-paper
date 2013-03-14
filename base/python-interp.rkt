@@ -263,6 +263,7 @@
                 (handle-result prelude-r
                   (lambda (v s) (interp-env body env s stk))))]
     
+    [CSym (s) (v*s (VSym s) sto (none))]
     [CTrue () (renew-true env sto)]
     [CFalse () (renew-false env sto)]
     [CNone () (alloc-result vnone sto)]
@@ -522,7 +523,7 @@
 
     [CConstructModule (source)
        (handle-result (interp-env source env sto stk)
-         (lambda (v-code s-code a)
+         (lambda (v-code s-code)
            (cond
              [(not (and (VObjectClass? v-code)
                         (eq? (VObjectClass-antecedent v-code) 'code)))
@@ -552,7 +553,7 @@
                  ; TODO: filter the built-in functions instead of interpreting python-lib again
                  (handle-result (interp-env (python-lib (CModule (CNone) xcode))
                                             (list new-env) new-sto stk)
-                   (lambda (v-module s-module a)
+                   (lambda (v-module s-module)
                      (begin ;(pprint v-module)
                        (v*s (VObject '$module (none) module-attr) s-module)))))])))]
     
@@ -783,6 +784,7 @@
     [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
+    [VSym (t) (equal? t 'true)]
     [VPointer (a) (truthy? (fetch-once a sto) sto)]))
 
 (define (interp-cprim2 [prim : symbol] 
