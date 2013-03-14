@@ -16,19 +16,15 @@
   
   ;; value types
   (val
-   ;; NOTE(dbp): obj has optional metaval and optional class val, hence 4 variants
-   (obj-val x mval ((string ref) ...))
-   (obj-val x ((string ref) ...))
-   (obj-val x mval ((string ref) ...) val)
-   (obj-val x ((string ref) ...) val)
-   ;; NOTE(dbp): closure, with/without vararg, with/without class name
+	 (obj-val val mval ((string ref) ...))
+	 (obj-val x mval ((string ref) ...))
    (fun-val εs (λ (x ...) e))
    (fun-val εs (λ (x ...) x e))
    (fun-val εs (λ (x ...) e) x)
    (fun-val εs (λ (x ...) x e) x)
    (pointer-val ref)
-   undefined-val)
-  
+   (undefined-val))
+
   ;; primitive operators
   (op string)
   
@@ -44,7 +40,8 @@
         ;; set is like a list in representation, lack of order has to be accounted for in semantics
         (meta-set (val ...))
         (meta-class x)
-        (meta-none)
+        (meta-none) ;; The Python value
+        (no-meta)
         (meta-port)) ;; TODO(dbp): figure out how to represent port
   
   ;; types of expressions
@@ -52,8 +49,7 @@
      false
      none
      (class x e e)
-     (object x)
-     (object x mval)
+     (object e mval)
      (get-field e string)
      (seq e e)
      (assign e e)
@@ -98,6 +94,7 @@
   ;; evaluation context
   (E hole
      (module E e)
+     (object E mval)
      (assign e E)
      (seq E e)
      (if E e e)
@@ -132,6 +129,7 @@
   
   ;; context in a try block
   (T hole
+     (object T mval)
      (assign e T)
      (seq T e)
      (if T e e)
@@ -163,6 +161,7 @@
   
   ;; context for while body
   (H hole
+     (object H mval)
      (assign e H)
      (seq H e)
      (if H e e)

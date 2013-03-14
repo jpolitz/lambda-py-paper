@@ -17,11 +17,23 @@
        #'(test-->>∃ λπ-red (term (e (()) ()))
                     (λ (p) (equal? (term v) (first p)))))))
 
+(define-syntax (full-expect stx)
+  (syntax-case stx ()
+      ((_ (e εs Σ) pat)
+       #'(test-->>∃ λπ-red (term (e εs Σ))
+                    (λ (p)
+                      (if (not
+                              (and
+                                (redex-match? λπ pat p)))
+                          (begin (display "Found:\n") (pretty-write p) #f)
+                          #t))))))
+
+
 ;; Primitive values
 (expect none vnone)
 (expect true vtrue)
 (expect false vfalse)
-(expect undefined undefined-val)
+(expect undefined (undefined-val))
 
 ;; object values
 (expect (list none (true false))
@@ -29,7 +41,7 @@
 
 ;; control flow
 (expect (if true none undefined) vnone)
-(expect (if false none undefined) undefined-val)
+(expect (if false none undefined) (undefined-val))
 (expect (if (exception-r vtrue) false false)
 	(exception-r vtrue))
 (expect (seq true false) vfalse)
@@ -85,6 +97,19 @@
 (expect (prim2 "num>=" (mknum 1) (mknum 1)) vtrue)
 (expect (prim2 "num>=" (mknum 2) (mknum 1)) vtrue)
 (expect (prim2 "num>=" (mknum 1) (mknum 2)) vfalse)
+
+
+(full-expect
+  ((object (id str local) (meta-str "foo"))
+   [{(str 1)}]
+   {(0 (obj-val type (meta-class str) ()))
+    (1 (pointer-val 0))})
+  ((pointer-val ref_1)
+   [{(str 1)}]
+   {(0 (obj-val type (meta-class str) ()))
+    (1 (pointer-val 0))
+    (ref_1 (obj-val (pointer-val 0) (meta-str "foo") ()))}))
+
 
 
 (test-results)

@@ -1,13 +1,20 @@
 #lang scribble/sigplan @10pt @preprint
 
-@(require scriblib/footnote scribble/manual scriblib/figure)
+@(require scriblib/footnote scribble/manual scriblib/figure racket/base)
 @(require redex)
 @(require
   "../redex/lambdapy-core.rkt"
   "typesetting.rkt")      
 
-@title{Python: The Full Monty}
+@(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 
+@title{Python: The Full Monty}
+@authorinfo["Sumner Warren" "Brown University" "FILL"]
+@authorinfo["Matthew Milano" "Brown University" "FILL"]
+@authorinfo["Daniel Patterson" "Brown University" "FILL"]
+@authorinfo["Alejandro Martinez" "" ""]
+@authorinfo["Junsong Li" "" ""]
+@authorinfo["Anand Chitipothu" "" ""]
 @authorinfo["Joe Gibbs Politz" "Brown University" "joe@cs.brown.edu"]
 @authorinfo["Shriram Krishnamurthi" "Brown University" "sk@cs.brown.edu"]
 
@@ -53,6 +60,7 @@ An expressive object model is one of the core features of Python.  Pythons
 object and class system has support for single and multiple inheritance, static
 and instance members and methods, monkey-patching, proxying, and more.
 
+
 @subsection{Built-in Values}
 
 Python has a few commonly-used built-in datatypes with rich (but implicit)
@@ -78,7 +86,42 @@ assert(st[0] == "heter")
 
 All of these builtin values have special, builtin behavior that cannot be
 completely emulated by programmers in Python.  We give these values
-distinguished forms in our semantics (Figure [FILL]).
+distinguished forms in our semantics.  However, these builtin values are
+@emph{not} the values of the language themselves.  They only appear as part of
+a larger object value.  Every value that the Python programmer sees truly is
+an object: there is no such thing as a ``primitive string'' that a programmer
+can directly get a reference to in Python.
+
+Every Python object has several elements in common, and has a
+@emph{meta}-value that holds internal primitive data.  As an example, we'll
+step through the various stages of constructing and using a built-in list in
+@(lambda-py).
+
+
+
+
+For example, the string @code{"a-str"} evaluates to:
+
+@centered[
+  @(lp-term (obj-val (pointer-val ref_s) (meta-str "a-str") ()))
+]
+
+Where @(lp-term %str) is a literal identifier, @(lp-term (meta-str "a-str"))
+holds the actual string value, @(lp-term {}) is an empty dictionary (there are
+no fields on strings by default), and @(lp-term ref_s) is a reference to the
+builtin Python @code{str} class.
+
+The common elements of Python objects are the (optional) class reference
+(@(lp-term ref_s), the dictionary of fields (@(lp-term {})), and an (optional)
+class identifier (@(lp-term %str)).  To illustrate what these do, we step
+through just what happens when a simple program, like @code{"a-str"[1]} is
+run.  The program desugars to:
+
+@centered[
+  @(lp-term (app (get-field (object %str (meta-str "a-str")) 'getitem)((object %num (meta-num 1)))))
+]
+
+@subsection{First-class Functions}
 
 Python has first-class functions that can close over their environment (in
 interesting ways, see section [FILL]):
@@ -95,12 +138,39 @@ fun apply_twice(h): h()()
 apply_twice(f) # evaluates to "to-be-closed-over"
 }
 
+Anonymous functions have syntactic restrictions on the kinds of expressions
+that can appear in their body, but are also allowed:
+
+@verbatim{
+x = 10
+f = lambda: x
+f() # evaluates to 10
+f = lambda: x = 42 # syntax error
+}
+
+
 We represent function values in the usual way, as abstractions that store an
 environment:
 
-@codeblock{
-  (fun-val εs (λ (x ...) e))
-}
+@centered[
+@(lp-term (fun-val εs (λ (x ...) e)))
+]
+
+Python also allows for variable-arity functions, which we explicitly support
+in the semantics via an extra argument that holds all additional values passed
+to the function beyond those in the list @(lp-term (x ...)):
+
+@centered[
+@(lp-term (fun-val εs (λ (x ...) x_var e)))
+]
+
+[FILL] functions as objects.
+
+@subsection{Classes}
+
+
+
+
 
 Python has a number of reflective operations on the values in its object
 system.  These operations predominantly preserve @emph{integrity} while
@@ -377,14 +447,14 @@ f() # either evaluates to 'big' or
 \paragraph{Desugaring for Local Scope}
 
 Handling these cases is straightforward to translate into a lexically-scoped
-language.  Lambda-py has a usual @code{let} form that allows for lexical
+language.  @(lambda-py) has a usual @code{let} form that allows for lexical
 binding.  In desugaring, we scan the body of the function and accumulate all
 the variables on the left-hand side of assignment statements in the body.
 These are let-bound at the top of the function to a special value, {\tt
 Undefined}, which evaluates to an exception in any context other than a {\tt
 let}-binding context.  We use @code{x := e} as the expression form for variable
 assignment, which is not a binding form in the core.
-So in lambda-py, the example above rewrites to:
+So in @(lambda-py), the example above rewrites to:
 
 @verbatim{
 import random
@@ -561,7 +631,7 @@ desugaring scope helps fix the problems of this naive solution.
 
 @section{Engineering \& Evaluation}
 
-There are two properties we evaluated for lambda-py:
+There are two properties we evaluated for @(lambda-py):
 
 @verbatim{
 \paragraph{Property 1: $\textit{desugar}$ is a total function:}
@@ -580,7 +650,7 @@ There are two properties we evaluated for lambda-py:
 
 We do not have a proof of either, since doing so would require formalizing
 Python, which is our goal here in the first place.  In order to ascertain the
-degree to which lambda-py enjoys these properties, we @emph{test} our
+degree to which @(lambda-py) enjoys these properties, we @emph{test} our
 semantics against Python's own unit test suite to confirm that our semantics
 matches a real implementation (CPython).  We of course do not have perfect
 fidelity to real-world Python for a number of reasons; in this section we
@@ -593,18 +663,18 @@ and then discuss our results.
 
 We implement as many libraries as possible in Python, with one small addition:
 we define a small @emph{superset} of Python with macros that are recognized
-specially by our desugaring to transform into particular lambda-py forms.
+specially by our desugaring to transform into particular @(lambda-py) forms.
 This allows us to write implementations of libraries that more closely match
 Pythonic descriptions of them, while still maintaining the guarantee that
-everything is implementable in lambda-py itself.
+everything is implementable in @(lambda-py) itself.
 
 @subsection{Performance}
 
-lambda-py is a semantics first, and an implementation of the Python language
-second.  From a semantics perspective, the performance of lambda-py is
+@(lambda-py) is a semantics first, and an implementation of the Python language
+second.  From a semantics perspective, the performance of @(lambda-py) is
 irrelevant:@note{For applications that don't rely on the timing behavior
 of Python.} as long as it is an accurate model of Python's behavior, the
-tool-builder can implement with respect to lambda-py programs regardless of
+tool-builder can implement with respect to @(lambda-py) programs regardless of
 their runtime.
 
 However, to actually @emph{test} the semantics, we do require that the tests
@@ -619,8 +689,8 @@ In our initial implementation, the execution strategy had a few steps:
   @item{Parse and desugar roughly 1 KLOC of libraries implemented in Python}
   @item{Parse and desugar the target program}
   @item{Built up a syntax tree of several built-in libraries, coded by building the AST directly in Racket}
-  @item{Compose items 1-3 into a single lambda-py expression}
-  @item{Evaluate the lambda-py expression}
+  @item{Compose items 1-3 into a single @(lambda-py) expression}
+  @item{Evaluate the @(lambda-py) expression}
 ]
 
 Parsing and desugaring for 1 takes a nontrivial amount of time (on the order of
@@ -628,6 +698,6 @@ Parsing and desugaring for 1 takes a nontrivial amount of time (on the order of
 order, this parsed syntax tree is the same for each test.  Switching to memoize
 this parsing and desugaring for the duration of a test run cut the time for
 running 100 tests from around 7 minutes to around 22 seconds.  A corollary is
-that evaluating lambda-py programs is relatively quick, but desugaring and
+that evaluating @(lambda-py) programs is relatively quick, but desugaring and
 loading external files is not.
 

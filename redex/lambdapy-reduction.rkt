@@ -5,7 +5,7 @@
 (require "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
-(provide λπ-red)
+(provide λπ-red override-store)
 
 
 (define λπ-red
@@ -16,7 +16,7 @@
         vnone
         "none")
    (==> undefined
-        undefined-val
+        (undefined-val)
         "undefined")
    (==> true
 	vtrue
@@ -25,7 +25,7 @@
 	vfalse
 	"false")
    (==> (list val_1 (val ...))
-        (obj-val list (meta-list (val ...)) () val_1)
+        (obj-val val_1 (meta-list (val ...)) ())
         "list")
    (==> (tuple (val ...))
         (obj-val tuple (meta-tuple (val ...)) ())
@@ -42,12 +42,11 @@
    (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
         "fun-vararg")
-   (==> (object x)
-        (obj-val x ())
-        "object")
-   (==> (object x mval)
-        (obj-val x mval ())
-        "object-mval")
+   (--> ((in-hole E (object val mval)) εs Σ)
+        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+        "object-mval"
+        (where ref_new ,(new-loc))
+        (where Σ_1 (override-store Σ ref_new (obj-val val mval ()))))
    (--> ((in-hole E (prim1 op val)) εs Σ)
         ((in-hole E (δ op val εs Σ)) εs Σ)
         "prim1")
