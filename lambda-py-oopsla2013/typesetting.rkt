@@ -41,10 +41,13 @@
   (match (lw-e lws)
     [(? symbol?) (list lws)]
 		[(list a b) (list (replace-e a "{}"))]
-    [(list _ init dots _)
-     (match (lw-e init)
-      [(list _ key val _)
-       (list "{" key ":" val "," dots "}")])]))
+    [(list _ elts ... _)
+     (define (render-dict-elt elt)
+       (match (lw-e elt)
+        [(list _ key val _)
+         (list key ":" val ",")]
+        [_ elt]))
+     (flatten (list (list "{") (map render-dict-elt elts) (list "}")))]))
 
 (define (replace-e the-lw new-e)
   (lw new-e
@@ -108,6 +111,11 @@
     [(list _ _ obj fld _)
      (list "" obj "[" fld "]")]))
 
+(define (assign-rewriter lws)
+  (match lws
+    [(list _ _ target val _)
+     (list "" target ":=" val)]))
+
 (define (app-rewriter lws)
   (match lws
     [(list _ _ fun args _)
@@ -157,6 +165,7 @@
 
     ['id id-rewriter]
 		['get-field getfield-rewriter]
+		['assign assign-rewriter]
 		['app app-rewriter]
 		['object object-rewriter]
 		['list list-rewriter]

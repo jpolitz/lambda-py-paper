@@ -19,9 +19,9 @@
 	 (obj-val val mval ((string ref) ...))
 	 (obj-val x mval ((string ref) ...))
    (fun-val εs (λ (x ...) e))
-   (fun-val εs (λ (x ...) x e))
+   (fun-val εs (λ (x ...) (x) e))
    (fun-val εs (λ (x ...) e) x)
-   (fun-val εs (λ (x ...) x e) x)
+   (fun-val εs (λ (x ...) (x) e) x)
    (pointer-val ref)
    (undefined-val))
 
@@ -36,7 +36,6 @@
         (meta-str string)
         (meta-list (val ...))
         (meta-tuple (val ...))
-        (meta-dict ((val val) ...))
         ;; set is like a list in representation, lack of order has to be accounted for in semantics
         (meta-set (val ...))
         (meta-class x)
@@ -75,7 +74,6 @@
      (builtin-prim op (e ...))
      (list e (e ...))
      (tuple e (e ...))
-     (dict e ((e e) ...))
      (set e (e ...))
      ;; NOTE(dbp): empty raise is "reraise"
      (raise)
@@ -112,9 +110,6 @@
      (tuple val E)
      (set E (e ...))
      (set val E)
-     (dict E ((e e) ...))
-     (dict val ((val val) ... (e E) (e e) ...))
-     (dict val ((val val) ... (E val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field E string)
      (prim1 op E)
      (prim2 op E e)
@@ -151,9 +146,6 @@
      (tuple val T)
      (set T e)
      (set val T)
-     (dict T e)
-     (dict val ((val val) ... (e T) (e e) ...))
-     (dict val ((val val) ... (T val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field T string)
      (prim1 op T)
      (prim2 op T e)
@@ -187,9 +179,6 @@
      (tuple val H)
      (set H e)
      (set val H)
-     (dict H e)
-     (dict val ((val val) ... (e H) (e e) ...))
-     (dict val ((val val) ... (H val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field H string)
      (prim1 op H)
      (prim2 op H e)

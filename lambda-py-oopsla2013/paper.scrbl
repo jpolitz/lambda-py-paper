@@ -163,23 +163,26 @@ into the active context.  Similar rules for tuples, dictionaries, and sets are
 shown in @figure-ref["f:steps-values"].
 
 @figure["f:steps-values" (elem (lambda-py) " reduction rules for creating objects")]{
-  @(lp-reduction '("E-Object" "E-Tuple" "E-Dict" "E-Set" "E-List"))
+  @(lp-reduction '("E-Object" "E-Tuple" "E-Set" "E-List"))
 }
 
 @subsubsection{Accessing Built-in Values}
-
-Now that we've created a list, we should be able to perform some operations on
-it, like look up its elements.  @(lambda-py) defines a number of builtin
-primitives that model Python's internal operators for manipulating data, and
-these are used to access the contents of a given object's @(lp-term mval).
-We formalize these builtin primitives in a metafunction called δ.  A few
-selected cases of the δ function are shown in @figure-ref["f:delta"].
 
 @figure*["f:delta" (elem "A sample of " (lambda-py) " primitives")]{
   @(lp-metafunction δ '(0 1 2 3))
 }
 
-This lets us, for example, look up values on builtin lists:
+@figure["f:references" (elem (lambda-py) " reduction rules for references")]{
+  @(lp-reduction '("E-Fetch" "E-Set!" "E-Alloc"))
+}
+
+Now that we've created a list, we should be able to perform some operations on
+it, like look up its elements.  @(lambda-py) defines a number of builtin
+primitives that model Python's internal operators for manipulating data, and
+these are used to access the contents of a given object's @(lp-term mval).  We
+formalize these builtin primitives in a metafunction δ.  A few selected cases
+of the δ function are shown in @figure-ref["f:delta"].  This metafunction lets
+us, for example, look up values on builtin lists:
 
 @centered{
   @(lp-term (prim "list-getitem" ((obj-val %list (meta-list ((obj-val %str (meta-str "first-elt") ()))) ())
@@ -192,13 +195,61 @@ This lets us, for example, look up values on builtin lists:
 Since δ works over object values themselves, and not over references, we need
 a way to access the values in the store.  @(lambda-py) has the usual set of
 operators for accessing and updating mutable references, shown in
-@figure-ref["f:references"].
+@figure-ref["f:references"].  The real version of the program above would look
+more like:
 
-@figure["f:references" (elem (lambda-py) " reduction rules for references")]{
-  @(lp-reduction '("E-Fetch" "E-Set!" "E-Alloc"))
+@centered{
+  @(lp-term (prim "list-getitem" ((fetch (list (id %list local) ((obj-val %str (meta-str "first-elt") ()))))
+                                  (fetch (object (id %int local) (meta-num 0))))))
 }
 
+Similarly, we can use @(lp-term set!) and @(lp-term alloc) to update the
+values in lists, and to allocate the return values of primitive operations.
 
+@subsection{Updating and Accessing Fields}
+
+So far, the dictionary part of @(lambda-py) objects have always been empty.
+Python does, however, support arbitrary field assignments on objects.  The
+expression
+
+@centered{
+  @(lp-term (assign (get-field e_obj str_f) e_val))
+}
+
+has one of two behaviors, defined in @figure-ref["f:simple-objs"].  If @(lp-term
+str_f) is a string that is already a member of @(lp-term e_obj), that field is
+imperatively updated with @(lp-term e_val).  If the string is not present,
+then a new field is added to the object, with a newly-allocated store
+position, and the object is functionally updated.  We combine this functional
+update with @(lp-term set!) expressions on reference values in order to model
+objects with an imperatively extended set of fields.
+
+The simplest rule for accessing fields simply checks in the object's
+dictionary for the provided name and returns the appropriate value, shown in
+E-GetField in @figure-ref["f:simple-objs"].  [FILL why are they literal
+strings and not meta-vals that contain strings?]
+
+@figure*["f:simple-objs" @elem{Simple field access and update in @(lambda-py)}]{
+  @(lp-reduction '("E-AssignUpdate" "E-AssignAdd" "E-GetField"))
+}
+
+@subsection{First-class Functions}
+
+
+We represent function values in the usual way, as abstractions that store a
+list of environments:@note{We discuss in [REF] why we store an environment
+@emph{list} instead of just a single environment}.  As shown in
+@figure-ref["f:functions"], function expressions @(lp-term (fun (x ...) e))
+evaluate to closures that store the current list @(lp-term εs).  Python also
+allows for variable-arity functions, which we explicitly support in the
+semantics via an extra argument that holds all additional values passed to the
+function beyond those in the list @(lp-term (x ...)).
+
+@figure["f:functions" @elem{Evaluating function expressions}]{
+  @(lp-reduction '("E-FunNoVarArg" "E-FunVarArg"))
+}
+
+[FILL] functions as objects.
 
 The full language of expressions for @(lambda-py) is in
 @figure-ref["f:exprs"].  We defer a full explanation of all the terms in that
@@ -212,52 +263,7 @@ unique to Python.
 }
 
 
-@subsection{First-class Functions}
-
-Python has first-class functions that can close over their environment (in
-interesting ways, see section [FILL]):
-
-@verbatim{
-def f():
-  x = "to-be-closed-over"
-  def g():
-    return x
-  return g
-
-fun apply_twice(h): h()()
-
-apply_twice(f) # evaluates to "to-be-closed-over"
-}
-
-Anonymous functions have syntactic restrictions on the kinds of expressions
-that can appear in their body, but are also allowed:
-
-@verbatim{
-x = 10
-f = lambda: x
-f() # evaluates to 10
-f = lambda: x = 42 # syntax error
-}
-
-
-We represent function values in the usual way, as abstractions that store an
-environment:
-
-@centered[
-@(lp-term (fun-val εs (λ (x ...) e)))
-]
-
-Python also allows for variable-arity functions, which we explicitly support
-in the semantics via an extra argument that holds all additional values passed
-to the function beyond those in the list @(lp-term (x ...)):
-
-@centered[
-@(lp-term (fun-val εs (λ (x ...) x_var e)))
-]
-
-[FILL] functions as objects.
-
-@subsection{Classes}
+@section{Classes, Methods, and Pythonic Desugarings}
 
 
 
@@ -660,6 +666,7 @@ def f(x, y):
     def g(self):
       print(x); print(y); print(c)
   return c
+
 f("x-value", "y-value")().g()
 
 }

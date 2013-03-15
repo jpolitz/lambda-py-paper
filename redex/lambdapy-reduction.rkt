@@ -39,11 +39,6 @@
         "E-Set"
         (where ref_new ,(new-loc))
         (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-set (val ...)) ()))))
-   (--> ((in-hole E (dict val_c ((val val) ...))) εs Σ)
-        ((in-hole E (pointer-val ref_new)) εs Σ_1)
-        "E-Dict"
-        (where ref_new ,(new-loc))
-        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-dict ((val val) ...)) ()))))
    (--> ((in-hole E (fetch (pointer-val ref))) εs
          (name Σ ((ref_1 val_1) ... (ref val) (ref_n val_n) ...)))
         ((in-hole E val) εs Σ)
@@ -59,10 +54,10 @@
         (where Σ_1 (override-store Σ ref_new val)))
    (--> ((in-hole E (fun (x ...) e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) e))) εs Σ)
-        "fun-novararg")
+        "E-FunNoVarArg")
    (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
-        "fun-vararg")
+        "E-FunVarArg")
    (--> ((in-hole E (object val mval)) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
         "E-Object"
@@ -217,16 +212,10 @@
         (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
         (side-condition (not (redex-match? λπ (undefined-val) (term val_1)))) ;; TODO: exception for undefined
         "id-local")
-   (--> ((in-hole E (get-field (obj-val x mval ... ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1))
-         εs
-         (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
-        ((in-hole E val_1)
-         εs
-         store)
-        (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
-        (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
-        "get-field")
-   (--> ((in-hole E (get-field (obj-val x mval ... ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
+   (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1)) εs (name Σ ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
+        ((in-hole E val_1) εs Σ)
+        "E-GetField")
+   (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
          εs
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
         ((in-hole E (get-field val_1 string_1))
@@ -237,7 +226,7 @@
         (side-condition (not (member "__class__" (term (string_2 ... string_3 ...)))))
         (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
         "get-field-class")
-   (--> ((in-hole E (get-field (obj-val x_base mval ... ((string_2 ref_2) ...)) string_1))
+   (--> ((in-hole E (get-field (obj-val x_base mval ((string_2 ref_2) ...)) string_1))
          (name env (((x_1 ref_x1) ...) ... ((x_2 ref_x2) ... (x_base ref_base) (x_3 ref_x3) ...) ε ...))
          (name store ((ref_4 val_4) ... (ref_base val_base) (ref_5 val_5) ...)))
         ((in-hole E (get-field val_base string_1))
@@ -266,17 +255,15 @@
          (override-store Σ ref_1 val_1))
         (side-condition (not (member (term x_1) (term (x_2 ... x_3 ...)))))
         "assign-local-bound")
-   (--> ((in-hole E (assign (get-field
-                             (obj-val x mval ... ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...))
-                             string_1)
-                            val_1))
-         εs
-         Σ)
-        ((in-hole E vnone)
-         εs
-         (override-store Σ ref_1 val_1))
+   (--> ((in-hole E (assign (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1) val_1)) εs Σ)
+        ((in-hole E vnone) εs (override-store Σ ref_1 val_1))
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
-        "assign-field")
+        "E-AssignUpdate")
+   (--> ((in-hole E (assign (get-field (obj-val x mval ((string ref) ... )) string_1) val_1)) εs Σ)
+        ((in-hole E (obj-val x mval ((string_1 ref_new) (string ref) ...))) εs (override-store Σ ref_new val_1))
+        (side-condition (not (member (term string_1) (term (string ...)))))
+        "E-AssignAdd"
+        (where ref_new ,(new-loc)))
    (==> (val ... r e ...)
         (r)
         (side-condition (not (val? (term r))))
