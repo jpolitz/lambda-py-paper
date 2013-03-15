@@ -11,5 +11,11 @@ typed:
 
 test:
 	racket python-main.rkt --python-path `which python3.2` --test ../tests/python-reference
+
+cpstest:
+	raco make cps-test.rkt
+	racket python-main.rkt --python-path `which python3.2` --test-cps
+	@echo "cps tests done."
+
 clean:
 	@`which rm` compiled/*

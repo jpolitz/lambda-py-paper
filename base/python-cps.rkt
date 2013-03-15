@@ -9,9 +9,6 @@
   (typed-in racket/base (format : (string 'a -> string)))
   (typed-in racket/base (gensym : (symbol -> symbol))))
 
-(define (pyget val fld)
-  (pyapp (CGetField val '__getitem__)
-	 fld))
 
 ;; Identifiers used in the headers of CPS-generated lambdas
 (define K (gensym 'next))
@@ -31,7 +28,7 @@
 
 (define (cps-list exprs base-thunk)
   (pylam (K R E B C)
-    (cps-list/help exprs empty base-thunk)))
+    (pyapp Ki (cps-list/help (reverse exprs) empty base-thunk))))
 
 (define (cps-list/help exprs ids base-thunk)
   (cond
@@ -42,6 +39,32 @@
         (cps (first exprs))
         (pylam (id) (cps-list/help (rest exprs) (cons id ids) base-thunk))
         Ri Ei Bi Ci))]))
+
+
+;; NOTE(dbp): the next two were created to deal with dicts, but dicts
+;; may be going away, so these could potentially be dropped if that is
+;; the case.
+(define (cps-hash hsh base-thunk)
+  (pylam (K R E B C)
+         (pyapp Ki (cps-hash/help (hash-keys hsh) hsh empty base-thunk))))
+
+(define (cps-hash/help keys hsh pairs base-thunk)
+  (cond
+    [(empty? keys) (base-thunk pairs)]
+    [(cons? keys)
+     (local [(define key (gensym '-cps/hashkey))
+             (define val (gensym '-cps/hashval))]
+       (pyapp
+        (cps (first keys))
+        (pylam (key)
+          (pyapp
+           (cps (some-v (hash-ref hsh (first keys))))
+           (pylam (val) (cps-hash/help (rest keys)
+                                       (cons (values (Id key) (Id val)) pairs)
+                                       base-thunk))
+           Ri Ei Bi Ci))
+        Ri Ei Bi Ci))]))
+
 
 (define (cps expr)
   (local [
@@ -57,12 +80,21 @@
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
 
-    [CClass (nm bases body) (error 'cps "Not written yet")]
+    [CClass (nm bases body)
+      (pylam (K R E B C)
+        (pyapp (cps bases)
+          (pylam (V)
+            (pyapp (cps body)
+              (pylam (V2)
+                (pyapp Ki (CClass nm Vi V2i)))
+              Ri Ei Bi Ci))
+          Ri Ei Bi Ci))]
+
     [CGetField (val attr)
       (pylam (K R E B C)
-	(pyapp (cps val)
+        (pyapp (cps val)
 	  (pylam (V)
-	    (CGetField Vi attr))
+            (pyapp Ki (CGetField Vi attr)))
 	  Ri Ei Bi Ci))]
     
     [CApp (fun args stararg)
@@ -78,15 +110,17 @@
 		[some (e)
 		  (pyapp (cps e)
 		    (pylam (V2)
-		    (CApp Vi ids (some V2i)))
+                           (CApp Vi ids (some V2i)))
 		  Ri Ei Bi Ci)])))
 	   Ki Ei Ri Bi Ci))
 	 Ri Ei Bi Ci))]
 
-    [CList (cls values) (error 'cps "Not written yet")]
+    [CList (cls values) (cps-list values (lambda (ids) (CList cls ids)))]
     [CTuple (cls values) (cps-list values (lambda (ids) (CTuple cls ids)))]
-    [CDict (cls contents) (error 'cps "Not written yet")]
-    [CSet (cls values) (error 'cps "Not written yet")]
+    ;; NOTE(dbp): my impression is that CDict is going away... so this doesn't
+    ;; need to ever be implemented.
+    [CDict (cls contents) (error 'cps "CDict not implemented yet")]
+    [CSet (cls values) (cps-list values (lambda (ids) (CSet cls ids)))]
 
     [CLet (x typ bind body)
      (pylam (K R E B C)
@@ -147,7 +181,10 @@
      (pylam (K R E B C) (pyapp (cps val) Ri Ri Ei Bi Ci))]
 
     [CRaise (val)
-     (pylam (K R E B C) (pyapp (cps val) Ei Ri Ei Bi Ci))]
+     (type-case (optionof CVal) val
+       [none () (error 'cps "Haven't handled empty raises yet")]
+       [some (v)
+             (pylam (K R E B C) (pyapp (cps v) Ei Ri Ei Bi Ci))])]
 
     [CBreak ()
      (pylam (K R E B C) (pyapp Bi (CNone)))]
@@ -168,10 +205,12 @@
               (pyapp (cps test)
                (pylam (V)
 		(CSeq
-		 (pyapp (gid 'print) (CSym 'test-continuation))
+                 (CNone)
+		 ;(pyapp (gid 'print) (CSym 'test-continuation))
                 (CIf Vi
 		  (CSeq
-		   (pyapp (gid 'print) (CSym 'body-of-while))
+                   (CNone)
+		   ;(pyapp (gid 'print) (CSym 'body-of-while))
                   (pyapp (cps body)
                     (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
                     Ri Ei Bi Ci))
@@ -181,22 +220,58 @@
            (CAssign (Id '-continue)
             (pylam (V)
 	      (CSeq
-	       (pyapp (gid 'print) (CSym 'continue-continuation))
+               (CNone)
+	       ;(pyapp (gid 'print) (CSym 'continue-continuation))
               (pyapp
                (Id '-while)
                Ki Ri Ei Ki ;; NOTE(joe): Break becomes the "normal" continuation Ki
                (Id '-continue)))))
            (pyapp (Id '-continue) (CSym 'nothing))))))))]
 
-    #;[CTryExceptElseFinally (try excepts orelse finally) (error 'cps "Not written yet")]
+    [CTryExceptElse
+     (try exn excepts els)
+     (error 'cps "TryExceptElse not written yet")]
 
+    [CTryFinally
+     (try finally)
+     (pylam (K R E B C)
+       (pyapp (cps try)
+         ;; in each case, we run the finally and then put the original
+         ;; value back to whatever continuation that it wanted
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ki Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ri Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ei Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Bi Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ci Vi))
+                     Ri Ei Bi Ci))))]
 
     [else (error 'cps (format "Not handled: ~a" expr))])))
 
 (define (cps-eval expr)
   (local [
     (define result
-      (interp-env
+      (begin
+        (reset-state)
+        (interp-env
             (python-lib
               (CModule '()
               (pyapp (cps expr)
@@ -206,8 +281,26 @@
                      (pylam (V) (CRaise (some (CSym 'Top-level-exception))))
                      (pylam (V) (CRaise (some (CSym 'Top-level-break))))
                      (pylam (V) (CRaise (some (CSym 'Top-level-continue)))))))
-            (list (hash empty)) (hash empty) empty))
+            (list (hash empty)) (hash empty) empty)))
   ]
   (type-case Result result
-    [v*s (v s) v]
+    [v*s (v s) (type-case CVal v
+                 [VPointer (p) (fetch-once p s)]
+                 [else v])]
+    [else (error 'cps-eval (format "Abnormal return: ~a" result))])))
+
+(define (non-cps-eval expr)
+  (local [
+    (define result
+      (begin
+        (reset-state)
+        (interp-env
+            (python-lib
+              (CModule '() expr))
+            (list (hash empty)) (hash empty) empty)))
+  ]
+  (type-case Result result
+    [v*s (v s) (type-case CVal v
+                 [VPointer (p) (fetch-once p s)]
+                 [else v])]
     [else (error 'cps-eval (format "Abnormal return: ~a" result))])))

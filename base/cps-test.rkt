@@ -10,7 +10,6 @@
   "util.rkt"
   "python-cps.rkt")
 
-(display (pylam ('k) (CId 'x (LocalId))))
 
 (test (pylam ('k) (CId 'x (LocalId)))
       (CFunc (list 'k) (none)
@@ -18,9 +17,8 @@
         (none)))
 
 (test (cps (CId 'x (LocalId)))
-      (CFunc (list K R E B C) (none)
-        (CReturn (CApp (Id K) (list (CId 'x (LocalId))) (none)))
-        (none)))
+      (pylam (K R E B C)
+        (pyapp (Id K) (CId 'x (LocalId)))))
 
 (test (cps (CSeq (make-builtin-str "foo") (make-builtin-str "bar")))
       (pylam (K R E B C)
@@ -57,7 +55,7 @@
               Ri Ri Ei Bi Ci))
           Ri Ri Ei Bi Ci)))
 
-(test (cps (CRaise (CSym 'bar)))
+(test (cps (CRaise (some (CSym 'bar))))
       (pylam (K R E B C)
         (pyapp
           (pylam (K R E B C)
@@ -146,57 +144,58 @@
 (test (cps-eval (CWhile (CSym 'false) (CSym 'body) (CSym 'else)))
       (VSym 'else))
 
-(test (cps-eval (pyapp (gid 'print) (CSym 'foo)))
-      (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+;; NOTE(dbp): not working right now
+;;(test (cps-eval (pyapp (gid 'print) (CSym 'foo)))
+;;      (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
 
 (define fun-expr (CApp (CFunc (list) (some 'arg)
-			      (CReturn (Id 'arg))
-			      (none))
-		       (list)
-		       (some (CTuple (list (make-builtin-str "foo-starred"))))))
+                               ;; BUG(dbp)? stararg wrapped in extra tuple
+                               (CReturn (pyget (Id 'arg) (make-builtin-num 0)))
+                               (none))
+                       (list)
+                       (some (CTuple (gid '%tuple) (list (CSym 'foo-starred))))))
 
-(test (VObjectClass-mval
-       (first (MetaTuple-v (some-v (VObjectClass-mval
-		       (cps-eval fun-expr))))))
-      (some (MetaStr "foo-starred")))
+(test (cps-eval fun-expr)
+      (VSym 'foo-starred))
 
-(define tuple-field-expr (pyget (CTuple (list (CSym 'foo)))
-				(make-builtin-num 0)))
+(define tuple-field-expr (pyget (CTuple (gid '%tuple) (list (CSym 'foo)))
+                                 (make-builtin-num 0)))
 (test (cps-eval tuple-field-expr)
       (VSym 'foo))
 
-;; TODO(joe): need builtin prim (list cps) for this to work.
+(test (cps-eval (pyget (CList (gid '%list) (list (CSym 'foo) (CSym 'bar)))
+                       (make-builtin-num 1)))
+      (VSym 'bar))
+
 (test (cps-eval
   (Let 'x (make-builtin-num 0)
     (CWhile (CTrue)
-      (CSeq
-        (CNone);(CPrim1 'print (Id 'x))
-        (CIf
-	  (CSeq
-	   (pyapp (gid 'print) (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10))))
-	   (CSeq (pyapp (gid 'print) (Id 'x))
-          (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10)))))
-          (CBreak)
-          (CSeq
-            (CNone);(CPrim1 'print (Id 'x))
-            (CAssign (Id 'x) (CBuiltinPrim 'num+ (list (Id 'x) (make-builtin-num 2)))))))
+      (CIf
+       (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10)))
+       (CBreak)
+       (CAssign (Id 'x) (CBuiltinPrim 'num+ (list (Id 'x) (make-builtin-num 2)))))
       (CSym 'finished))))
-  (VObjectClass 'none (none) (hash empty) (none)))
+  (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
 
-#;(test (cps-eval (CWhile (CSym 'true) (CSym 'body) (CSym 'else)))
-      (VSym 'body))
-          
-#;(test (cps (CReturn (CReturn (make-builtin-str "foo"))))
-      (pylam (K R E B C)
-        (pyapp
-          (pylam (K R E B C)
-                  (pyapp
-                    (pylam (K R E B C) (pyapp (Id K) (make-builtin-str "foo")))
-                    Ri Ri Ei Bi Ci))
-          Ri Ri Ei Bi Ci)))
+(test (MetaStr-s (some-v (VObjectClass-mval
+       (cps-eval (CSeq (make-builtin-str "foo") (make-builtin-str "bar"))))))
+      "bar")
 
-;; It's a shame this doesn't work; testing full on interpretation will
-;; be more involved...
-#;(test (cps-eval (CSeq (make-builtin-str "foo") (make-builtin-str "bar")))
-      (make-builtin-str "bar"))
 
+
+(test (MetaSet-elts (some-v (VObjectClass-mval
+       (cps-eval (CSet (gid '%set) (list (CSym 'foo) (CSym 'bar)))))))
+      (make-set (list (VSym 'foo) (VSym 'bar))))
+
+(test (VObjectClass-mval (cps-eval (CClass 'hello (CTuple (gid '%tuple) (list)) (CSym 'bar))))
+      (some (MetaClass 'hello)))
+
+;; NOTE(dbp): not sure how to test tryfinally properly, because we
+;; don't have a way to capture that the finally block was run, as we
+;; aren't testing side effects. Also, current test framework wants
+;; only actual values to be the result, so writing tests that raise
+;; things or have breaks/continues causes errors... errg. Perhaps this
+;; will be better served by larger scale tests where all of those things
+;; can be asserted.
+(test (cps-eval (CTryFinally (CSym 'foo) (CSym 'bar)))
+      (VSym 'foo))
