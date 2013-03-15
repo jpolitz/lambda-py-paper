@@ -5,11 +5,13 @@
 @(require
   "../redex/lambdapy-core.rkt"
   "../redex/lambdapy-reduction.rkt"
+  "../redex/lambdapy-prim.rkt"
   "typesetting.rkt")      
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 
-@title{Python: The Full Monty}
+@title{Python: The Full Monty@(elem #:style "thanks" "Title credit Benjamin S.
+Lerner")}
 @authorinfo["Sumner Warren" "Brown University" "FILL"]
 @authorinfo["Matthew Milano" "Brown University" "FILL"]
 @authorinfo["Daniel Patterson" "Brown University" "FILL"]
@@ -50,7 +52,7 @@ Finally, we show how generators, a complicated control-flow construct in
 Python, interact with Python's scope and require a more subtle solution than
 an obvious CPS transformation.
 
-@figure["f:values" "Values in LambdaPy"]{
+@figure["f:values" @elem{Values in @(lambda-py)}]{
   @(with-rewriters
     (lambda () (render-language λπ #:nts '(val mval εs ε ref))))
 }
@@ -93,13 +95,20 @@ a larger object value.  Every value that the Python programmer sees truly is
 an object: there is no such thing as a ``primitive string'' that a programmer
 can directly get a reference to in Python.
 
-Every Python object has several elements in common, and has a
-@emph{meta}-value that holds internal primitive data.  As an example, we'll
-step through the various stages of constructing and using a built-in list in
-@(lambda-py).  Lists are built with object expressions, which have two pieces:
-the @emph{class} of the object being constructed, and the @emph{meta-val}, if
-any, that stores primitive data.  The expression for creating an empty list
-is:
+@subsubsection{Creating Values}
+
+@Figure-ref["f:values"] shows the representation of values in @(lambda-py).
+Each @(lambda-py) object, written as a triple of the form @(lp-term (obj-val val mval ((string ref) ...))), has distinguished positions for its class, its primitive
+content (if any), and the dictionary of string-indexed fields that it holds.
+The class value is any other Python value, though non-objects may end up
+throwing runtime errors.  The @emph{meta-val} position holds special kinds of
+builtin data, of which there is one per builtin type that @(lambda-py) models.
+
+As an example, we'll step through the various stages of constructing and using
+a built-in list in @(lambda-py).  Lists are built with object expressions,
+which have two pieces: the @emph{class} of the object being constructed, and
+the @emph{meta-val}, if any, that stores primitive data.  The expression for
+creating an empty list is:
 
 @centered[
   @(lp-term (list (id %list localid) ()))
@@ -107,22 +116,25 @@ is:
 
 Where @(lp-term (id %list localid)) is expected to be bound to the built-in
 list class.  In general, the first position of a list expression is the
-@emph{class} of the list object to create.  This is part of the list
+@emph{class} of the list object to create.  This must part of the list
 expression because programmers can subclass the builtin @code{list} class and
 create values that can use all the built-in list primitives, but have their
 own set of methods.  The second part of the expression is a list of
 expressions that will evaluate to the elements of the list.  For example, a
 list containing the numbers 1 and 3 is written:
 
+@(define (lst1)
+  (lp-term (list (id %list localid) ((object (id %int localid) (meta-num 1)) (object (id %int localid) (meta-num 3))))))
+
 @centered[
-  @(lp-term (list (id %list localid) ((object (id %int localid) (meta-num 1)) (object (id %int localid) (meta-num 3)))))
+  @(lst1)
 ]
 
 The object creation expressions for numbers similarly indicate that the
-@code{%int} class should be used for their methods.  The rule for evaluating
-list expressions themselves allocates a new location on the heap for the
-resulting list, and constructs a value with the given class and a
-@code{meta-list} to hold its elements:
+@(lp-term %int) class should be used for their methods.  The rule for
+evaluating list expressions themselves allocates a new location on the heap
+for the resulting list, and constructs a value with the given class and a
+list-typed @(lp-term mval) to hold its elements:
 
 @centered[
   @(lp-reduction '("E-List"))
@@ -130,33 +142,75 @@ resulting list, and constructs a value with the given class and a
 
 Here, the @"@" indicates a reference value, which is pointing to a new object
 which is added to the store Σ.  This also shows the shape of reductions for
-@(lambda-py), which is a small-step relation over triples of expressions e,
-environments εs, and stores Σ.
+@(lambda-py), which is a small-step relation over triples of expressions
+@(lp-term e), environment lists @(lp-term εs),@note{We discuss the need for a
+list of environments, rather than just a single environment, in [REF].} and
+stores @(lp-term Σ).  We define evaluation contexts @(lp-term E) in the usual
+way to enforce an evaluation order on expressions.
 
-@figure*["f:steps" (elem (lambda-py) " reduction rules")]{
-  @(lp-reduction '("E-Object"))
+In this style, to fully evaluate @(lst1), the reduction would
+allocate 3 new references: one for each number, and one for the resulting
+list:
+
+@itemlist[
+  @item{@(lp-term (Σ(ref_list))) = @(lp-term (obj-val %list (meta-list ((pointer-val ref_one) (pointer-val ref_three))) ()))}
+  @item{@(lp-term (Σ(ref_one))) = @(lp-term (obj-val %int (meta-num 1) ()))}
+  @item{@(lp-term (Σ(ref_three))) = @(lp-term (obj-val %int (meta-num 3) ()))}
+]
+
+And the reference value @(lp-term (pointer-val ref_list)) would be placed back
+into the active context.  Similar rules for tuples, dictionaries, and sets are
+shown in @figure-ref["f:steps-values"].
+
+@figure["f:steps-values" (elem (lambda-py) " reduction rules for creating objects")]{
+  @(lp-reduction '("E-Object" "E-Tuple" "E-Dict" "E-Set" "E-List"))
 }
 
-For example, the string @code{"a-str"} evaluates to:
+@subsubsection{Accessing Built-in Values}
 
-@centered[
-  @(lp-term (obj-val (pointer-val ref_s) (meta-str "a-str") ()))
-]
+Now that we've created a list, we should be able to perform some operations on
+it, like look up its elements.  @(lambda-py) defines a number of builtin
+primitives that model Python's internal operators for manipulating data, and
+these are used to access the contents of a given object's @(lp-term mval).
+We formalize these builtin primitives in a metafunction called δ.  A few
+selected cases of the δ function are shown in @figure-ref["f:delta"].
 
-Where @(lp-term %str) is a literal identifier, @(lp-term (meta-str "a-str"))
-holds the actual string value, @(lp-term {}) is an empty dictionary (there are
-no fields on strings by default), and @(lp-term ref_s) is a reference to the
-builtin Python @code{str} class.
+@figure*["f:delta" (elem "A sample of " (lambda-py) " primitives")]{
+  @(lp-metafunction δ '(0 1 2 3))
+}
 
-The common elements of Python objects are the (optional) class reference
-(@(lp-term ref_s), the dictionary of fields (@(lp-term {})), and an (optional)
-class identifier (@(lp-term %str)).  To illustrate what these do, we step
-through just what happens when a simple program, like @code{"a-str"[1]} is
-run.  The program desugars to:
+This lets us, for example, look up values on builtin lists:
 
-@centered[
-  @(lp-term (app (get-field (object %str (meta-str "a-str")) 'getitem)((object %num (meta-num 1)))))
-]
+@centered{
+  @(lp-term (prim "list-getitem" ((obj-val %list (meta-list ((obj-val %str (meta-str "first-elt") ()))) ())
+                                  (obj-val %int (meta-num 0) ()))))
+  @(newline)
+  @(lp-term ==>)
+  @(lp-term (obj-val %str (meta-str "first-elt") ()))
+}
+
+Since δ works over object values themselves, and not over references, we need
+a way to access the values in the store.  @(lambda-py) has the usual set of
+operators for accessing and updating mutable references, shown in
+@figure-ref["f:references"].
+
+@figure["f:references" (elem (lambda-py) " reduction rules for references")]{
+  @(lp-reduction '("E-Fetch" "E-Set!" "E-Alloc"))
+}
+
+
+
+The full language of expressions for @(lambda-py) is in
+@figure-ref["f:exprs"].  We defer a full explanation of all the terms in that
+semantics, and the full reduction relation, to the appendix [REF].  We
+continue here by focusing on some of the cases in the semantics that are
+unique to Python.
+
+@figure["f:exprs" (elem (lambda-py) " expressions")]{
+  @(with-rewriters
+    (lambda () (render-language λπ #:nts '(e t))))
+}
+
 
 @subsection{First-class Functions}
 

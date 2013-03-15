@@ -29,15 +29,34 @@
         "E-List"
         (where ref_new ,(new-loc))
         (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-list (val ...)) ()))))
-   (==> (tuple (val ...))
-        (obj-val tuple (meta-tuple (val ...)) ())
-        "tuple")
-   (==> (set (val ...))
-        (obj-val set (meta-set (val ...)) ())
-        "set")
-   (==> (dict ((val_1 val_2) ...))
-        (obj-val $dict (meta-dict ((val_1 val_2) ...)) ())
-        "dict") ;; TODO: duplicated keys
+   (--> ((in-hole E (tuple val_c (val ...))) εs Σ)
+        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+        "E-Tuple"
+        (where ref_new ,(new-loc))
+        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-tuple (val ...)) ()))))
+   (--> ((in-hole E (set val_c (val ...))) εs Σ)
+        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+        "E-Set"
+        (where ref_new ,(new-loc))
+        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-set (val ...)) ()))))
+   (--> ((in-hole E (dict val_c ((val val) ...))) εs Σ)
+        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+        "E-Dict"
+        (where ref_new ,(new-loc))
+        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-dict ((val val) ...)) ()))))
+   (--> ((in-hole E (fetch (pointer-val ref))) εs
+         (name Σ ((ref_1 val_1) ... (ref val) (ref_n val_n) ...)))
+        ((in-hole E val) εs Σ)
+        "E-Fetch")
+   (--> ((in-hole E (set! (pointer-val ref) val)) εs Σ)
+        ((in-hole E val) εs Σ_1)
+        "E-Set!"
+        (where Σ_1 (override-store Σ ref val)))
+   (--> ((in-hole E (alloc val)) εs Σ)
+        ((in-hole E (pointer-val val)) εs Σ_1)
+        "E-Alloc"
+        (where ref_new ,(new-loc))
+        (where Σ_1 (override-store Σ ref_new val)))
    (--> ((in-hole E (fun (x ...) e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) e))) εs Σ)
         "fun-novararg")

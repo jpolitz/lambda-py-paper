@@ -48,6 +48,9 @@
   (e true
      false
      none
+     (fetch e)
+     (set! e e)
+     (alloc e)
      (class x e e)
      (object e mval)
      (get-field e string)
@@ -93,6 +96,10 @@
   
   ;; evaluation context
   (E hole
+     (fetch E)
+     (set! E e)
+     (set! v E)
+     (alloc E)
      (module E e)
      (object E mval)
      (assign e E)
@@ -129,6 +136,10 @@
   
   ;; context in a try block
   (T hole
+     (fetch T)
+     (set! T e)
+     (set! v T)
+     (alloc T)
      (object T mval)
      (assign e T)
      (seq T e)
@@ -161,6 +172,10 @@
   
   ;; context for while body
   (H hole
+     (fetch H)
+     (set! H e)
+     (set! v H)
+     (alloc H)
      (object H mval)
      (assign e H)
      (seq H e)

@@ -98,6 +98,17 @@
 (expect (prim2 "num>=" (mknum 2) (mknum 1)) vtrue)
 (expect (prim2 "num>=" (mknum 1) (mknum 2)) vfalse)
 
+(expect
+  (builtin-prim "list-getitem" (
+    (obj-val %list (meta-list ((pointer-val 0) (pointer-val 1))) ())
+    (obj-val %int (meta-num 0) ())))
+  (pointer-val 0))
+
+(expect
+  (builtin-prim "list-getitem" (
+    (fetch (list vnone ((pointer-val 0) (pointer-val 1))))
+    (fetch (object vnone (meta-num 0)))))
+  (pointer-val 0))
 
 (full-expect
   ((object (id str local) (meta-str "foo"))

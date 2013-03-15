@@ -31,11 +31,25 @@
 
 (define-metafunction λπ
   δ : op val ... εs Σ -> r
+  [(δ "list-getitem" (obj-val any_c1 (meta-list (val_0 ... val_1 val_2 ...)) any_1) (obj-val any_c2 (meta-num number_2) any_2) εs Σ)
+   val_1
+   (side-condition (equal? (length (term (val_0 ...))) (term number_2)))]
+  [(δ "list-getitem" (obj-val any_c1 (meta-list (val_1 ...)) any_1) (obj-val any_c2 (meta-num number_2) any_2) εs Σ)
+   vnone]
+  [(δ "list-setitem" (obj-val any_c1 (meta-list (val_0 ... val_1 val_2 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 val_4 εs Σ)
+   (obj-val val_4 (meta-list (val_0 ... val_3 val_2 ...)) ())
+   (side-condition (equal? (length (term (val_0 ...))) (term number_2)))]
+  #;[(δ "list-getitem" (obj-val any_1 (meta-list (val_1 ...)) any_2) (obj-val any_3 (meta-num number_2) any_4) εs Σ)
+   ,(if (and (exact? (term number_2)) (> (length (term (val_1 ...))) (term number_2)))
+        (list-ref (term (val_1 ...)) (term number_2))
+        (term vnone))]
+  [(δ "num+" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val x_1 (meta-num ,(+ (term number_1) (term number_2))) ())]
   [(δ "not" val εs Σ)
    ,(if (term (truthy? val)) (term vfalse) (term vtrue))]
   [(δ "print" val εs Σ)
    ,(begin (display (term val)) (display "\n") (term vnone))] ;; not sure how to do print for now
-  [(δ "callable" (fun-val any ...) εs Σ)
+  #;[(δ "callable" (fun-val any ...) εs Σ)
    vtrue]
   [(δ "callable" (obj-val x (meta-class any) any) εs Σ)
    vtrue]
@@ -48,8 +62,6 @@
   [(δ "isinstance" val_1 (obj-val x (meta-class x_class) any) εs Σ)
    ,(if (term (object-is? val_1 x_class εs Σ)) (term vtrue) (term vfalse))]
   ;; numbers, no type-checking yet
-  [(δ "num+" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
-   ,(make-num (+ (term number_1) (term number_2)))]
   [(δ "num-" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
    ,(make-num (- (term number_1) (term number_2)))]
   [(δ "num*" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
@@ -150,10 +162,6 @@
    (δ "list-in" (obj-val x_1 (meta-list (val ...)) any_1) val_2 εs Σ)]
   [(δ "list-in" (obj-val x_1 (meta-list ()) any_1) val_2 εs Σ)
    vfalse]
-  [(δ "list-getitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
-   ,(if (and (exact? (term number_2)) (> (length (term (val_1 ...))) (term number_2)))
-        (list-ref (term (val_1 ...)) (term number_2))
-        (term vnone))]
   [(δ "list-setitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 εs Σ)
    (obj-val list (meta-list ,(list-replace (term number_2) (term val_3) (term (val_1 ...)))) ())]
   )
