@@ -651,19 +651,14 @@ we do for variables elsewhere in Python.  Consider the following example:
 
 @verbatim{
 def f(x, y):
-  print(x)
-  print(y)
-  print("")
+  print(x); print(y); print("")
   class c:
     x = 4
-    print(x)
-    print(y)
+    print(x); print(y)
     print(locals()["x"])
     print("")
     def g(self):
-      print(x)
-      print(y)
-      print(c)
+      print(x); print(y); print(c)
   return c
 f("x-value", "y-value")().g()
 
@@ -687,15 +682,18 @@ y-value
 
 }
 
-Here we observe an interesting phenomenon: the local variable created by the assignment x = 4
-has seemingly vanished.  It is not closed over by the function g; g seems to "skip" the scope in
-which x is bound to 4, preferring to close over the outer scope in which x is bound to "x-value".
-At first glance this does not appear to be compatible with our previous notions of pythonic closures;
+Here we observe an interesting phenomenon: in the body of @code{g} the local variable created by the assignment x = 4
+has seemingly vanished.  It is not closed over by the function @code{g}; the
+body of @code{g} seems to "skip" the scope in
+which x is bound to 4, instead closing over the outer scope in which @code{x}
+is bound to @code{"x-value"}.
+At first glance this does not appear to be compatible with our previous notions of Pythonic closures;
 we will see, however, that the correct desugaring is capable of expressing the semantics of scope in 
 Python's classes within the framework we have already established for dealing with python's scope.  
 
-@subsection{desugaring scope}
-\paragraph{Desugaring for Local Scope}
+@subsection{Desugaring Scope}
+
+@subsubsection{Desugaring for Local Scope}
 
 Handling simple declarations of variables and updates to variables 
 is straightforward to translate into a lexically-scoped
@@ -725,13 +723,13 @@ This strategy is simple and works for variables defined in the branches of
 @code{if} statements and loop bodies.  It is far from the whole story for
 Pythonic scope, however.
 
-\paragraph{Desugaring for @code{nonlocal} Scope}
+@subsubsection{Desugaring for @code{nonlocal} Scope}
 
-The rule for desugaring @code{nonlocal} variables refines this
-desugaring for simple local variables.  In terms of purely lexical {\tt
-let}-bindings, a @code{nonlocal} declaration means that re-binding particular
-variables to @code{Undefined} should be skipped.  So the program with a single
-@code{h} above can be desugared to:
+The rule for desugaring @code{nonlocal} variables refines this desugaring for
+simple local variables.  In terms of purely lexical @code{let}-bindings, a
+@code{nonlocal} declaration means that re-binding particular variables to
+@code{Undefined} should be skipped.  So the program with a single @code{h}
+above can be desugared to:
 
 @verbatim{
 def g():
@@ -748,10 +746,10 @@ g() # evaluates to
     # ('inner x', 'inner x')
 }
 
-\paragraph{Desugaring classes}
+@subsubsection{Desugaring classes}
 
 Desugaring classes is substantially more complicated than handling simple
-local and nonlocal cases.  Let's return to the example from section 6.4, 
+local and nonlocal cases.  Let's return to the example from section [REF],
 stripped of print statements: 
 
 @verbatim{
@@ -767,9 +765,15 @@ In this example, we have three local scopes in play: the body of the function f,
 the body of the class definition c, and the body of the function g.  We will refer
 to these scopes as f-scope, c-scope, and g-scope.  c-scope can see bindings created
 in f-scope.  g-scope can see bindings created in f-scope, but not bindings created in 
-c-scope.  To accomplish this behavior lambda-py extracts all functions, renames and 
-rebinds them in f-scope, and replaces their bodies with calls to the newly-bound 
-functions.  For example, under this scheme our example would desugar thusly:
+c-scope.  To accomplish this behavior @(lambda-py):
+
+@itemlist[
+  @item{Extracts all functions,}
+  @item{Renames and rebinds them in f-scope,}
+  @item{And replaces their bodies with calls to the newly-bound functions.}
+]
+  
+Under this scheme our example would desugar as:
 
 @verbatim{
 def f(x, y):
@@ -787,12 +791,12 @@ This preserves our desired semantics: the bodies of functions defined in
 c-scope will close over f-scope, and the statements written in c-scope 
 will evaluate in c-scope.
 
-\paragraph{Desugaring classes: instance variables}
+@subsubsection{Desugaring classes: instance variables}
 
 Though the semantics of closures defined in class bodies have been solved, 
-We have yet to deal with the notion of instance variables - how does "x = 4"
+We have yet to deal with the notion of instance variables - how does @code{"x = 4"}
 go from creating a local variable in c-scope to creating an instance variable
-in objects of class c?  To solve this problem, lambda-py notes that there is no
+in objects of class c?  To solve this problem, @(lambda-py) notes that there is no
 apparent difference between classes which introduce identifiers in their body
 and classes which introduce identifiers by field assignment.  That is,
 
@@ -808,8 +812,9 @@ class c: pass
 c.x = 3
 }
 
-will produce the same class.  This observation is the secret to lambda-py's
-treatment of instance variables.  We re-visit our classic example:
+will produce the same class.  This observation is the key insight into
+@(lambda-py)'s treatment of instance variables.  We re-visit our now
+well-trodden example:
 
 @verbatim{
 def f(x, y):
@@ -820,7 +825,7 @@ def f(x, y):
 f("x-value", "y-value")().g()
 }
 
-In order to achieve python's closure semantics, we translate:
+In order to achieve Python's semantics, we desugar first to:
 
 @verbatim{
 def f(x, y):
@@ -833,7 +838,7 @@ def f(x, y):
 f("x-value", "y-value")().g()
 }
 
-And to handle instance variables, we further translate:
+And to handle instance variables, we further desugar to:
 
 @verbatim{
 def f(x, y):
