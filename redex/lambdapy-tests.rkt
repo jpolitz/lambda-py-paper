@@ -111,6 +111,23 @@
   (pointer-val 0))
 
 (full-expect
+ ((get-field (fetch (object (id str local) (meta-str "foo")))
+             "inherited")
+  [{(str 5)}]
+  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("inherited" 6))))
+   (5 (pointer-val 4))
+   (6 (pointer-val 7))
+   (7 (obj-val str (meta-str "should be looked up") ()))
+   (9 (pointer-val 10))
+   (10 (obj-val tuple (meta-tuple ((pointer-val 4))) ()))})
+ ((pointer-val 7)
+  [{(str 5)}]
+  {(4 (obj-val type (meta-class str) (("inherited" 6))))
+   (5 (pointer-val 4))
+   (6 (pointer-val 7))
+   (7 (obj-val str (meta-str "should be looked up") ()))}))
+
+(full-expect
   ((object (id str local) (meta-str "foo"))
    [{(str 1)}]
    {(0 (obj-val type (meta-class str) ()))

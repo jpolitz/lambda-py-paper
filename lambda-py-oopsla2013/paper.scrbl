@@ -265,9 +265,40 @@ unique to Python.
 
 @section{Classes, Methods, and Pythonic Desugarings}
 
+The first complex feature of Python we address is a featureful first-class
+class system.  We'll discuss how @(lambda-py) models its lookup algorithm
+(including multiple inheritance) and its mechanism for binding the self
+parameter in first-class methods.
+
+@subsection{Field Lookup in Classes}
+
+In the last section, we touched on field lookup in an object's local
+dictionary, and didn't discuss the purpose of the class position at all.
+When an object lookup @(lp-term (get-field (obj-val val_c mval d) str))
+doesn't find @(lp-term str) in the local dictionary @(lp-term d), it defers
+to a lookup algorithm on the class value @(lp-term val_c).  More
+specifically, it uses the @(lp-term "__mro__") field of the class to
+determine which class dictionaries to search for the field.  This field is 
+visible to the Python programmer:
+
+@verbatim{
+class C(object):
+  pass # a class that does nothing
+
+print(C.__mro__)
+# (<class '__main__.C'>, <class 'object'>)
+}
+
+So field lookups on objects whose class value is @(lp-term C) will first look
+in the dictionary of @(lp-term C), and then in the dictionary of the built-in
+class @(lp-term object).  We define this lookup algorithm within @(lambda-py)
+as @(lp-term lookup-class), shown in @figure-ref["f:lookup-class"] along with
+the reduction rule for field access that uses it.
 
 
 
+
+@subsection{Reflection}
 
 Python has a number of reflective operations on the values in its object
 system.  These operations predominantly preserve @emph{integrity} while

@@ -39,9 +39,8 @@
         "E-Set"
         (where ref_new ,(new-loc))
         (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-set (val ...)) ()))))
-   (--> ((in-hole E (fetch (pointer-val ref))) εs
-         (name Σ ((ref_1 val_1) ... (ref val) (ref_n val_n) ...)))
-        ((in-hole E val) εs Σ)
+   (--> ((in-hole E (fetch (pointer-val ref))) εs Σ)
+        ((in-hole E (store-lookup Σ ref)) εs Σ)
         "E-Fetch")
    (--> ((in-hole E (set! (pointer-val ref) val)) εs Σ)
         ((in-hole E val) εs Σ_1)
@@ -61,7 +60,7 @@
    (--> ((in-hole E (object val mval)) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
         "E-Object"
-        (where ref_new ,(new-loc))
+        (where ref_new (get-new-loc Σ))
         (where Σ_1 (override-store Σ ref_new (obj-val val mval ()))))
    (--> ((in-hole E (prim1 op val)) εs Σ)
         ((in-hole E (δ op val εs Σ)) εs Σ)
@@ -212,9 +211,14 @@
         (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
         (side-condition (not (redex-match? λπ (undefined-val) (term val_1)))) ;; TODO: exception for undefined
         "id-local")
-   (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1)) εs (name Σ ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
-        ((in-hole E val_1) εs Σ)
+   (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1)) εs Σ)
+        ((in-hole E (store-lookup Σ ref_1)) εs Σ)
         "E-GetField")
+   (--> ((in-hole E (get-field (obj-val (pointer-val ref) mval ((string_1 ref_2) ...)) string)) εs Σ)
+        ((in-hole E val_result) εs Σ_result)
+        (where (val_result Σ_result)
+          (class-lookup (store-lookup Σ ref) string Σ))
+        "E-GetField-Class")
    (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
          εs
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
@@ -290,6 +294,46 @@
   [(override-store ((ref_2 val_2) ... (ref_1 val_0) (ref_3 val_3) ...) ref_1 val_1)
    ((ref_2 val_2) ... (ref_1 val_1) (ref_3 val_3) ...)
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))])
+
+(define-metafunction λπ
+  class-lookup-mro : (val ...) string Σ -> val
+  [(class-lookup-mro ((pointer-val ref_c) val_rest ...) string Σ)
+   (store-lookup Σ ref)
+   (where (obj-val any_1 any_2 ((string_1 ref_1) ...
+                                (string ref)
+                                (string_2 ref_2) ...))
+          (store-lookup Σ ref_c))]
+  [(class-lookup-mro ((pointer-val ref_c) val_rest ...) string Σ)
+   (class-lookup-mro Σ ref)
+   (where (obj-val any_1 any_2 ((string_1 ref_1) ...))
+          (store-lookup Σ ref_c))
+   (side-condition (not (member (term string) (term (string_1 ...)))))])
+
+(define-metafunction λπ
+  class-lookup : val string Σ -> (val Σ)
+  [(class-lookup (obj-val any_c any_mval ((string_1 ref_1) ...
+                                          ("__mro__" ref)
+                                          (string_2 ref_2) ...))
+                 string Σ)
+   ((class-lookup-mro (val_cls ...) string Σ) Σ)
+   (where (obj-val any_1 (meta-tuple (val_cls ...)) any_3)
+          (fetch-pointer (store-lookup Σ ref) Σ))])
+
+(define-metafunction λπ
+  fetch-pointer : val Σ -> val
+  [(fetch-pointer (pointer-val ref) Σ) (store-lookup Σ ref)])
+
+(define-metafunction λπ
+  store-lookup : Σ ref -> val
+  [(store-lookup ((ref_1 val_1) ... (ref val) (ref_n val_n) ...) ref)
+   val])
+
+(define-metafunction λπ
+  get-new-loc : Σ -> ref
+  [(get-new-loc ((ref_1 val_1) ...))
+   ,(add1 (apply max (term (ref_1 ...))))])
+   
+
 
 #|
 ;; simply use this subst function for now

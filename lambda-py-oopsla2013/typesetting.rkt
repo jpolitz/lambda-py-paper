@@ -142,6 +142,11 @@
     [(list _ _ sto ref val _)
      (list "" sto "[" ref ":=" val "]")]))
 
+(define (store-lookup-rewriter lws)
+  (match lws
+    [(list _ _ sto ref _)
+     (list "" sto "(" ref ")")]))
+
 (define (delta-rewriter lws)
   (match lws
     [(list _ _ op arg ... εs Σ _)
@@ -171,6 +176,7 @@
 		['list list-rewriter]
 
     ['override-store override-rewriter]
+    ['store-lookup store-lookup-rewriter]
     ['δ delta-rewriter]
    )
    (thnk)))
