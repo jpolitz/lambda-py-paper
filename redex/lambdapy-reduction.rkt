@@ -211,13 +211,16 @@
         (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
         (side-condition (not (redex-match? λπ (undefined-val) (term val_1)))) ;; TODO: exception for undefined
         "id-local")
-   (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1)) εs Σ)
+   (--> ((in-hole E (get-field (pointer-val ref) string_1)) εs Σ)
         ((in-hole E (store-lookup Σ ref_1)) εs Σ)
+        (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))
         "E-GetField")
-   (--> ((in-hole E (get-field (name val_obj (obj-val (pointer-val ref) mval ((string_1 ref_2) ...))) string)) εs Σ)
+   (--> ((in-hole E (get-field (pointer-val ref_obj) string)) εs Σ)
         ((in-hole E val_result) εs Σ_result)
-        (where (val_result Σ_result)
-          (class-lookup val_obj (store-lookup Σ ref) string Σ))
+        (where (obj-val (pointer-val ref) mval ((string_1 ref_2) ...))
+               (store-lookup Σ ref_obj))
+        (where (Σ_result val_result)
+          (class-lookup (pointer-val ref_obj) (store-lookup Σ ref) string Σ))
         "E-GetField-Class")
    (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
          εs
@@ -297,8 +300,8 @@
  
 (define-metafunction λπ
   extend-store : Σ val -> (Σ val)
-  [(extend-store ((ref val) ...) val_new)
-   ((extend-store ((ref val) ... (ref_new val_new))) (pointer-val ref_new))
+  [(extend-store (name Σ ((ref val) ...)) val_new)
+   (((ref val) ... (ref_new val_new)) (pointer-val ref_new))
    (where ref_new (get-new-loc Σ))])
 
 (define-metafunction λπ
@@ -314,21 +317,31 @@
    (side-condition (not (member (term string) (term (string_1 ...)))))])
 
 (define-metafunction λπ
-  class-lookup : val val string Σ -> (val Σ)
-  [(class-lookup val_obj (obj-val any_c any_mval ((string_1 ref_1) ...  ("__mro__" ref) (string_2 ref_2) ...))
+  class-lookup : val val string Σ -> (Σ val)
+  [(class-lookup (pointer-val ref_obj) (obj-val any_c any_mval ((string_1 ref_1) ...  ("__mro__" ref) (string_2 ref_2) ...))
                  string Σ)
-   ((class-lookup-mro (val_cls ...) string Σ) Σ)
+   (maybe-bind-method (pointer-val ref_obj) val_result Σ)
    (where (obj-val any_1 (meta-tuple (val_cls ...)) any_3)
-          (fetch-pointer (store-lookup Σ ref) Σ))])
-#|
+          (fetch-pointer (store-lookup Σ ref) Σ))
+   (where val_result
+          (class-lookup-mro (val_cls ...) string Σ))])
+
 (define-metafunction λπ
-  maybe-bind-method : val val Σ -> (val Σ)
-  [(maybe-bind-method (pointer-val (fun-val εs (x ...) e) Σ)
-   (extend-store Σ val_method)
+  maybe-bind-method : val val Σ -> (Σ val)
+  [(maybe-bind-method (pointer-val ref_obj) (pointer-val ref_result) Σ)
+   (extend-store Σ_2 val_method)
+   (where (fun-val εs (λ (x ...) e))
+    (store-lookup Σ ref_result))
+   (where ref_self (get-new-loc Σ))
+   (where Σ_1 (override-store Σ ref_self (pointer-val ref_obj)))
+   (where ref_func (get-new-loc Σ_1))
+   (where Σ_2 (override-store Σ_1 ref_func (pointer-val ref_result)))
    (where val_method
     (obj-val method (no-meta)
-      (("__self__" 
-      |#
+      (("__self__" ref_self)
+       ("__func__" ref_func))))]
+  [(maybe-bind-method (pointer-val ref_obj) val_other Σ)
+   (Σ val_other)])
    
 
 (define-metafunction λπ

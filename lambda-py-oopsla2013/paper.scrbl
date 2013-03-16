@@ -224,10 +224,12 @@ position, and the object is functionally updated.  We combine this functional
 update with @(lp-term set!) expressions on reference values in order to model
 objects with an imperatively extended set of fields.
 
-The simplest rule for accessing fields simply checks in the object's
-dictionary for the provided name and returns the appropriate value, shown in
-E-GetField in @figure-ref["f:simple-objs"].  [FILL why are they literal
-strings and not meta-vals that contain strings?]
+The simplest rule for accessing fields simply checks in the object's dictionary
+for the provided name and returns the appropriate value, shown in E-GetField in
+@figure-ref["f:simple-objs"].  E-GetField works over reference values, rather
+than objects directly, because we will need it in the next section to handle
+the binding of @(lp-term self) references.  [FILL why are they literal strings
+and not meta-vals that contain strings?]
 
 @figure*["f:simple-objs" @elem{Simple field access and update in @(lambda-py)}]{
   @(lp-reduction '("E-AssignUpdate" "E-AssignAdd" "E-GetField"))

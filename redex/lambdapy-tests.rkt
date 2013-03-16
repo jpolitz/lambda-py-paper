@@ -111,7 +111,7 @@
   (pointer-val 0))
 
 (full-expect
- ((get-field (fetch (object (id str local) (meta-str "foo")))
+ ((get-field (object (id str local) (meta-str "foo"))
              "inherited")
   [{(str 5)}]
   {(4 (obj-val type (meta-class str) (("__mro__" 9) ("inherited" 6))))
@@ -124,7 +124,7 @@
   εs Σ))
 
 (full-expect
- ((get-field (fetch (object (id str local) (meta-str "foo")))
+ ((get-field (object (id str local) (meta-str "foo"))
              "shadowed")
   [{(str 5)}]
   {(4 (obj-val type (meta-class str) (("__mro__" 9) ("shadowed" 6))))
@@ -138,18 +138,35 @@
   εs Σ))
 
 (full-expect
- ((get-field (fetch (object (id str local) (meta-str "foo")))
+ ((get-field (object (id str local) (meta-str "foo"))
              "inherited")
   [{(str 5)}]
   {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
-   (7 (obj-val str (meta-str "should be looked up") ()))
+   (7 (obj-val str (meta-str "should not be looked up") ()))
    (8 (obj-val object (no-meta) (("inherited" 9))))
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
  ((pointer-val 10)
   εs Σ))
+
+(full-expect
+ ((get-field (object (id str local) (meta-str "foo"))
+             "inherited")
+  [{(str 5)}]
+  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
+   (5 (pointer-val 4))
+   (6 (pointer-val 7))
+   (7 (obj-val str (meta-str "should not be looked up") ()))
+   (8 (obj-val object (no-meta) (("inherited" 11))))
+   (9 (pointer-val 10))
+   (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
+   (11 (pointer-val 12))
+   (12 (fun-val () (λ (self) none)))})
+ ((pointer-val ref_meth)
+  εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+      (ref_rest val_rest) ...)))
 
 (full-expect
   ((object (id str local) (meta-str "foo"))
