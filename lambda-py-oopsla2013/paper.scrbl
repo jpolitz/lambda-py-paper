@@ -11,14 +11,14 @@
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 
 @title{Python: The Full Monty@(elem #:style "thanks" "Title credit Benjamin S.
-Lerner")}
+Lerner [FILL joke]")}
+@authorinfo["Joe Gibbs Politz" "Brown University" "joe@cs.brown.edu"]
 @authorinfo["Sumner Warren" "Brown University" "FILL"]
 @authorinfo["Matthew Milano" "Brown University" "matthew@cs.brown.edu"]
 @authorinfo["Daniel Patterson" "Brown University" "FILL"]
 @authorinfo["Alejandro Martinez" "" ""]
 @authorinfo["Junsong Li" "" ""]
 @authorinfo["Anand Chitipothu" "" ""]
-@authorinfo["Joe Gibbs Politz" "Brown University" "joe@cs.brown.edu"]
 @authorinfo["Shriram Krishnamurthi" "Brown University" "sk@cs.brown.edu"]
 
 @abstract{Python is hard}
@@ -289,12 +289,25 @@ print(C.__mro__)
 # (<class '__main__.C'>, <class 'object'>)
 }
 
-So field lookups on objects whose class value is @(lp-term C) will first look
+Field lookups on objects whose class value is @(lp-term C) will first look
 in the dictionary of @(lp-term C), and then in the dictionary of the built-in
 class @(lp-term object).  We define this lookup algorithm within @(lambda-py)
-as @(lp-term lookup-class), shown in @figure-ref["f:lookup-class"] along with
+as @(lp-term class-lookup), shown in @figure-ref["f:lookup-class"] along with
 the reduction rule for field access that uses it.
 
+@figure*["f:lookup-class" @elem{Class lookup}]{
+  @para{
+    @(lp-reduction '("E-GetField-Class"))
+  }
+  @para{
+    @(lp-metafunction class-lookup #f)
+  }
+  @para{
+    @(lp-metafunction class-lookup-mro #f)
+  }
+}
+
+This rule and the associated metafunctions are interesting for a few reasons.
 
 
 

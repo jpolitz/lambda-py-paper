@@ -19,7 +19,7 @@
   (with-rewriters
     (lambda ()
       (parameterize
-        [(metafunction-cases cases)
+        [(metafunction-cases (if cases cases (metafunction-cases)))
          (metafunction-font-size 11)
          (default-font-size 11)
          (label-font-size 11)]

@@ -5,7 +5,7 @@
 (require "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
-(provide λπ-red override-store)
+(provide λπ-red override-store class-lookup class-lookup-mro)
 
 
 (define λπ-red
@@ -214,10 +214,10 @@
    (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1)) εs Σ)
         ((in-hole E (store-lookup Σ ref_1)) εs Σ)
         "E-GetField")
-   (--> ((in-hole E (get-field (obj-val (pointer-val ref) mval ((string_1 ref_2) ...)) string)) εs Σ)
+   (--> ((in-hole E (get-field (name val_obj (obj-val (pointer-val ref) mval ((string_1 ref_2) ...))) string)) εs Σ)
         ((in-hole E val_result) εs Σ_result)
         (where (val_result Σ_result)
-          (class-lookup (store-lookup Σ ref) string Σ))
+          (class-lookup val_obj (store-lookup Σ ref) string Σ))
         "E-GetField-Class")
    (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
          εs
@@ -294,30 +294,42 @@
   [(override-store ((ref_2 val_2) ... (ref_1 val_0) (ref_3 val_3) ...) ref_1 val_1)
    ((ref_2 val_2) ... (ref_1 val_1) (ref_3 val_3) ...)
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))])
+ 
+(define-metafunction λπ
+  extend-store : Σ val -> (Σ val)
+  [(extend-store ((ref val) ...) val_new)
+   ((extend-store ((ref val) ... (ref_new val_new))) (pointer-val ref_new))
+   (where ref_new (get-new-loc Σ))])
 
 (define-metafunction λπ
   class-lookup-mro : (val ...) string Σ -> val
   [(class-lookup-mro ((pointer-val ref_c) val_rest ...) string Σ)
    (store-lookup Σ ref)
-   (where (obj-val any_1 any_2 ((string_1 ref_1) ...
-                                (string ref)
-                                (string_2 ref_2) ...))
+   (where (obj-val any_1 any_2 ((string_1 ref_1) ...  (string ref) (string_2 ref_2) ...))
           (store-lookup Σ ref_c))]
   [(class-lookup-mro ((pointer-val ref_c) val_rest ...) string Σ)
-   (class-lookup-mro Σ ref)
+   (class-lookup-mro (val_rest ...) string Σ)
    (where (obj-val any_1 any_2 ((string_1 ref_1) ...))
           (store-lookup Σ ref_c))
    (side-condition (not (member (term string) (term (string_1 ...)))))])
 
 (define-metafunction λπ
-  class-lookup : val string Σ -> (val Σ)
-  [(class-lookup (obj-val any_c any_mval ((string_1 ref_1) ...
-                                          ("__mro__" ref)
-                                          (string_2 ref_2) ...))
+  class-lookup : val val string Σ -> (val Σ)
+  [(class-lookup val_obj (obj-val any_c any_mval ((string_1 ref_1) ...  ("__mro__" ref) (string_2 ref_2) ...))
                  string Σ)
    ((class-lookup-mro (val_cls ...) string Σ) Σ)
    (where (obj-val any_1 (meta-tuple (val_cls ...)) any_3)
           (fetch-pointer (store-lookup Σ ref) Σ))])
+#|
+(define-metafunction λπ
+  maybe-bind-method : val val Σ -> (val Σ)
+  [(maybe-bind-method (pointer-val (fun-val εs (x ...) e) Σ)
+   (extend-store Σ val_method)
+   (where val_method
+    (obj-val method (no-meta)
+      (("__self__" 
+      |#
+   
 
 (define-metafunction λπ
   fetch-pointer : val Σ -> val

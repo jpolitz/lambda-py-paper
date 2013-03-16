@@ -121,11 +121,35 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4))) ()))})
  ((pointer-val 7)
+  εs Σ))
+
+(full-expect
+ ((get-field (fetch (object (id str local) (meta-str "foo")))
+             "shadowed")
   [{(str 5)}]
-  {(4 (obj-val type (meta-class str) (("inherited" 6))))
+  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("shadowed" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
-   (7 (obj-val str (meta-str "should be looked up") ()))}))
+   (7 (obj-val str (meta-str "should be looked up") ()))
+   (8 (obj-val object (no-meta) (("shadowed" 9))))
+   (9 (pointer-val 10))
+   (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
+ ((pointer-val 7)
+  εs Σ))
+
+(full-expect
+ ((get-field (fetch (object (id str local) (meta-str "foo")))
+             "inherited")
+  [{(str 5)}]
+  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
+   (5 (pointer-val 4))
+   (6 (pointer-val 7))
+   (7 (obj-val str (meta-str "should be looked up") ()))
+   (8 (obj-val object (no-meta) (("inherited" 9))))
+   (9 (pointer-val 10))
+   (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
+ ((pointer-val 10)
+  εs Σ))
 
 (full-expect
   ((object (id str local) (meta-str "foo"))
