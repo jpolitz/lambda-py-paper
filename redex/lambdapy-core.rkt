@@ -16,6 +16,7 @@
   
   ;; value types
   (val
+   (sym string)
 	 (obj-val val mval ((string ref) ...))
 	 (obj-val x mval ((string ref) ...))
    (fun-val εs (λ (x ...) e))

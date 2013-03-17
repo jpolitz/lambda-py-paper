@@ -6,6 +6,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require redex
+         "../base/python-core-syntax.rkt"
+         "core-to-redex.rkt"
          "lambdapy-reduction.rkt"
          "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
@@ -16,6 +18,13 @@
       ((_ e v)
        #'(test-->>∃ λπ-red (term (e (()) ()))
                     (λ (p) (equal? (term v) (first p)))))))
+
+(define-syntax (expect-raw stx)
+  (syntax-case stx ()
+      ((_ e pat)
+       #'(test-->>∃ λπ-red (term (,e (()) ()))
+                    (λ (p) (redex-match? λπ pat (first p)))))))
+
 
 (define-syntax (full-expect stx)
   (syntax-case stx ()
@@ -179,6 +188,10 @@
     (1 (pointer-val 0))
     (ref_1 (obj-val (pointer-val 0) (meta-str "foo") ()))}))
 
+
+(expect-raw
+  (core->redex (CObject (CSym 'foo) (MetaStr "bar")))
+  (pointer-val ref))
 
 
 (test-results)
