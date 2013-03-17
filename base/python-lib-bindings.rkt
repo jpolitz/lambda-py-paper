@@ -13,6 +13,7 @@
          "builtins/file.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
+         "builtins/type.rkt"
          "util.rkt"
          "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
@@ -51,6 +52,12 @@
                     (CBuiltinPrim 'exception-str
                                   (list (CId 'self (LocalId)))))
                   (some 'BaseException))))))
+
+(define (make-exception-class [name : symbol]) : CExpr
+  (builtin-class
+    name
+    (list 'BaseException)
+    (CNone)))
 
 (define len-lambda
   (CFunc (list 'self) (none)
@@ -95,22 +102,6 @@
         (list)
         (none)))
     (none)))
-
-(define callable-lambda
-  (local [(define exn-id (new-id))]
-    (CFunc (list 'to-check) (none)
-           (CSeq
-             (CTryExceptElse
-               ;; try to get __call__ attribute and return True
-               (CSeq
-                 (CGetField (CId 'to-check (LocalId)) '__call__)
-                 (CReturn (CTrue)))
-               exn-id 
-               (default-except-handler exn-id (CNone))
-               (CNone))
-             ;; use the primary operator
-             (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
-           (none))))
 
 (define locals-lambda
   (CFunc (list) (none)
@@ -162,8 +153,6 @@
         (bind 'max (assign 'max max-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'callable (assign 'callable callable-lambda))
-        (bind '%callable (assign '%callable (CId 'callable (GlobalId))))
         (bind 'locals (assign 'locals locals-lambda))
 
         (bind 'BaseException base-exception)
@@ -240,6 +229,8 @@
             (bind 'classmethod (CUndefined))
             (bind 'staticmethod (CUndefined))
             (bind '__import__ (CUndefined))
+            (bind 'callable (CUndefined))
+            (bind '%callable (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

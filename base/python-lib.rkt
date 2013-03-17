@@ -76,6 +76,7 @@ that calls the primitive `print`.
                      "pylib/import.py"
                      "pylib/file.py"
                      "pylib/isinstance.py"
+                     "pylib/callable.py"
                      "py-prelude.py"
                     ))))
          (some-v pylib-programs))]
@@ -95,8 +96,8 @@ that calls the primitive `print`.
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
                              (get-pylib-programs)
-                             (get-builtin-modules)
                              (map (lambda (b) (bind-right b))
                                   (list (bind 'True (assign 'True (CTrue)))
                                         (bind 'False (assign 'False (CFalse)))))
+                             (get-builtin-modules)
                              (list (CModule-body expr)))))))

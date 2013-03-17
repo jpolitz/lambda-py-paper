@@ -3,6 +3,7 @@
 (require "python-lexical-syntax.rkt"
          "python-core-syntax.rkt"
          "util.rkt"
+         "builtins/type.rkt"
          "builtins/num.rkt"
          "python-syntax-operations.rkt"
          "builtins/str.rkt")
@@ -48,7 +49,7 @@
 ;; if global scope, it only gets definitions, for local scope it gets
 ;; definitions and assignments
 
-#;(define (desugar-pymodule [es : (listof PyExpr)] 
+#|(define (desugar-pymodule [es : (listof PyExpr)] 
                           [global? : boolean]
                           [env : IdEnv]) : DesugarResult
   (local [(define g/ns-env (get-globals/nonlocals (PySeq es) global? env))
@@ -66,6 +67,7 @@
       (DResult-expr prelude)
       (DResult-expr body))
      (DResult-env body))))
+|#
 
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
@@ -160,51 +162,6 @@
                        (rec-desugar-excepts (rest es))))]))]
     (rec-desugar-excepts excepts)))
 
-
-
-#|  
-
-;;; desugar from module import name as asname
-;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
-;;; id_alias = __tmp_module.id
-;;; 
-;;;  from module import * will desugar to
-;;; __import__all__(__import__(module, globals(), locals(), ['*'], 0)) 
-;;; where __import__all__ performs importing based on __all__
-(define (desugar-importfrom-py [module : string]
-                               [names : (listof string)]
-                               [asnames : (listof symbol)]
-                               [level : number]) : PyExpr
-  (local [(define tmp-module (PyId '__tmp_module 'Store))
-          (define module-expr
-            (PyAssign (list tmp-module)
-                      (PyApp (PyId '__import__ 'Load)
-                             (list (PyStr module)
-                                   (PyApp (PyId '__globals 'Load) (list))
-                                   (PyApp (PyId '__locals 'Load) (list))
-                                   (PyList (map PyStr names)) ; list type of names
-                                   (PyNum level)))))]
-    (cond [(not (equal? (first names) "*"))
-           (local [(define (get-bind-exprs module names asnames)
-                     (cond [(empty? names) (list)]
-                           [else
-                            (append (list (PyAssign (list (PyId (first asnames) 'Store))
-                                                    (PyDotField module (string->symbol (first names)))))
-                                    (get-bind-exprs module (rest names) (rest asnames)))]))
-                   (define bind-exprs
-                     (get-bind-exprs tmp-module names asnames))]
-             (PySeq (append (list module-expr) bind-exprs)))]
-          [else ;; from module import *
-           (PyApp (PyId '__import__all__ 'Load)
-                  (list (PyApp (PyId '__import__ 'Load)
-                               (list (PyStr module)
-                                     (PyApp (PyId '__globals 'Load) (list))
-                                     (PyApp (PyId '__locals 'Load) (list))
-                                     (PyList (list (PyStr "*"))) ; list type of names
-                                     (PyNum level)))))])))
-
-|#
-
 (define (id-to-symbol expr)
   (type-case LexExpr expr
     [LexLocalId (x ctx) x]
@@ -263,8 +220,19 @@
       [LexStr (s) (make-builtin-str s)]
       [LexLocalId (x ctx) (CId x (LocalId))]
       [LexGlobalId (x ctx) (CId x (GlobalId))]
-      [LexGlobalLet (x bind body) (CLet x (GlobalId) (rec-desugar bind) (rec-desugar body))]
+      [LexGlobals (ids body)
+                  (local 
+                   [(define (make-global-lets ids body)
+                    (cond
+                     [(empty? ids) (rec-desugar body)]
+                     [else (CLet (first ids) (GlobalId)
+                           (rec-desugar (LexUndefined))
+                           (make-global-lets (rest ids) body))]))]
+                   (make-global-lets ids body))]
       [LexLocalLet (x bind body) (CLet x (LocalId) (rec-desugar bind) (rec-desugar body))]
+      ;hopefully this will come in handy for whatever we decide to do with locals
+      ;right now it's just a stub.
+      [LexInScopeLocals (ids) (rec-desugar (LexPass))]
       [LexUndefined () (CUndefined)]  
       [LexRaise (expr) (local [(define expr-r
                                  (if (or (LexLocalId? expr) (LexGlobalId? expr))
@@ -515,14 +483,14 @@
                              (CApp f results (some s)))]
             
       [LexClass (scp name bases body)
-                (CClass name
-                        ;TODO: would be better to change bases to be a (listof LexExpr)
-                        ;; and to build the tuple here (Alejandro).
-                        ;; (CNone) is because we may not have a tuple class object yet.
-                        (type-case CExpr (desugar bases)
-                          [CTuple (class tuple) (CTuple (CNone) tuple)]
-                          [else (error 'desugar "bases is not a tuple")])
-                        (desugar body))]
+                (make-class name
+                            ;TODO: would be better to change bases to be a (listof LexExpr)
+                            ;; and to build the tuple here (Alejandro).
+                            ;; (CNone) is because we may not have a tuple class object yet.
+                            (type-case CExpr (desugar bases)
+                              [CTuple (class tuple) (CTuple (CNone) tuple)]
+                              [else (error 'desugar "bases is not a tuple")])
+                            (desugar body))]
 
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]
@@ -567,20 +535,31 @@
       ; TODO: this whole thing needs re-writing.  I'm just converting it to do a standard assignment. 
       
       [LexDelete (targets)
-                 (let ([target (first targets)]) ; TODO: handle deletion of more than one target
-                   (type-case LexExpr target
-                     [LexSubscript (left ctx slice)
-                                   (letrec ([desugared-target (rec-desugar left)]
-                                            [desugared-slice (rec-desugar slice)]
-                                            [target-id (new-id)]
-                                            [target-var (CId target-id (LocalId))])
-                                     (CLet target-id (LocalId) desugared-target
-                                           (CApp (CGetField target-var
-                                                            '__delitem__)
-                                                 (list 
-                                                       desugared-slice)
-                                                 (none))))]
-                     [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
+                 (local
+                  [(define (handle-delete target)
+                     (type-case LexExpr target
+                       [LexSubscript (left ctx slice)
+                                     (letrec ([desugared-target (rec-desugar left)]
+                                              [desugared-slice (rec-desugar slice)]
+                                              [target-id (new-id)]
+                                              [target-var (CId target-id (LocalId))])
+                                       (CLet target-id (LocalId) desugared-target
+                                             (CApp (CGetField target-var
+                                                              '__delitem__)
+                                                   (list 
+                                                    desugared-slice)
+                                                   (none))))]
+                       [LexLocalId (x ctx) (rec-desugar
+                                            (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
+                       [LexGlobalId (x ctx) (rec-desugar
+                                            (LexAssign (list (LexGlobalId x ctx)) (LexUndefined)))]
+                       [else (error 'desugar "We don't know how to delete this yet.")]))
+                  (define (make-sequence [exprs : (listof CExpr)] )
+                     (cond
+                      [(empty? exprs) (error 'make-sequence "went too far")]
+                      [(empty? (rest exprs)) (first exprs)]
+                      [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
+                  (make-sequence (map handle-delete targets)))]
       
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]

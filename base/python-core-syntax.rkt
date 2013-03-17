@@ -15,7 +15,7 @@ ParselTongue.
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol) (bases : CExpr) (body : CExpr)]
+  [CClass (name : symbol)]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
@@ -24,8 +24,7 @@ ParselTongue.
   [CId (x : symbol) (type : IdType)]
   [CLet (x : symbol) (type : IdType) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
-  [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
-         (opt-class : (optionof symbol))] ; class name for methods
+  [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
   [CPrim1 (prim : symbol) (arg : CExpr)]
@@ -33,7 +32,6 @@ ParselTongue.
   [CBuiltinPrim (op : symbol) (args : (listof CExpr))]
   [CList (class : CExpr) (values : (listof CExpr))]
   [CTuple (class : CExpr) (values : (listof CExpr))]
-  [CDict (class : CExpr) (contents : (hashof CExpr CExpr))]
   [CSet (class : CExpr) (values : (listof CExpr))]
   [CRaise (expr : (optionof CExpr))]
   [CTryExceptElse (try : CExpr) (exn-id : symbol) (excepts : CExpr) (orelse : CExpr)]
@@ -59,10 +57,9 @@ ParselTongue.
   [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
                 (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
-  [VSym (s : Symbol)]
+  [VSym (s : symbol)]
   [VPointer (a : Address)]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
-            (opt-class : (optionof symbol))]) ; class name for methods
+  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))]) ; class name for methods
 
 (define-type MetaVal
              [MetaNum (n : number)]
@@ -95,9 +92,6 @@ ParselTongue.
   [Exception (v : CVal) (s : Store)]
   [Break (s : Store)]
   [Continue (s : Store)])
-
-(define-type ResultPair
-  [vpair*s (v1 : CVal) (v2 : CVal) (s : Store)])
 
 (define (alloc-result val sto)
   (local ([define l (new-loc)]
@@ -136,17 +130,6 @@ ParselTongue.
     [VPointer (a) (VClosure? (fetch-once a sto))]
     [else false]))
 
-(define (fetch [w : Address] [sto : Store]) : CVal
-  (local [(define val 
-            (type-case (optionof CVal) (hash-ref sto w)
-              [some (v) v]
-              [none () (error 'interp
-                              (begin ;(display sto)
-                              (string-append "No value at address " (Address->string w))))]))]
-    (if (VPointer? val)
-        (fetch (VPointer-a val) sto)
-        val)))
-
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
   (type-case (optionof CVal) (hash-ref sto w)
@@ -159,10 +142,11 @@ ParselTongue.
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
-(define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
+(define (mk-exception [type : symbol] [arg : string] [env : Env] [sto : Store]) : Result
   (local [(define exn-loc (new-loc))
           (define args-loc (new-loc))
           (define args-field-loc (new-loc))
+          (define cls (fetch-once (some-v (lookup type env)) sto))
           (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
     (Exception
       (VPointer exn-loc)
@@ -171,7 +155,7 @@ ParselTongue.
           (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
           args-field-loc (VPointer args-loc))
         exn-loc
-        (VObjectClass type (none) (hash-set (hash empty) 'args args-field-loc) (none))))))
+        (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
 
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
@@ -181,3 +165,4 @@ ParselTongue.
 ;; Module is used to combine module binding name with its cooresponding object
 (define-type Modules
   [Module (name : symbol) (object : CExpr)])
+

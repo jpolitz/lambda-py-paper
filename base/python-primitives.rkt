@@ -11,6 +11,7 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/type.rkt"
          "builtins/super.rkt"
          "builtins/code.rkt"
          "python-compile.rkt"
@@ -41,23 +42,9 @@ primitives here.
 (define (print arg)
   (display (string-append (pretty arg) "\n")))
 
-(define (callable [arg : CVal]) : CVal 
-  (begin ;(display arg) (display "\n\n")
-  (type-case CVal arg
-    [VClosure (e a v b o) true-val]             
-    [VObjectClass (a m d c)
-                  (if (some? m)
-                      (if (MetaClass? (some-v m))
-                          true-val
-                          false-val)
-                      false-val)]
-    [else false-val])))
-
-
 (define (python-prim1 op arg)
   (case op
-    [(print) (begin (print arg) arg)]
-    [(callable) (callable arg)]))
+    [(print) (begin (print arg) arg)]))
 
 (define (is-func? argvs env sto)
   (cond
@@ -158,6 +145,7 @@ primitives here.
   (define (prim-error msg op args)
     (mk-exception 'TypeError
       (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      env
       sto))
   (define (fetch-heads l1 l2)
     (append (take l1 (- (length l1) 1)) (list (last l2))))
@@ -253,7 +241,7 @@ primitives here.
     ['obj-str (prim-alloc obj-str argvs)]
 
     ;function
-    ['is-func? (prim-alloc is-func? argvs)]
+    ['is-func? (prim-noalloc is-func? argvs)]
 
     ;exceptions
     ['exception-str (alloc-result 
@@ -277,6 +265,11 @@ primitives here.
     ['file-close (prim-alloc file-close argvs)]
     ['existing-file? (prim-noalloc existing-file? argvs)]
 
+    ; type
+    ['type-new (prim-alloc type-new argvs)]
+    ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
+    ['type-buildmro (prim-alloc type-buildmro argvs)]
+
     ; super
     ['super-self (prim-or-none-stk super-self stk)]
     ['super-thisclass (prim-or-none-stk super-thisclass stk)]
@@ -292,7 +285,7 @@ primitives here.
                              (map (lambda (p)
                                     (values (car p) (cdr p)))
                                   (filter (lambda (p)
-                                            (not (VUndefined? (fetch (cdr p) sto))))
+                                            (not (VUndefined? (fetch-once (cdr p) sto))))
                                           (hash->list (first (Frame-env (first stk)))))))
                            env sto)
                    (error 'locals "Empty stack in locals")))]

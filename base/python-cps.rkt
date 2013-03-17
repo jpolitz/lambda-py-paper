@@ -79,16 +79,7 @@
     [CId (x l) (const expr)]
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
-
-    [CClass (nm bases body)
-      (pylam (K R E B C)
-        (pyapp (cps bases)
-          (pylam (V)
-            (pyapp (cps body)
-              (pylam (V2)
-                (pyapp Ki (CClass nm Vi V2i)))
-              Ri Ei Bi Ci))
-          Ri Ei Bi Ci))]
+    [CClass (nm) (const (CClass nm))]
 
     [CGetField (val attr)
       (pylam (K R E B C)
@@ -117,9 +108,6 @@
 
     [CList (cls values) (cps-list values (lambda (ids) (CList cls ids)))]
     [CTuple (cls values) (cps-list values (lambda (ids) (CTuple cls ids)))]
-    ;; NOTE(dbp): my impression is that CDict is going away... so this doesn't
-    ;; need to ever be implemented.
-    [CDict (cls contents) (error 'cps "CDict not implemented yet")]
     [CSet (cls values) (cps-list values (lambda (ids) (CSet cls ids)))]
 
     [CLet (x typ bind body)
