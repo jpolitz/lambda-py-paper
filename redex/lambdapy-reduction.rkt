@@ -27,18 +27,15 @@
    (--> ((in-hole E (list val_c (val ...))) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
         "E-List"
-        (where ref_new ,(new-loc))
-        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-list (val ...)) ()))))
+        (where (Σ_1 ref_new) (extend-store Σ (obj-val val_c (meta-list (val ...)) ()))))
    (--> ((in-hole E (tuple val_c (val ...))) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
         "E-Tuple"
-        (where ref_new ,(new-loc))
-        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-tuple (val ...)) ()))))
+        (where (Σ_1 ref_new) (extend-store Σ (obj-val val_c (meta-tuple (val ...)) ()))))
    (--> ((in-hole E (set val_c (val ...))) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
         "E-Set"
-        (where ref_new ,(new-loc))
-        (where Σ_1 (override-store Σ ref_new (obj-val val_c (meta-set (val ...)) ()))))
+        (where (Σ_1 ref_new) (extend-store Σ (obj-val val_c (meta-set (val ...)) ()))))
    (--> ((in-hole E (fetch (pointer-val ref))) εs Σ)
         ((in-hole E (store-lookup Σ ref)) εs Σ)
         "E-Fetch")
@@ -49,8 +46,7 @@
    (--> ((in-hole E (alloc val)) εs Σ)
         ((in-hole E (pointer-val val)) εs Σ_1)
         "E-Alloc"
-        (where ref_new ,(new-loc))
-        (where Σ_1 (override-store Σ ref_new val)))
+        (where (Σ_1 ref_new) (extend-store Σ val)))
    (--> ((in-hole E (fun (x ...) e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) e))) εs Σ)
         "E-FunNoVarArg")
@@ -267,10 +263,10 @@
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
         "E-AssignUpdate")
    (--> ((in-hole E (assign (get-field (obj-val x mval ((string ref) ... )) string_1) val_1)) εs Σ)
-        ((in-hole E (obj-val x mval ((string_1 ref_new) (string ref) ...))) εs (override-store Σ ref_new val_1))
+        ((in-hole E (obj-val x mval ((string_1 ref_new) (string ref) ...))) εs Σ_1)
         (side-condition (not (member (term string_1) (term (string ...)))))
         "E-AssignAdd"
-        (where ref_new ,(new-loc)))
+        (where (Σ_1 ref_new) (extend-store Σ val_1)))
    (==> (val ... r e ...)
         (r)
         (side-condition (not (val? (term r))))
@@ -352,8 +348,7 @@
 (define-metafunction λπ
   get-new-loc : Σ -> ref
   [(get-new-loc ((ref_1 val_1) ...))
-   ,(add1 (apply max (term (ref_1 ...))))])
-   
+   ,(add1 (apply max (cons 0 (term (ref_1 ...)))))])
 
 
 #|
