@@ -73,39 +73,39 @@
 	(exception-r vfalse))
 
 ;; prims
-(expect (prim2 "is" true true) vtrue)
-(expect (prim2 "is" true false) vfalse)
-(expect (prim2 "is" (mknum 1) (mknum 1)) vtrue)
-(expect (prim2 "is" (mknum 1) (mknum 2)) vfalse)
+(expect (builtin-prim "is" (true true)) vtrue)
+(expect (builtin-prim "is" (true false)) vfalse)
+(expect (builtin-prim "is" ((mknum 1) (mknum 1))) vtrue)
+(expect (builtin-prim "is" ((mknum 1) (mknum 2))) vfalse)
 #| ; NOTE(dbp): currently the implementation of numeric primitives,
    ; which we have copied, is buggy, and as a result, these tests don't pass!
    ; see: https://groups.google.com/d/msg/lambda-py/szbm86ron8Q/PbFO7RKOpKMJ
    ; -- agree with you. i was not sure whether we could change core's semantics
    ; -- so i just did this... -yao
-(expect (prim2 "num+" (mknum 1) (mknum 1)) (make-num 2))
-(expect (prim2 "num-" (mknum 2) (mknum 1)) (make-num 1))
-(expect (prim2 "num*" (mknum 2) (mknum 3)) (make-num 6))
-(expect (prim2 "num/" (mknum 4) (mknum 2)) (make-num 2))
-(expect (prim2 "num//" (mknum 5) (mknum 2)) (make-num 2))
-(expect (prim2 "num%" (mknum 5) (mknum 2)) (make-num 1))
+(expect (builtin-prim "num+" ((mknum 1) (mknum 1))) (make-num 2))
+(expect (builtin-prim "num-" ((mknum 2) (mknum 1))) (make-num 1))
+(expect (builtin-prim "num*" ((mknum 2) (mknum 3))) (make-num 6))
+(expect (builtin-prim "num/" ((mknum 4) (mknum 2))) (make-num 2))
+(expect (builtin-prim "num//" ((mknum 5) (mknum 2))) (make-num 2))
+(expect (builtin-prim "num%" ((mknum 5) (mknum 2))) (make-num 1))
 |#
-(expect (prim2 "num=" (mknum 1) (mknum 1)) vtrue)
-(expect (prim2 "num=" (mknum 1) (mknum 2)) vfalse)
-(expect (prim2 "num>" (mknum 1) (mknum 1)) vfalse)
-(expect (prim2 "num>" (mknum 2) (mknum 1)) vtrue)
-(expect (prim2 "num>" (mknum 1) (mknum 2)) vfalse)
+(expect (builtin-prim "num=" ((mknum 1) (mknum 1))) vtrue)
+(expect (builtin-prim "num=" ((mknum 1) (mknum 2))) vfalse)
+(expect (builtin-prim "num>" ((mknum 1) (mknum 1))) vfalse)
+(expect (builtin-prim "num>" ((mknum 2) (mknum 1))) vtrue)
+(expect (builtin-prim "num>" ((mknum 1) (mknum 2))) vfalse)
 
-(expect (prim2 "num<" (mknum 1) (mknum 1)) vfalse)
-(expect (prim2 "num<" (mknum 2) (mknum 1)) vfalse)
-(expect (prim2 "num<" (mknum 1) (mknum 2)) vtrue)
+(expect (builtin-prim "num<" ((mknum 1) (mknum 1))) vfalse)
+(expect (builtin-prim "num<" ((mknum 2) (mknum 1))) vfalse)
+(expect (builtin-prim "num<" ((mknum 1) (mknum 2))) vtrue)
 
-(expect (prim2 "num<=" (mknum 1) (mknum 1)) vtrue)
-(expect (prim2 "num<=" (mknum 2) (mknum 1)) vfalse)
-(expect (prim2 "num<=" (mknum 1) (mknum 2)) vtrue)
+(expect (builtin-prim "num<=" ((mknum 1) (mknum 1))) vtrue)
+(expect (builtin-prim "num<=" ((mknum 2) (mknum 1))) vfalse)
+(expect (builtin-prim "num<=" ((mknum 1) (mknum 2))) vtrue)
 
-(expect (prim2 "num>=" (mknum 1) (mknum 1)) vtrue)
-(expect (prim2 "num>=" (mknum 2) (mknum 1)) vtrue)
-(expect (prim2 "num>=" (mknum 1) (mknum 2)) vfalse)
+(expect (builtin-prim "num>=" ((mknum 1) (mknum 1))) vtrue)
+(expect (builtin-prim "num>=" ((mknum 2) (mknum 1))) vtrue)
+(expect (builtin-prim "num>=" ((mknum 1) (mknum 2))) vfalse)
 
 (expect
   (builtin-prim "list-getitem" (
@@ -160,11 +160,7 @@
  ((pointer-val 10)
   εs Σ))
 
-(full-expect
- ((get-field (object (id str local) (meta-str "foo"))
-             "inherited")
-  [{(str 5)}]
-  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
+(define inherit-Σ (term {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
    (7 (obj-val str (meta-str "should not be looked up") ()))
@@ -172,7 +168,13 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
    (11 (pointer-val 12))
-   (12 (fun-val () (λ (self) none)))})
+   (12 (fun-val () (λ (self) none)))}))
+
+(full-expect
+ ((get-field (object (id str local) (meta-str "foo"))
+             "inherited")
+  [{(str 5)}]
+  ,inherit-Σ)
  ((pointer-val ref_meth)
   εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
       (ref_rest val_rest) ...)))
@@ -192,6 +194,18 @@
 (expect-raw
   (core->redex (CObject (CSym 'foo) (MetaStr "bar")))
   (pointer-val ref))
+
+(full-expect
+ (,(core->redex (CGetField (CObject (CId 'str (LocalId)) (MetaStr "foo")) "inherited"))
+  [{(str 5)}]
+  ,inherit-Σ)
+ ((pointer-val ref_meth)
+  εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+      (ref_rest val_rest) ...)))
+
+(expect-raw
+ (core->redex (CSeq (CSym 'foo) (CSym 'bar)))
+ (sym "bar"))
 
 
 (test-results)

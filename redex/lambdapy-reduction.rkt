@@ -75,6 +75,9 @@
         e_2
         (side-condition (not (term (truthy? val))))
         "if-false")
+   (==> (seq val e)
+        e
+        "E-Seq")
    ;; NOTE(yao): this may be unnecessary, since context T deals with it
    ;; I wrote it and then deleted.
    ;; same thing for "seq-return" etc., if we use context to do it
@@ -82,9 +85,6 @@
    (==> (if (exception-r val) e_1 e_2)
 	(exception-r val)
 	"if-exception")|#
-   (==> (seq val e)
-        e
-        "seq")
    (==> (seq (return-r val) e)
 	(return-r val)
 	"seq-return")
