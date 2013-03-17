@@ -293,9 +293,13 @@ print(C.__mro__)
 
 Field lookups on objects whose class value is @(lp-term C) will first look
 in the dictionary of @(lp-term C), and then in the dictionary of the built-in
-class @(lp-term object).  We define this lookup algorithm within @(lambda-py)
-as @(lp-term class-lookup), shown in @figure-ref["f:lookup-class"] along with
-the reduction rule for field access that uses it.
+class @(lp-term object).
+
+This isn't the only thing that 
+
+We define this lookup algorithm within @(lambda-py) as @(lp-term class-lookup),
+shown in @figure-ref["f:lookup-class"] along with the reduction rule for field
+access that uses it.
 
 @figure*["f:lookup-class" @elem{Class lookup}]{
   @para{
@@ -306,6 +310,9 @@ the reduction rule for field access that uses it.
   }
   @para{
     @(lp-metafunction class-lookup-mro #f)
+  }
+  @para{
+    @(lp-metafunction maybe-bind-method #f)
   }
 }
 

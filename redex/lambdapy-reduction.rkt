@@ -5,7 +5,7 @@
 (require "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
-(provide λπ-red override-store class-lookup class-lookup-mro)
+(provide λπ-red override-store class-lookup class-lookup-mro maybe-bind-method)
 
 
 (define λπ-red
@@ -299,9 +299,9 @@
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))])
  
 (define-metafunction λπ
-  extend-store : Σ val -> (Σ val)
+  extend-store : Σ val -> (Σ ref)
   [(extend-store (name Σ ((ref val) ...)) val_new)
-   (((ref val) ... (ref_new val_new)) (pointer-val ref_new))
+   (((ref val) ... (ref_new val_new)) ref_new)
    (where ref_new (get-new-loc Σ))])
 
 (define-metafunction λπ
@@ -329,17 +329,13 @@
 (define-metafunction λπ
   maybe-bind-method : val val Σ -> (Σ val)
   [(maybe-bind-method (pointer-val ref_obj) (pointer-val ref_result) Σ)
-   (extend-store Σ_2 val_method)
+   (Σ_3 (pointer-val ref_method))
    (where (fun-val εs (λ (x ...) e))
     (store-lookup Σ ref_result))
-   (where ref_self (get-new-loc Σ))
-   (where Σ_1 (override-store Σ ref_self (pointer-val ref_obj)))
-   (where ref_func (get-new-loc Σ_1))
-   (where Σ_2 (override-store Σ_1 ref_func (pointer-val ref_result)))
-   (where val_method
-    (obj-val method (no-meta)
-      (("__self__" ref_self)
-       ("__func__" ref_func))))]
+   (where (Σ_1 ref_self) (extend-store Σ (pointer-val ref_obj)))
+   (where (Σ_2 ref_func) (extend-store Σ_1 (pointer-val ref_result)))
+   (where val_method (obj-val method (no-meta) (("__self__" ref_self) ("__func__" ref_func))))
+   (where (Σ_3 ref_method) (extend-store Σ_2 val_method))]
   [(maybe-bind-method (pointer-val ref_obj) val_other Σ)
    (Σ val_other)])
    

@@ -20,6 +20,7 @@
     (lambda ()
       (parameterize
         [(metafunction-cases (if cases cases (metafunction-cases)))
+         (metafunction-pict-style 'left-right/compact-side-conditions)
          (metafunction-font-size 11)
          (default-font-size 11)
          (label-font-size 11)]
@@ -42,12 +43,21 @@
     [(? symbol?) (list lws)]
 		[(list a b) (list (replace-e a "{}"))]
     [(list _ elts ... _)
+     (define (render-dict-elts elts)
+      (cond
+        [(empty? elts) empty]
+        [(empty? (rest elts))
+         (render-dict-elt (first elts))]
+        [(cons? (rest elts))
+         (append (render-dict-elt (first elts))
+                 (list ",")
+                 (render-dict-elts (rest elts)))]))
      (define (render-dict-elt elt)
        (match (lw-e elt)
         [(list _ key val _)
-         (list key ":" val ",")]
-        [_ elt]))
-     (flatten (list (list "{") (map render-dict-elt elts) (list "}")))]))
+         (list key ":" val)]
+        [_ (list elt)]))
+     (flatten (list (list "{") (render-dict-elts elts) (list "}")))]))
 
 (define (replace-e the-lw new-e)
   (lw new-e
@@ -142,6 +152,11 @@
     [(list _ _ sto ref val _)
      (list "" sto "[" ref ":=" val "]")]))
 
+(define (extend-rewriter lws)
+  (match lws
+    [(list _ _ sto val _)
+     (list "alloc(" sto "," val ")")]))
+
 (define (store-lookup-rewriter lws)
   (match lws
     [(list _ _ sto ref _)
@@ -176,6 +191,7 @@
 		['list list-rewriter]
 
     ['override-store override-rewriter]
+    ['extend-store extend-rewriter]
     ['store-lookup store-lookup-rewriter]
     ['δ delta-rewriter]
    )
