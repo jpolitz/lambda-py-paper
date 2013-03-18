@@ -15,7 +15,7 @@ Lerner [FILL joke]")}
 @authorinfo["Joe Gibbs Politz" "Brown University" "joe@cs.brown.edu"]
 @authorinfo["Sumner Warren" "Brown University" "FILL"]
 @authorinfo["Matthew Milano" "Brown University" "matthew@cs.brown.edu"]
-@authorinfo["Daniel Patterson" "Brown University" "FILL"]
+@authorinfo["Daniel Patterson" "Brown University" "dbpatter@cs.brown.edu"]
 @authorinfo["Alejandro Martinez" "" ""]
 @authorinfo["Junsong Li" "" ""]
 @authorinfo["Anand Chitipothu" "" ""]
