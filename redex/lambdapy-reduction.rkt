@@ -47,12 +47,13 @@
         ((in-hole E (pointer-val val)) εs Σ_1)
         "E-Alloc"
         (where (Σ_1 ref_new) (extend-store Σ val)))
-   (--> ((in-hole E (fun (x ...) e)) εs Σ)
-        ((in-hole E (fun-val εs (λ (x ...) e))) εs Σ)
-        "E-FunNoVarArg")
-   (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
-        ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
-        "E-FunVarArg")
+   (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) εs Σ)
+        ((in-hole E (pointer-val ref_fun)) εs Σ_1)
+        (where (Σ_1 ref_fun)
+          (extend-store Σ (obj-val '%function
+                                   (meta-fun εs (λ (x ...) opt-var_1 e opt-var_2))
+                                   ())))
+        "E-Fun")
    (--> ((in-hole E (object val mval)) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
         "E-Object"
@@ -326,7 +327,7 @@
   maybe-bind-method : val val Σ -> (Σ val)
   [(maybe-bind-method (pointer-val ref_obj) (pointer-val ref_result) Σ)
    (Σ_3 (pointer-val ref_method))
-   (where (fun-val εs (λ (x ...) e))
+   (where (obj-val any_fun (meta-closure εs (λ (x ...) opt-var_1 e opt-var_2)) ())
     (store-lookup Σ ref_result))
    (where (Σ_1 ref_self) (extend-store Σ (pointer-val ref_obj)))
    (where (Σ_2 ref_func) (extend-store Σ_1 (pointer-val ref_result)))

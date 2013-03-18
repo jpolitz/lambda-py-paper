@@ -29,13 +29,11 @@
 (paren-style "Inconsolata")
 (metafunction-font-size 11)
 
-(define (fun-rewriter lws)
+(define (metafun-rewriter lws)
   (define envs (list-ref lws 2))
   (define lampart (lw-e (list-ref lws 3)))
   (match lampart
-    [(list _ _ args body _)
-     (list "λ" "<" envs ">" args "." body)]
-    [(list _ _ args vararg body _)
+    [(list _ _ args vararg body classarg _)
      (list "λ" "<" envs ">" args vararg "." body)]))
 
 (define (rewrite-dict-tuple lws)
@@ -170,7 +168,6 @@
 (define (with-rewriters thnk)
   (with-compound-rewriters
    (
-    ['fun-val fun-rewriter]
     ['obj-val obj-rewriter]
     ['pointer-val pointer-rewriter]
     ['undefined-val undefined-rewriter]
@@ -181,6 +178,7 @@
     ['meta-list metalist-rewriter]
     ['meta-set metaset-rewriter]
     ['meta-dict metadict-rewriter]
+    ['meta-closure metafun-rewriter]
     ['meta-none metanone-rewriter]
 
     ['id id-rewriter]

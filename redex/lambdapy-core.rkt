@@ -16,15 +16,11 @@
   
   ;; value types
   (val
-   (sym string)
 	 (obj-val val mval ((string ref) ...))
 	 (obj-val x mval ((string ref) ...))
-   (fun-val εs (λ (x ...) e))
-   (fun-val εs (λ (x ...) (x) e))
-   (fun-val εs (λ (x ...) e) x)
-   (fun-val εs (λ (x ...) (x) e) x)
    (pointer-val ref)
-   (undefined-val))
+   (undefined-val)
+   (sym string))
 
   ;; primitive operators
   (op string)
@@ -37,12 +33,14 @@
         (meta-str string)
         (meta-list (val ...))
         (meta-tuple (val ...))
-        ;; set is like a list in representation, lack of order has to be accounted for in semantics
         (meta-set (val ...))
         (meta-class x)
+        (meta-closure εs (λ (x ...) opt-var e opt-var))
         (meta-none) ;; The Python value
         (no-meta)
         (meta-port)) ;; TODO(dbp): figure out how to represent port
+
+  (opt-var (x) (no-var))
   
   ;; types of expressions
   (e true
@@ -63,10 +61,7 @@
      (app e (e ...))
      (app e (e ...) e)
      ;; NOTE(dbp): 4 variants for presence/absence of stararg, symbol for class
-     (fun (x ...) e)
-     (fun (x ...) x e)
-     (fun (x ...) e x)
-     (fun (x ...) x e x)
+     (fun (x ...) opt-var e opt-var)
      (while e e e)
      (loop e) ;; helper syntax for while
      (return e)

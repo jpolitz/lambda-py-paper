@@ -54,7 +54,7 @@ an obvious CPS transformation.
 
 @figure["f:values" @elem{Values in @(lambda-py)}]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(val mval εs ε ref))))
+    (lambda () (render-language λπ #:nts '(val mval εs ε ref opt-var))))
 }
 
 @section{Warmup: Pythonic Values and Objects}
@@ -248,7 +248,7 @@ semantics via an extra argument that holds all additional values passed to the
 function beyond those in the list @(lp-term (x ...)).
 
 @figure["f:functions" @elem{Evaluating function expressions}]{
-  @(lp-reduction '("E-FunNoVarArg" "E-FunVarArg"))
+  @(lp-reduction '("E-Fun"))
 }
 
 [FILL] functions as objects.

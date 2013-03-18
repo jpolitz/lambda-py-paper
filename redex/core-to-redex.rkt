@@ -21,7 +21,6 @@
     [CTrue () (term true)]
     [CFalse () (term false)]
     [CNone () (term none)]
-    [CClass (name) (term (class x))]
     [CObject (class mval)
      (term (object ,(core->redex class) ,(mval->redex mval)))]
     [CGetField (value attr)

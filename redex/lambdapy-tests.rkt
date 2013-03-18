@@ -168,7 +168,7 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
    (11 (pointer-val 12))
-   (12 (fun-val () (λ (self) none)))}))
+   (12 (obj-val '%function (meta-closure () (λ (self) none)) ()))}))
 
 (full-expect
  ((get-field (object (id str local) (meta-str "foo"))
