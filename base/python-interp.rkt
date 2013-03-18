@@ -60,11 +60,11 @@
          [else (Abnormal first-result)]))]))
 
 ;; common code to interpret function and method application, first argument must be a VClosure.
-(define (interp-vclosure [vfun : CVal] [arges : (listof CExpr)] 
+(define (interp-vclosure [vfun : MetaVal] [arges : (listof CExpr)] 
                          [stararg : (optionof CExpr)]
                          [env : Env] [sfun : Store] [stk : Stack]) : Result
-  (type-case CVal vfun
-    [VClosure (cenv argxs vararg body opt-class)
+  (type-case MetaVal vfun
+    [MetaClosure (cenv argxs vararg body opt-class)
               (type-case ResultList (interp-cascade arges sfun env stk)
                 [Abnormal (r) r]
                 [v*s/list (argvs-r sc)
@@ -110,10 +110,11 @@
   (lambda (vfun-ptr sfun)
     (let ([vfun (fetch-ptr vfun-ptr sfun)])
     (type-case CVal vfun
-      [VClosure (cenv argxs vararg body opt-class)
-                (interp-vclosure vfun arges stararg env sfun stk)]
-
       [VObjectClass (b mval d class)
+       (cond
+        [(and (some? mval) (MetaClosure? (some-v mval))) 
+         (interp-vclosure (some-v mval) arges stararg env sfun stk)]
+        [else
                   ;; This means we're calling an object, so apply its __call__ method.
                   ;; Class calls are now handled by type.__call__ method (Alejandro).
                   (local [(define __call__ (get-field '__call__ vfun-ptr env sfun))]
@@ -122,12 +123,11 @@
                       (begin ;(display (format "Calling ~a\n" (fetch-ptr vc sc)))
                            (cond
                              ;; for bound methods use __func__ attribute and __self__
-                             [(and (is-obj-ptr? vc sc) (equal? (VObjectClass-antecedent (fetch-ptr vc sc)) 'method))
+                             [(and (is-obj-ptr? vc sc) (object-is? (fetch-ptr vc sc) '%method env sc))
                               (local 
                                 [(define func
-                                   (fetch-ptr
-				     (fetch-once
-				       (some-v (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__func__)) sc) sc))
+                                  (fetch-once
+                                   (some-v (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__func__)) sc))
                                  (define w_self (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__self__))
                                  (define id_self (new-id))
                                  (define m_arges (cons (CId id_self (LocalId)) arges))
@@ -138,10 +138,10 @@
                                 (begin
                                   ;(display (format "Method is: ~a" vc)) (display "\n")
                                   ;(display (format "Func is: ~a" func)) (display "\n")
-                                  (interp-vclosure func m_arges stararg m_env sc stk)))]
+                                  (interp-vclosure (get-fun-mval func sto) m_arges stararg m_env sc stk)))]
                              [else
                                ;; for unbound methods, use function application
-                               (interp-vclosure (fetch-ptr vc sc) arges stararg env sc stk)]))]
+                               (interp-vclosure (get-fun-mval vc sc) arges stararg env sc stk)]))]
                       [Return (vfun sfun) (return-exception env sfun)]
                       [Break (sfun) (break-exception env sfun)]
                       [Continue (sfun) (continue-exception env sfun)]
@@ -150,7 +150,7 @@
                                                              (symbol->string b)
                                                              " object is not callable")
                                                            env
-                                                           sto)]))]
+                                                           sto)]))])]
       [else (error 'interp "Not a closure or constructor.")]))))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
@@ -272,13 +272,6 @@
     [CNone () (alloc-result vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
-    [CClass (name)
-            (alloc-result (VObjectClass 'type
-                                        (some (MetaClass name))
-                                        (hash empty)
-                                        (none))
-                          sto)]
-
     [CGetField (value attr)
     (begin
       ;(display "Getting field ") (display attr) (display "from: \n") (display value)
@@ -354,11 +347,21 @@
     [CObject (class mval)
              (handle-result env (interp-env class env sto stk)
                (lambda (cval csto)
-                 (alloc-result (VObjectClass (MetaClass-c (some-v (VObjectClass-mval (fetch-ptr cval csto))))
-                                    mval
-                                    (hash empty)
-                                    (some cval))
-                      csto)))]
+                 (let ([cls-obj (fetch-ptr cval csto)])
+                   (alloc-result
+                    (if (and (some? (VObjectClass-mval cls-obj))
+                             (MetaClass? (some-v (VObjectClass-mval cls-obj))))
+                        ;; normal object with class pointer
+                        (VObjectClass (MetaClass-c (some-v (VObjectClass-mval cls-obj)))
+                                      mval
+                                      (hash empty)
+                                      (some cval))
+                        ;; internal use only object without class pointer
+                        (VObjectClass 'NoClass
+                                      mval
+                                      (hash empty)
+                                      (none)))
+                    csto))))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
@@ -377,10 +380,11 @@
 
     [CFunc (args sargs body opt-class) 
            (begin ;(display "func ") (display env) (display "\n\n")
-           (alloc-result (VClosure
-                  (cons (hash empty) env)
-                  ;(if (some? opt-class) (rest env) env)
-                  args sargs body opt-class)
+           (alloc-result (VObjectClass
+                  '%function
+                  (some (MetaClosure (cons (hash empty) env) args sargs body opt-class))
+                  (hash empty)
+                  (none))
                 sto))]
 
     [CReturn (value)
@@ -488,7 +492,7 @@
          (lambda (v-code s-code)
            (cond
              [(not (and (is-obj-ptr? v-code s-code)
-                        (eq? (VObjectClass-antecedent (fetch-ptr v-code s-code)) 'code)))
+                        (object-is? (fetch-ptr v-code s-code) '%code env sto)))
               (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
              [else
               (let ((obj (fetch-ptr v-code s-code)))
@@ -734,7 +738,6 @@
 
 (define (truthy? [val : CVal] sto) : boolean
   (type-case CVal val
-    [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
     [VSym (t) (equal? t 'true)]
@@ -755,10 +758,10 @@
   (let ([obj (fetch-ptr objptr sto)])
     (cond
       ;; for method objects, __call__ attribute is the object itself
-      [(and (equal? (VObjectClass-antecedent obj) 'method) (equal? fld '__call__))
+      [(and (object-is? obj '%method env sto) (equal? fld '__call__))
        (v*s objptr sto)]
       ;; special lookup handling for initialized super object
-      [(and (equal? (VObjectClass-antecedent obj) 'super)
+      [(and (object-is? obj '%super env sto)
             (some? (hash-ref (VObjectClass-dict obj) '__self__)))
        (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
                [define self (fetch-once (some-v w_self) sto)]
@@ -767,7 +770,7 @@
                                               sto)])
          (cond
            [(and (is-obj-ptr? self sto)
-                 (equal? (VObjectClass-antecedent (fetch-ptr self sto)) 'type))
+                 (object-is? (fetch-ptr self sto) '%type env sto))
             ;; obj.self is a class
             (get-field-from-cls fld self (some thisclass) env sto)]
            [else
@@ -783,22 +786,22 @@
                         ;(display (format "on field: ~a\n" fld))
                        (cond
                          ;; For functions, create method object bound to the object itself
-                         [(VClosure? (fetch-ptr value sto)) 
-                          (local [(define-values (meth sto-m) (mk-method w objptr (none) sto))]
+                         [(is-fun-ptr? value sto)
+                          (local [(define-values (meth sto-m) (mk-method w objptr env sto))]
                             (alloc-result meth sto-m))]
                          ;; for classmethod objects create method object bound to the object's class
                          [(and (is-obj-ptr? value sto) 
-                               (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
+                               (object-is? (fetch-ptr value sto) '%classmethod env sto))
                           (local [(define w_func 
                                     (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
                                   (define-values (meth sto-m)
                                     ;; NOTE(joe): obj-cls needs to be a pointer
-                                    (mk-method w_func obj-cls (none) sto))]
+                                    (mk-method w_func obj-cls env sto))]
                             ;; NOTE(joe): does this alloc-result break is-equality of class methods?
                             (alloc-result meth sto-m))]
                          ;; for staticmethod obj. return func attribute
                          [(and (is-obj-ptr? value sto) 
-                               (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'staticmethod))
+                               (object-is? (fetch-ptr value sto) '%staticmethod env sto))
                                     (get-field '__func__ value env sto)]
                          ;; otherwise return the value of the attribute
                          [else 
@@ -822,40 +825,35 @@
                             [sto : Store]) : Result
   (begin ;(display "GET-CLS: ") (display fld) ;(display " ") (display clsptr)
          ;(display " ") (display clsptr) (display "\n")
-  (let ([cls (fetch-ptr clsptr sto)])
-    (cond
-      [(equal? fld '__mro__) 
-       ;; temporary hack to avoid self-reference in __mro__
-       (alloc-result (VObjectClass 'tuple (some (MetaTuple (get-mro clsptr thisclass sto))) (hash empty) (none))
-            sto)]
-      [else
-       (type-case (optionof Address) (lookup-mro (get-mro clsptr thisclass sto) fld sto)
-         [some (w)
-               (let ([value (fetch-once w sto)])
-                 (cond
-                   ;; for classmethod obj. create method obj. bound to the class
-                   [(and (is-obj-ptr? value sto) 
-                         (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
-                    (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
-                            (define-values (meth sto-m) (mk-method w_func clsptr (none) sto))]
-                      (alloc-result meth sto-m))]
-                   ;; for staticmethod obj. return func attribute
-                   [(and (is-obj-ptr? value sto)
-                         (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'staticmethod))
-                    (get-field '__func__ value env sto)]
-                   ;; otherwise return the value of the attribute
-                   [else
-                    (begin ;(display "Else of get-cls\n") (display value)
-                    ;(display "\n") (display (fetch-ptr value sto)) (display "\n")
-                    (v*s value sto))]))]
-         [none () (mk-exception 'AttributeError
-                                (string-append 
-                                 (string-append "class " 
-                                                (symbol->string (VObjectClass-antecedent cls)))
-                                 (string-append " has no attribute "
-                                                (symbol->string fld)))
-                                env
-                                sto)])]))))
+    (let ([cls (fetch-ptr clsptr sto)])
+      (type-case (optionof Address) (lookup-mro (get-mro clsptr thisclass sto) fld sto)
+        [some (w)
+              (let ([value (fetch-once w sto)])
+                (cond
+                  ;; for classmethod obj. create method obj. bound to the class
+                  [(and (is-obj-ptr? value sto)
+                        (object-is? (fetch-ptr value sto) '%classmethod env sto))
+                   (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto))
+                                                            '__func__)))
+                           (define-values (meth sto-m) (mk-method w_func clsptr env sto))]
+                     (alloc-result meth sto-m))]
+                  ;; for staticmethod obj. return func attribute
+                  [(and (is-obj-ptr? value sto)
+                        (object-is? (fetch-ptr value sto) '%staticmethod env sto))
+                   (get-field '__func__ value env sto)]
+                  ;; otherwise return the value of the attribute
+                  [else
+                   (begin ;(display "Else of get-cls\n") (display value)
+                     ;(display "\n") (display (fetch-ptr value sto)) (display "\n")
+                     (v*s value sto))]))]
+        [none () (mk-exception 'AttributeError
+                               (string-append
+                                (string-append "class "
+                                               (symbol->string (VObjectClass-antecedent cls)))
+                                (string-append " has no attribute "
+                                               (symbol->string fld)))
+                               env
+                               sto)]))))
 
 ;; lookup-mro: looks for field in mro list
 (define (lookup-mro [mro : (listof CVal)] [n : symbol] [sto : Store]) : (optionof Address)
