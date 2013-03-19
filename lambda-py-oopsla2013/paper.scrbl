@@ -9,6 +9,7 @@
   "typesetting.rkt")      
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
+@(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 
 @title{Python: The Full Monty@(elem #:style "thanks" "Title credit Benjamin S.
 Lerner [FILL joke]")}
@@ -25,32 +26,92 @@ Lerner [FILL joke]")}
 
 @section{Introduction}
 
-@section{Contributions}
+@section{Motivation and Contributions}
 
-We tackled, for Python
-3.2.3,@note{http://www.python.org/getit/releases/3.2.3/} (released April
-2012), the semantics of:
+Python is a widely-used scripting
+language@note{https://github.com/blog/841-those-are-some-big-numbers} with a
+reputation for simplicity and expressivity.  There are a number of tools for
+Python, from style and lint-checkers,@note{https://pypi.python.org/pypi/pylint,
+https://pypi.python.org/pypi/pep8} to simple static
+checkers,@note{https://pypi.python.org/pypi/pyflakes} to code analyzers that
+import and run code to analyze
+it.@note{https://pypi.python.org/pypi/PyChecker}.  There are also a number of
+IDEs for Python, which provide tools like variable name refactoring and code
+completion@note{http://www.jetbrains.com/pycharm/, http://pydev.org/,
+http://wingware.com/, among others}.  These tools are all useful, but all are
+built on an ad hoc understanding of Python, and provide little in the way of
+@emph{guarantees}; in [REF] we note that a simple 8 line program, which uses no
+so-called ``dynamic'' features, confuses their variable rename refactoring
+because of a wrinkle in Pythonic scope
+
+This is not to say that developers shouldn't use these tools; they are
+certainly invaluable for organizing projects, providing symbol completion, and
+managing build and deployments.  They could be made even more helpful, however,
+if their predictions about programs and refactoring tools could be defined
+rigorously and with respect to a semantics for Python, rather than in a
+best-effort manner over the Python AST data structure they happen to use.
+
+Indeed, as Python becomes even more widely used, and in even more
+correctness-sensitive domains, a precise understanding of programs written in
+Python becomes even more important.  The Securities and Exchange Commission has
+proposed using Python as an executable specification of financial
+contracts@note{https://www.sec.gov/rules/proposed/2010/33-9117.pdf}, and Python
+is becoming a scripting language of choice for programming new network
+paradigms@note{http://www.noxrepo.org/pox/about-pox/}.  Is an informal
+understanding of the language sufficient for such domains?  Having a precise
+semantics available for analyzing and proving properties of programs is a much
+more comfortable situation for these applications to be in.
+
+In this paper, we present a tested semantics for several features of Python
+3.2.3.@note{http://www.python.org/getit/releases/3.2.3/, released April 2012}
+As concrete contributions and artifacts, we have produced and will discuss in
+this paper:
 
 @itemlist[
-  @item{Object model}
-  @item{Pythonic Patterns}
-  @item{Scope}
-  @item{Modules}
-  @item{Generators}
-  @item{Testing strategy & results}
+
+  @item{A @emph{core semantics} for Python, dubbed @(lambda-py), which is implemented
+  in Redex (and was used to typeset the figures in this document);}
+
+  @item{An @emph{interpreter}, dubbed @(lambda-interp), implemented in 800LOC
+  of Racket, that is a more efficient implementation of @(lambda-py), tested
+  against the Redex model;}
+
+  @item{A @emph{desugaring} translation from Python programs to @(lambda-py),
+  implemented in Racket and described here in prose and pseudocode;}
+
+  @item{The results of @emph{testing} the composition of desugaring with
+  @(lambda-interp) against a real Python implementation, to demonstrate conformance
+  of @(lambda-py) with real-world Python.}
+
 ]
 
-@subsection{Outline} We first address Python's value and object model, whose
-richness allows many of the other patterns we see in the language.  We then
-show how many Pythonic patterns for iteration and overloading can be
+This suite of artifacts is a meaningful contribution in itself, regardless of
+any new insights into programming languages theory or practice.  It constitutes
+a formal description of the language, and a mathematical foundation for
+applying well-known programming language techniques to complex, real-world
+applications written in Python.
+
+Along with these concrete implementation and mathematical contributions, we
+also provide some more high-level insight into several feature interactions
+within Python.  Most notably, Python's scope interacts heavily with both
+classes and control flow (in the form of generators), making those features
+difficult to understand independently.  We show how we untangle the tight
+coupling of these features, and manage to express them in a traditional
+calculus of scope, control, and objects.
+
+@subsection{Outline} Presenting the entirety of Python's semantics and its
+translation to @(lambda-py) is out of the scope of this document, so we focus
+on a few particular areas.  We first give an overview Python's value and object
+model, whose richness allows many of the other patterns we see in the language.
+We then show how many Pythonic patterns for iteration and overloading can be
 implemented as straightforward expansions to patterns in this object model.
-In this section we also introduce the concept of @emph{desugaring} the surface
-language to the core.  Next, we tackle Python's unique treatment of scope for
-variables and closures.  This notion of scope interacts with Python's module
-system at the global and local level, so we discuss the module system next.
-Finally, we show how generators, a complicated control-flow construct in
-Python, interact with Python's scope and require a more subtle solution than
-an obvious CPS transformation.
+This also serves as an introduction to the concept of @emph{desugaring} the
+surface language to the core.  Next, we tackle Python's unique treatment of
+scope for variables and closures, and how it interacts with both classes and a
+naïve understanding of generators.  After explaining our model of scope, we
+show how generators can be implemented with local CPS.  Finally, we describe
+the results of testing our desugaring and interpreter against CPython to ensure
+its fidelity to real-world Python programs.
 
 @figure["f:values" @elem{Values in @(lambda-py)}]{
   @(with-rewriters
@@ -247,7 +308,7 @@ allows for variable-arity functions, which we explicitly support in the
 semantics via an extra argument that holds all additional values passed to the
 function beyond those in the list @(lp-term (x ...)).
 
-@figure["f:functions" @elem{Evaluating function expressions}]{
+@figure*["f:functions" @elem{Evaluating function expressions}]{
   @(lp-reduction '("E-Fun"))
 }
 
@@ -317,7 +378,8 @@ access that uses it.
 }
 
 This rule and the associated metafunctions are interesting for a few reasons.
-
+[FILL this may change as we make __getattribute__ work, so deferring an
+explanation for now]
 
 
 @subsection{Desugaring Classes}

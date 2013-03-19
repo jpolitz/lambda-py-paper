@@ -50,9 +50,7 @@
    (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) εs Σ)
         ((in-hole E (pointer-val ref_fun)) εs Σ_1)
         (where (Σ_1 ref_fun)
-          (extend-store Σ (obj-val '%function
-                                   (meta-fun εs (λ (x ...) opt-var_1 e opt-var_2))
-                                   ())))
+          (extend-store Σ (obj-val '%function (meta-fun εs (λ (x ...) opt-var_1 e opt-var_2)) ())))
         "E-Fun")
    (--> ((in-hole E (object val mval)) εs Σ)
         ((in-hole E (pointer-val ref_new)) εs Σ_1)
