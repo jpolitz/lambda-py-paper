@@ -3,11 +3,14 @@
 @(require scriblib/footnote scribble/manual scriblib/figure racket/base)
 @(require redex)
 @(require
+  "../base/python-tools.rkt"
+  "../redex/core-to-redex.rkt"
   "../redex/lambdapy-core.rkt"
   "../redex/lambdapy-reduction.rkt"
   "../redex/lambdapy-prim.rkt"
-  "typesetting.rkt")      
+  "typesetting.rkt")
 
+@(set-pypath "/home/joe/src/Python-3.2.3/python")
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 
@@ -95,8 +98,8 @@ Along with these concrete implementation and mathematical contributions, we
 also provide some more high-level insight into several feature interactions
 within Python.  Most notably, Python's scope interacts heavily with both
 classes and control flow (in the form of generators), making those features
-difficult to understand independently.  We show how we untangle the tight
-coupling of these features, and manage to express them in a traditional
+difficult to understand independently.  In [REF], We show how we untangle the
+tight coupling of these features, and manage to express them in a traditional
 calculus of scope, control, and objects.
 
 @subsection{Outline} Presenting the entirety of Python's semantics and its
@@ -143,9 +146,7 @@ assert(len(s) == len(d) == len(t)
     == len(l) == len(s) == 3)
 assert(s[0] == "s")
 assert(d[0] == "or more")
-assert(t[0] == "heter")
-assert(l[0] == "heter")
-assert(st[0] == "heter")
+assert(t[0] == l[0] == "heter")
 }
 
 All of these builtin values have special, builtin behavior that cannot be
@@ -352,11 +353,10 @@ print(C.__mro__)
 # (<class '__main__.C'>, <class 'object'>)
 }
 
-Field lookups on objects whose class value is @(lp-term C) will first look
-in the dictionary of @(lp-term C), and then in the dictionary of the built-in
-class @(lp-term object).
-
-This isn't the only thing that 
+Field lookups on objects whose class value is @(lp-term C) will first look in
+the dictionary of @(lp-term C), and then in the dictionary of the built-in
+class @(lp-term object).  [FILL hopefully remove discussion of method binding
+here]
 
 We define this lookup algorithm within @(lambda-py) as @(lp-term class-lookup),
 shown in @figure-ref["f:lookup-class"] along with the reduction rule for field
@@ -395,39 +395,79 @@ essence of how @(lambda-py) models Python's classes.
 Classes are created with a special @code{class} form in Python.  The simplest
 nontrivial classes can define methods by using the same @code{def} syntax as
 function definitions.  The special method @code{__init__} defines a constructor
-for the class, which is used to initialize fields:
+for the class, which is used to initialize fields, and variables in the class's
+body are also accessible as fields of instances.  @Figure-ref["f:test-class"]
+shows a simple class definition that uses these features.
+
+@figure["f:test-class" @elem{"A sample Python class definition"}]{
 
 @verbatim{
 class Test(object):
+  success = 'Test passed'
+  failure = 'Test failed'
   def __init__(self, f):
     self.f = f
   def runtest(self, expected):
     if self.f() == expected:
-      print('Test passed')
+      print(self.success)
     else:
-      print('Test failed')
+      print(self.failure)
 
 t1 = Test(lambda: "correct")
 t1.runtest("correct") # "Test passed"
 t1.runtest("incorrect") # "Test failed"
 }
 
+}
+
 A few things to note:
 
 @itemlist[
 
-  @item{The @code{Test} class declares @code{object} to be its superclass}
+  @item{The @code{Test} class declares @code{object} to be its superclass by
+  putting @code{object} in the parentheses of the class
+  declaration,@note{Multiple comma-separated superclasses would yield multiple
+  inheritance.}}
 
   @item{Calling the @code{Test} class value itself causes @code{__init__} to be
-called}
+  called,}
 
   @item{The @code{__init__} method is purely side-affecting, and is passed an
-already-created (but not initialized) instance of the class.}
+  already-created (but not initialized) instance of the class,}
 
   @item{The method receiver @code{t1} is passed to the method @code{runtest}
-implicitly}
+  implicitly,}
+
+  @item{The variables @code{success} and @code{failure} are available as fields
+  on @code{self}.}
 
 ]
+
+We tackle these features through desugaring the class form down to particular
+object structures.  We can turn @code{Test} itself into an object whose class
+is the builtin class @code{type}, and then assign its @(lp-term "__mro__")
+field to the correct sequence of objects.
+
+@centered{
+  @(lp-term/val (core->redex (get-core-syntax (open-input-string "
+class C():
+  success = 'Test Success'
+  "))))
+  }
+
+@centered{
+  @(lp-term
+  (let (obj local (object (id %type local) (meta-class 'Test)))
+    (assign (get-field obj "__mro__") (tuple %tuple ((id Test local) (id %object local))))
+    (assign (get-field obj "__init__") (fun (self f) (no-var) (assign (get-field self "f") (id f local))))
+    (assign (get-field obj "success") (object %str (meta-str "success")))
+    (assign (get-field obj "failure") (object %str (meta-str "failure")))
+    (assign (get-field obj "runtest")
+      (fun (self) (no-var)))))
+}
+
+
+
 
 
 @subsection{Reflection}

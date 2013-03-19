@@ -1,13 +1,18 @@
 #lang racket
 
-(require redex "../redex/lambdapy-core.rkt" "../redex/lambdapy-reduction.rkt")
-(provide with-rewriters lp-term lp-reduction lp-metafunction)
+(require redex redex/pict "../redex/lambdapy-core.rkt" "../redex/lambdapy-reduction.rkt")
+(provide with-rewriters lp-term lp-term/val lp-reduction lp-metafunction)
 
 (define-syntax-rule (lp-term t)
   (parameterize
      [(default-font-size 11)]
   (with-rewriters
    (λ () (render-term λπ t)))))
+(define-syntax-rule (lp-term/val t)
+  (parameterize
+     [(default-font-size 11)]
+  (with-rewriters
+   (λ () (term->pict/pretty-write λπ t)))))
 (define-syntax-rule (lp-reduction names)
   (parameterize
     [(render-reduction-relation-rules names)
@@ -122,7 +127,7 @@
 (define (assign-rewriter lws)
   (match lws
     [(list _ _ target val _)
-     (list "" target ":=" val)]))
+     (list target ":=" val)]))
 
 (define (app-rewriter lws)
   (match lws
@@ -144,6 +149,27 @@
      (list "〈" cls "〉")]
     [(list _ _ cls metaval _)
      (list "〈" cls "," metaval "〉")]))
+
+(define (module-rewriter lws)
+  (match lws
+    [(list _ _ _ body _)
+     (list "" body)]))
+
+(define (let-rewriter lws)
+  (define (binder-rewriter lw)
+    (match (lw-e lw)
+      [(list _ var _ val _)
+       (list var "=" val)]
+      [else (error 'list (format "Let binder fell through: ~a" (lw-e lw)))]))
+  (match lws
+    [(list _ let binder body _)
+     (append (list "let")
+             (binder-rewriter binder)
+             (list "in" body))]
+    [(list _ let one two three four five six _)
+     (list let one two three four five six)]
+    [else (error 'list (format "Let fell through: ~a" (map lw-e lws)))]))
+     
 
 (define (override-rewriter lws)
   (match lws
@@ -187,6 +213,8 @@
 		['app app-rewriter]
 		['object object-rewriter]
 		['list list-rewriter]
+    ['module module-rewriter]
+    ['let let-rewriter]
 
     ['override-store override-rewriter]
     ['extend-store extend-rewriter]
