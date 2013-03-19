@@ -320,6 +320,54 @@ This rule and the associated metafunctions are interesting for a few reasons.
 
 
 
+@subsection{Desugaring Classes}
+
+In the last section, we saw that field lookup depends on a special class
+pointer, and a designated @(lp-term "__mro__") field that contains the
+inheritance chain of the object.  We didn't discuss how classes and their
+associated @(lp-term "__mro__") field get created in the first place.  We next
+briefly describe the class form in Python and some of its behavior.  Rather
+than attempt to do justice to a full description here, we try to capture the
+essence of how @(lambda-py) models Python's classes.
+
+Classes are created with a special @code{class} form in Python.  The simplest
+nontrivial classes can define methods by using the same @code{def} syntax as
+function definitions.  The special method @code{__init__} defines a constructor
+for the class, which is used to initialize fields:
+
+@verbatim{
+class Test(object):
+  def __init__(self, f):
+    self.f = f
+  def runtest(self, expected):
+    if self.f() == expected:
+      print('Test passed')
+    else:
+      print('Test failed')
+
+t1 = Test(lambda: "correct")
+t1.runtest("correct") # "Test passed"
+t1.runtest("incorrect") # "Test failed"
+}
+
+A few things to note:
+
+@itemlist[
+
+  @item{The @code{Test} class declares @code{object} to be its superclass}
+
+  @item{Calling the @code{Test} class value itself causes @code{__init__} to be
+called}
+
+  @item{The @code{__init__} method is purely side-affecting, and is passed an
+already-created (but not initialized) instance of the class.}
+
+  @item{The method receiver @code{t1} is passed to the method @code{runtest}
+implicitly}
+
+]
+
+
 @subsection{Reflection}
 
 Python has a number of reflective operations on the values in its object
