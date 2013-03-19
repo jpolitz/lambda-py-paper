@@ -18,6 +18,7 @@ ParselTongue.
   [CNone]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
+  [CGetAttr (value : CExpr) (attr : CExpr)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
@@ -132,10 +133,10 @@ ParselTongue.
     [VPointer (a) (is-fun? (fetch-once a sto))]
     [else false]))
 
-(define (get-fun-mval val sto)
+(define (get-fun-mval [val : CVal] [sto : Store]) : MetaVal
   (cond
     [(is-fun-ptr? val sto) (some-v (VObjectClass-mval (fetch-ptr val sto)))]
-    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (cons val (fetch-ptr val sto))))]))
+    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (list val (fetch-ptr val sto))))]))
 
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
@@ -144,22 +145,25 @@ ParselTongue.
              [none () (error 'interp
                              (string-append "No value at address " (Address->string w)))]))
 
-(define (fetch-ptr val sto)
+(define (fetch-ptr [val : CVal] [sto : Store] ) : CVal
   (type-case CVal val
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
 (define (mk-exception [type : symbol] [arg : string] [env : Env] [sto : Store]) : Result
   (local [(define exn-loc (new-loc))
+          (define arg-loc (new-loc))
           (define args-loc (new-loc))
           (define args-field-loc (new-loc))
           (define cls (fetch-once (some-v (lookup type env)) sto))
-          (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
+          (define arg-val (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none)))]
     (Exception
       (VPointer exn-loc)
       (hash-set
         (hash-set
-          (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
+          (hash-set
+           (hash-set sto arg-loc arg-val)
+           args-loc (VObjectClass 'tuple (some (MetaTuple (list (VPointer arg-loc)))) (hash empty) (none)))
           args-field-loc (VPointer args-loc))
         exn-loc
         (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
