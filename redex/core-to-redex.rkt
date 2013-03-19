@@ -43,11 +43,11 @@
      (term (id ,x ,(idtype->redex type)))]
     [CSeq (e1 e2) (term (seq ,(core->redex e1) ,(core->redex e2)))]
     [CAssign (target value)
-     (term (assign ,(core->redex target) ,(core->redex value)))]
+     (term (assign ,(core->redex target) := ,(core->redex value)))]
     [CIf (test then els)
      (term (if ,(core->redex test) ,(core->redex then) ,(core->redex els)))]
     [CLet (x type bind body)
-     (let [(result (term (let (,x ,(idtype->redex type) ,(core->redex bind))
+     (let [(result (term (let (,x ,(idtype->redex type) = ,(core->redex bind)) in
       ,(core->redex body))))]
       (begin
         (display (string-append "Result of let: " (string-append (to-string (length result)) "\n\n")))

@@ -3,14 +3,11 @@
 @(require scriblib/footnote scribble/manual scriblib/figure racket/base)
 @(require redex)
 @(require
-  "../base/python-tools.rkt"
-  "../redex/core-to-redex.rkt"
   "../redex/lambdapy-core.rkt"
   "../redex/lambdapy-reduction.rkt"
   "../redex/lambdapy-prim.rkt"
   "typesetting.rkt")
 
-@(set-pypath "/home/joe/src/Python-3.2.3/python")
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 
@@ -275,7 +272,7 @@ Python does, however, support arbitrary field assignments on objects.  The
 expression
 
 @centered{
-  @(lp-term (assign (get-field e_obj str_f) e_val))
+  @(lp-term (assign (get-field e_obj str_f) := e_val))
 }
 
 has one of two behaviors, defined in @figure-ref["f:simple-objs"].  If @(lp-term
@@ -449,21 +446,18 @@ is the builtin class @code{type}, and then assign its @(lp-term "__mro__")
 field to the correct sequence of objects.
 
 @centered{
-  @(lp-term/val (core->redex (get-core-syntax (open-input-string "
-class C():
-  success = 'Test Success'
-  "))))
-  }
-
-@centered{
-  @(lp-term
-  (let (obj local (object (id %type local) (meta-class 'Test)))
-    (assign (get-field obj "__mro__") (tuple %tuple ((id Test local) (id %object local))))
-    (assign (get-field obj "__init__") (fun (self f) (no-var) (assign (get-field self "f") (id f local))))
-    (assign (get-field obj "success") (object %str (meta-str "success")))
-    (assign (get-field obj "failure") (object %str (meta-str "failure")))
-    (assign (get-field obj "runtest")
-      (fun (self) (no-var)))))
+  @(lp-term ;; lp-term is just a wrapper around (with-rewriters ... render-term)
+  (let (obj local = (object (id %type local) (meta-class 'Test))) in
+    (seq
+    (assign (get-field obj "__mro__") := (tuple %tuple ((id Test local) (id %object local))))
+    (seq
+    (assign (get-field obj "__init__") := (fun (self f) (no-var) (assign (get-field self "f") := (id f local))))
+    (seq
+    (assign (get-field obj "success") := (object %str (meta-str "success")))
+    (seq
+    (assign (get-field obj "failure") := (object %str (meta-str "failure")))
+    (assign (get-field obj "runtest") :=
+      (fun (self) (no-var)))))))))
 }
 
 

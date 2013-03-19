@@ -65,11 +65,11 @@
 
 
 ;; binding
-(expect (let (x local vtrue) (id x local))
+(expect (let (x local = vtrue) in (id x local))
 	vtrue)
-(expect (let (x local (exception-r vtrue)) false)
+(expect (let (x local = (exception-r vtrue)) in false)
 	(exception-r vtrue))
-(expect (let (x local vtrue) (exception-r vfalse))
+(expect (let (x local = vtrue) in (exception-r vfalse))
 	(exception-r vfalse))
 
 ;; prims

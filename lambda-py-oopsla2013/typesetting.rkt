@@ -6,6 +6,7 @@
 (define-syntax-rule (lp-term t)
   (parameterize
      [(default-font-size 11)]
+    (printf "Rendering: \n\n ~a \n\n" (quote t))
   (with-rewriters
    (λ () (render-term λπ t)))))
 (define-syntax-rule (lp-term/val t)
@@ -125,9 +126,11 @@
      (list "" obj "[" fld "]")]))
 
 (define (assign-rewriter lws)
+  (printf "Assign: ~a\n" (map lw-e lws))
   (match lws
-    [(list _ _ target val _)
-     (list target ":=" val)]))
+    [(list _ _ target colon val _)
+     (list "" target colon val)]
+    [else (error 'list (format "Let binder fell through: ~a" (map lw-e lws)))]))
 
 (define (app-rewriter lws)
   (match lws
@@ -155,19 +158,22 @@
     [(list _ _ _ body _)
      (list "" body)]))
 
+(define (seq-rewriter lws)
+  (match lws
+    [(list _ _ e1 e2 _)
+     (list "" e1 e2)]))
+
 (define (let-rewriter lws)
   (define (binder-rewriter lw)
     (match (lw-e lw)
-      [(list _ var _ val _)
-       (list var "=" val)]
-      [else (error 'list (format "Let binder fell through: ~a" (lw-e lw)))]))
+      [(list _ var type equals val _)
+       (list var "" equals val)]
+      [else (error 'list (format "Let binder fell through: ~a" (map lw-e (lw-e lw))))]))
   (match lws
-    [(list _ let binder body _)
-     (append (list "let")
+    [(list _ let binder in body _)
+     (append (list let)
              (binder-rewriter binder)
-             (list "in" body))]
-    [(list _ let one two three four five six _)
-     (list let one two three four five six)]
+             (list in body))]
     [else (error 'list (format "Let fell through: ~a" (map lw-e lws)))]))
      
 
@@ -208,12 +214,13 @@
     ['meta-none metanone-rewriter]
 
     ['id id-rewriter]
-		['get-field getfield-rewriter]
-		['assign assign-rewriter]
-		['app app-rewriter]
-		['object object-rewriter]
-		['list list-rewriter]
+    ['get-field getfield-rewriter]
+    ['assign assign-rewriter]
+    ['app app-rewriter]
+    ['object object-rewriter]
+    ['list list-rewriter]
     ['module module-rewriter]
+    ['seq seq-rewriter]
     ['let let-rewriter]
 
     ['override-store override-rewriter]
