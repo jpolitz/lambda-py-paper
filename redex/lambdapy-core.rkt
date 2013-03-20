@@ -45,6 +45,7 @@
   (e true
      false
      none
+     ref
      (fetch e)
      (set! e e)
      (alloc e)
@@ -203,6 +204,38 @@
      ;; todo - may need more
      )
   
+  ;; contexts for returning
+  (R hole
+     (fetch R)
+     (set! R e)
+     (set! v R)
+     (alloc R)
+     (object R mval)
+     (assign e := R)
+     (seq R e)
+     (if R e e)
+     (let (x t = R) in e)
+     (list R e)
+     (list val R)
+     (tuple R e)
+     (tuple val R)
+     (set R e)
+     (set val R)
+     (get-field R string)
+     (builtin-prim op R)
+     (raise R)
+     (loop R) ;; DO go into active loops to find returns
+     (tryexcept R x e e) ;; DO go into try/catches to find returns
+     ;; (tryfinally R e) DON'T go into tryfinallys to find returns
+     (app R (e ...))
+     (app val R)
+     (app R (e ...) e)
+     (app val R e)
+     (app val (val ...) R)
+     (val ... R e ...) ;; for list, tuple, app, etc.
+     ;; todo - may need more
+     )
+
   ;; identifiers, as per
   ;; http://docs.python.org/3.2/reference/lexical_analysis.html#keywords
   ((w x y z f g h) (variable-except False class finally is return

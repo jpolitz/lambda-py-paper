@@ -52,7 +52,7 @@
    (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) ε Σ)
         ((in-hole E (pointer-val ref_fun)) ε Σ_1)
         (where (Σ_1 ref_fun)
-          (extend-store Σ (obj-val '%function (meta-fun ε (λ (x ...) opt-var_1 e opt-var_2)) ())))
+          (extend-store Σ (obj-val %function (meta-closure (λ (x ...) opt-var_1 e opt-var_2)) ())))
         "E-Fun")
    (--> ((in-hole E (object val mval)) ε Σ)
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
@@ -103,9 +103,9 @@
    (==> (loop (in-hole H break))
         vnone
         "loop-break")
-   (==> (return val)
-	(return-r val)
-	"return")
+   (==> (in-hole R (return val))
+        val
+        "return")
    (==> (try val (e_exc ...) val_else e_finally)
         e_finally
         "try-noexc")
@@ -189,38 +189,6 @@
         (where (Σ_result val_result)
           (class-lookup (pointer-val ref_obj) (store-lookup Σ ref) string Σ))
         "E-GetField-Class")
-   (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
-         ε
-         (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
-        ((in-hole E (get-field val_1 string_1))
-         ε
-         store)
-        (side-condition (not (string=? "__class__" (term string_1))))
-        (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
-        (side-condition (not (member "__class__" (term (string_2 ... string_3 ...)))))
-        (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
-        "get-field-class")
-   (--> ((in-hole E (get-field (obj-val x_base mval ((string_2 ref_2) ...)) string_1))
-         (name env (((x_1 ref_x1) ...) ... ((x_2 ref_x2) ... (x_base ref_base) (x_3 ref_x3) ...) ε ...))
-         (name store ((ref_4 val_4) ... (ref_base val_base) (ref_5 val_5) ...)))
-        ((in-hole E (get-field val_base string_1))
-         env
-         store)
-        (side-condition (not (member (term string_1) (term (string_2 ...)))))
-        (side-condition (not (member "__class__" (term (string_2 ...)))))
-        (side-condition (not (member (term x_base) (append* (term ((x_1 ...) ...))))))
-        (side-condition (not (member (term x_base) (term (x_2 ... x_3 ...)))))
-        (side-condition (not (member (term ref_base) (term (ref_4 ... ref_5 ...)))))
-        "get-field-base")
-   (--> ((in-hole E (assign (id x_1 local) := val_1))
-         ((name scope ((x_2 ref_2) ...)) ε ...)
-         Σ)
-        ((in-hole E vnone)
-         ((extend-env scope x_1 ref_1) ε ...)
-         (override-store Σ ref_1 val_1))
-        (side-condition (not (member (term x_1) (term (x_2 ...)))))
-        (where ref_1 ,(new-loc))
-        "assign-local-free")
    (--> ((in-hole E (assign (id x_1 local) := val_1))
          (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
          Σ)
@@ -238,11 +206,15 @@
         (side-condition (not (member (term string_1) (term (string ...)))))
         "E-AssignAdd"
         (where (Σ_1 ref_new) (extend-store Σ val_1)))
-   (==> (val ... r e ...)
-        (r)
-        (side-condition (not (val? (term r))))
-        (side-condition (not (and (empty? (term (val ...))) (empty? (term (e ...))))))
-        "cascade-nonval")
+   (--> ((in-hole E (app (pointer-val ref_fun) (val ..._1))) ε Σ)
+        ((in-hole E (subst (x ...) (ref_arg ...) e)) ε Σ_1)
+        (where (obj-val any_c (meta-closure (λ (x ..._1) (no-var) e opt-var)) any_dict)
+               (store-lookup Σ ref_fun))
+        (where (Σ_1 (ref_arg ...))
+               (extend-store/list Σ (val ...)))
+        "E-App")
+   (--> ((in-hole E ref) ε Σ)
+        ((in-hole E (store-lookup Σ ref)) ε Σ))
    with
    [(--> (in-hole P e_1) (in-hole P e_2))
     (==> e_1 e_2)]
@@ -270,6 +242,28 @@
   [(extend-store (name Σ ((ref val) ...)) val_new)
    (((ref val) ... (ref_new val_new)) ref_new)
    (where ref_new (get-new-loc Σ))])
+
+(define-metafunction λπ
+  extend-store/list : Σ (val ...) -> (Σ (ref ...))
+  [(extend-store/list Σ (val)) (Σ_1 (ref))
+   (where (Σ_1 ref) (extend-store Σ val))]
+  [(extend-store/list Σ (val val_rest ...)) (Σ_1 (ref ref_rest ...))
+   (where (Σ_1 (ref_rest ...))
+          (extend-store/list Σ (val_rest ...)))])
+
+(define-metafunction λπ
+  fetch-pointer : val Σ -> val
+  [(fetch-pointer (pointer-val ref) Σ) (store-lookup Σ ref)])
+
+(define-metafunction λπ
+  store-lookup : Σ ref -> val
+  [(store-lookup ((ref_1 val_1) ... (ref val) (ref_n val_n) ...) ref)
+   val])
+
+(define-metafunction λπ
+  get-new-loc : Σ -> ref
+  [(get-new-loc ((ref_1 val_1) ...))
+   ,(add1 (apply max (cons 0 (term (ref_1 ...)))))])
 
 (define-metafunction λπ
   class-lookup-mro : (val ...) string Σ -> val
@@ -306,21 +300,6 @@
   [(maybe-bind-method (pointer-val ref_obj) val_other Σ)
    (Σ val_other)])
    
-
-(define-metafunction λπ
-  fetch-pointer : val Σ -> val
-  [(fetch-pointer (pointer-val ref) Σ) (store-lookup Σ ref)])
-
-(define-metafunction λπ
-  store-lookup : Σ ref -> val
-  [(store-lookup ((ref_1 val_1) ... (ref val) (ref_n val_n) ...) ref)
-   val])
-
-(define-metafunction λπ
-  get-new-loc : Σ -> ref
-  [(get-new-loc ((ref_1 val_1) ...))
-   ,(add1 (apply max (cons 0 (term (ref_1 ...)))))])
-
 (define-metafunction λπ
   subst-exprs : x any (e ...) -> (e ...)
   [(subst-exprs x any ()) ()]
@@ -373,6 +352,7 @@
   [(subst-one x any false) false]
   [(subst-one x any none) none]
   [(subst-one x any undefined) undefined]
+  [(subst-one x any ref) ref]
   [(subst-one x any (fetch e)) (fetch (subst-one x any e))]
   [(subst-one x any (set! e_1 e_2))
    (set! (subst-one x any e_1) (subst-one x any e_2))]
@@ -395,7 +375,7 @@
    (let (y local = e_b) in (subst-one x any e))
    (side-condition (not (equal? (term y) (term x))))]
   [(subst-one x any (let (y global = e_b) in e)) ;; leave globals intact again
-   (let (y global = e_b) in (subst x any e))]
+   (let (y global = e_b) in (subst-one x any e))]
   [(subst-one x any (app e (e_arg ...)))
    (app (subst-one x any e) (subst-exprs x any (e_arg ...)))]
   [(subst-one x any (app e (e_arg ...) e_star))

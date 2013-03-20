@@ -53,9 +53,14 @@
         (display (string-append "Result of let: " (string-append (to-string (length result)) "\n\n")))
         result))]
     [CApp (fun args stararg)
-     (term (app ,(core->redex fun)
-                ,(map core->redex args)
-                ,(core->redex/opt stararg)))]
+     (type-case (optionof CExpr) stararg
+      [some (e)
+       (term (app ,(core->redex fun)
+                  ,(map core->redex args)
+                  ,(core->redex e)))]
+      [none ()
+       (term (app ,(core->redex fun)
+                  ,(map core->redex args)))])]
     ;; TODO(joe): all combinations
     [CFunc (args varargs body opt-class)
      (term (fun ,args

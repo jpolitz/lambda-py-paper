@@ -12,7 +12,7 @@
          "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
-(require (only-in plai-typed/untyped some))
+(require (only-in plai-typed/untyped some none))
 
 (define-syntax (expect stx)
   (syntax-case stx ()
@@ -211,6 +211,20 @@
 (expect-raw
  (core->redex (CSeq (CSym 'foo) (CSym 'bar)))
  (sym "bar"))
+
+(full-expect
+ (,(core->redex (CApp (CFunc '(x) (none) (CReturn (CId 'x (LocalId))) (none))
+                      (list (CObject (CId 'str (GlobalId))
+                                     (some (MetaStr "identity function"))))
+                      (none)))
+  {(str 5)}
+  ,inherit-Σ)
+ ((pointer-val ref_str)
+  ε
+  {(ref val) ... (ref_str (obj-val (pointer-val ref_cls)
+                                   (meta-str "identity function")
+                                   ()))
+   (ref_n val_n)}))
 
 
 (test-results)
