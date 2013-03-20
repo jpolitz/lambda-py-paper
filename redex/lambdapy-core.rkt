@@ -12,7 +12,6 @@
   
   ;; environment
   (ε ((x ref) ...))
-  (εs (ε ...))
   
   ;; value types
   (val
@@ -35,7 +34,7 @@
         (meta-tuple (val ...))
         (meta-set (val ...))
         (meta-class x)
-        (meta-closure εs (λ (x ...) opt-var e opt-var))
+        (meta-closure (λ (x ...) opt-var e opt-var))
         (meta-none) ;; The Python value
         (no-meta)
         (meta-port)) ;; TODO(dbp): figure out how to represent port
@@ -77,14 +76,8 @@
      undefined
      break
      (module e e)
-     r)
-  
-  ;; types for result
-  (r val
-     (return-r val)
-     (exception-r val)
-     break-r
-     continue-r)
+     (err val)
+     val)
   
   ;; evaluation context
   (E hole
@@ -120,6 +113,35 @@
      ;; todo - may need more
      )
   
+  ;; context in a try/finally block
+  (F hole
+     (fetch F)
+     (set! F e)
+     (set! v F)
+     (alloc F)
+     (object F mval)
+     (assign e := F)
+     (seq F e)
+     (if F e e)
+     (let (x t = F) in e)
+     (list F e)
+     (list val F)
+     (tuple F e)
+     (tuple val F)
+     (set F e)
+     (set val F)
+     (get-field F string)
+     (builtin-prim op F)
+     (raise F)
+     (loop F)
+     (app F (e ...))
+     (app val F)
+     (app F (e ...) e)
+     (app val F e)
+     (app val (val ...) F)
+     (tryexcept F x e e)
+     (val ... F e ...) ;; for list, tuple, app, etc.
+     )
   ;; context in a try block
   (T hole
      (fetch T)
@@ -183,7 +205,7 @@
   
   ;; identifiers, as per
   ;; http://docs.python.org/3.2/reference/lexical_analysis.html#keywords
-  (x (variable-except False class finally is return
+  ((w x y z f g h) (variable-except False class finally is return
 		      None continue for lambda try
 		      True def from nonlocal while
 		      and del global not with
@@ -191,6 +213,6 @@
 		      assert else import pass
 		      break except in raise))
   
-  (p (e εs Σ))
-  (P (E εs Σ))
+  (p (e ε Σ))
+  (P (E ε Σ))
   )

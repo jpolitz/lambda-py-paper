@@ -90,4 +90,5 @@
     [CModule (prelude body)
      (term (module ,(core->redex prelude) ,(core->redex body)))]
     [CConstructModule (source)
-     (term (construct-module ,(core->redex source)))])))
+     (term (construct-module ,(core->redex source)))]
+    [CYield (e) (error 'core-to-redex "The Redex model doesn't know anything about CYield.  Use CPS to remove CYields before calling core-to-redex")])))

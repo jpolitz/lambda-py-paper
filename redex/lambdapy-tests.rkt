@@ -16,20 +16,20 @@
 (define-syntax (expect stx)
   (syntax-case stx ()
       ((_ e v)
-       #'(test-->>∃ λπ-red (term (e (()) ()))
+       #'(test-->>∃ λπ-red (term (e () ()))
                     (λ (p) (equal? (term v) (first p)))))))
 
 (define-syntax (expect-raw stx)
   (syntax-case stx ()
       ((_ e pat)
-       #'(test-->>∃ λπ-red (term (,e (()) ()))
+       #'(test-->>∃ λπ-red (term (,e () ()))
                     (λ (p) (redex-match? λπ pat (first p)))))))
 
 
 (define-syntax (full-expect stx)
   (syntax-case stx ()
-      ((_ (e εs Σ) pat)
-       #'(test-->>∃ λπ-red (term (e εs Σ))
+      ((_ (e ε Σ) pat)
+       #'(test-->>∃ λπ-red (term (e ε Σ))
                     (λ (p)
                       (if (not
                               (and
@@ -51,14 +51,14 @@
 ;; control flow
 (expect (if true none undefined) vnone)
 (expect (if false none undefined) (undefined-val))
-(expect (if (exception-r vtrue) false false)
-	(exception-r vtrue))
+(expect (if (raise vtrue) false false)
+	(exn vtrue))
 (expect (seq true false) vfalse)
 (expect (seq (raise vtrue) false)
-	(exception-r vtrue))
+	(err vtrue))
 (expect (seq false (raise vtrue))
-	(exception-r vtrue))
-(expect (seq (return true) false)
+	(err vtrue))
+#;(expect (seq (return true) false)
 	(return-r vtrue))
 (expect (while true break false)
 	break-r)
@@ -67,10 +67,10 @@
 ;; binding
 (expect (let (x local = vtrue) in (id x local))
 	vtrue)
-(expect (let (x local = (exception-r vtrue)) in false)
-	(exception-r vtrue))
-(expect (let (x local = vtrue) in (exception-r vfalse))
-	(exception-r vfalse))
+(expect (let (x local = (raise vtrue)) in false)
+	(err vtrue))
+(expect (let (x local = vtrue) in (raise vfalse))
+	(err vfalse))
 
 ;; prims
 (expect (builtin-prim "is" (true true)) vtrue)
@@ -120,9 +120,9 @@
   (pointer-val 0))
 
 (full-expect
- ((get-field (object (id str local) (meta-str "foo"))
+ ((get-field (object (id str global) (meta-str "foo"))
              "inherited")
-  [{(str 5)}]
+  {(str 5)}
   {(4 (obj-val type (meta-class str) (("__mro__" 9) ("inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
@@ -133,9 +133,9 @@
   εs Σ))
 
 (full-expect
- ((get-field (object (id str local) (meta-str "foo"))
+ ((get-field (object (id str global) (meta-str "foo"))
              "shadowed")
-  [{(str 5)}]
+  {(str 5)}
   {(4 (obj-val type (meta-class str) (("__mro__" 9) ("shadowed" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
@@ -147,9 +147,9 @@
   εs Σ))
 
 (full-expect
- ((get-field (object (id str local) (meta-str "foo"))
+ ((get-field (object (id str global) (meta-str "foo"))
              "inherited")
-  [{(str 5)}]
+  {(str 5)}
   {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
@@ -171,17 +171,17 @@
    (12 (obj-val %function (meta-closure () (λ (self) (no-var) none (no-var))) ()))}))
 
 (full-expect
- ((get-field (object (id str local) (meta-str "foo"))
+ ((get-field (object (id str global) (meta-str "foo"))
              "inherited")
-  [{(str 5)}]
+  {(str 5)}
   ,inherit-Σ)
  ((pointer-val ref_meth)
   εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
       (ref_rest val_rest) ...)))
 
 (full-expect
-  ((object (id str local) (meta-str "foo"))
-   [{(str 1)}]
+  ((object (id str global) (meta-str "foo"))
+   {(str 1)}
    {(0 (obj-val type (meta-class str) ()))
     (1 (pointer-val 0))})
   ((pointer-val ref_1)
@@ -196,8 +196,8 @@
   (pointer-val ref))
 
 (full-expect
- (,(core->redex (CGetField (CObject (CId 'str (LocalId)) (MetaStr "foo")) "inherited"))
-  [{(str 5)}]
+ (,(core->redex (CGetField (CObject (CId 'str (GlobalId)) (MetaStr "foo")) "inherited"))
+  {(str 5)}
   ,inherit-Σ)
  ((pointer-val ref_meth)
   εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))

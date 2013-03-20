@@ -5,7 +5,7 @@
 (require "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
-(provide λπ-red override-store class-lookup class-lookup-mro maybe-bind-method)
+(provide λπ-red override-store class-lookup class-lookup-mro maybe-bind-method subst)
 
 
 (define λπ-red
@@ -24,47 +24,49 @@
    (==> false
 	vfalse
 	"false")
-   (--> ((in-hole E (list val_c (val ...))) εs Σ)
-        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+   (--> ((in-hole E (tryexcept (in-hole T (raise val)) x e_c e_e)) ε Σ)
+        ((in-hole T (seq (subst-one x val e_c) e_e)) ε Σ)) ;;TODO(joe): allocation of var, else semantics
+   (--> ((in-hole E (list val_c (val ...))) ε Σ)
+        ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-List"
         (where (Σ_1 ref_new) (extend-store Σ (obj-val val_c (meta-list (val ...)) ()))))
-   (--> ((in-hole E (tuple val_c (val ...))) εs Σ)
-        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+   (--> ((in-hole E (tuple val_c (val ...))) ε Σ)
+        ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-Tuple"
         (where (Σ_1 ref_new) (extend-store Σ (obj-val val_c (meta-tuple (val ...)) ()))))
-   (--> ((in-hole E (set val_c (val ...))) εs Σ)
-        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+   (--> ((in-hole E (set val_c (val ...))) ε Σ)
+        ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-Set"
         (where (Σ_1 ref_new) (extend-store Σ (obj-val val_c (meta-set (val ...)) ()))))
-   (--> ((in-hole E (fetch (pointer-val ref))) εs Σ)
-        ((in-hole E (store-lookup Σ ref)) εs Σ)
+   (--> ((in-hole E (fetch (pointer-val ref))) ε Σ)
+        ((in-hole E (store-lookup Σ ref)) ε Σ)
         "E-Fetch")
-   (--> ((in-hole E (set! (pointer-val ref) val)) εs Σ)
-        ((in-hole E val) εs Σ_1)
+   (--> ((in-hole E (set! (pointer-val ref) val)) ε Σ)
+        ((in-hole E val) ε Σ_1)
         "E-Set!"
         (where Σ_1 (override-store Σ ref val)))
-   (--> ((in-hole E (alloc val)) εs Σ)
-        ((in-hole E (pointer-val val)) εs Σ_1)
+   (--> ((in-hole E (alloc val)) ε Σ)
+        ((in-hole E (pointer-val val)) ε Σ_1)
         "E-Alloc"
         (where (Σ_1 ref_new) (extend-store Σ val)))
-   (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) εs Σ)
-        ((in-hole E (pointer-val ref_fun)) εs Σ_1)
+   (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) ε Σ)
+        ((in-hole E (pointer-val ref_fun)) ε Σ_1)
         (where (Σ_1 ref_fun)
-          (extend-store Σ (obj-val '%function (meta-fun εs (λ (x ...) opt-var_1 e opt-var_2)) ())))
+          (extend-store Σ (obj-val '%function (meta-fun ε (λ (x ...) opt-var_1 e opt-var_2)) ())))
         "E-Fun")
-   (--> ((in-hole E (object val mval)) εs Σ)
-        ((in-hole E (pointer-val ref_new)) εs Σ_1)
+   (--> ((in-hole E (object val mval)) ε Σ)
+        ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-Object"
         (where ref_new (get-new-loc Σ))
         (where Σ_1 (override-store Σ ref_new (obj-val val mval ()))))
-   (--> ((in-hole E (prim1 op val)) εs Σ)
-        ((in-hole E (δ op val εs Σ)) εs Σ)
+   (--> ((in-hole E (prim1 op val)) ε Σ)
+        ((in-hole E (δ op val ε Σ)) ε Σ)
         "prim1")
-   (--> ((in-hole E (prim2 op val_1 val_2)) εs Σ)
-        ((in-hole E (δ op val_1 val_2 εs Σ)) εs Σ)
+   (--> ((in-hole E (prim2 op val_1 val_2)) ε Σ)
+        ((in-hole E (δ op val_1 val_2 ε Σ)) ε Σ)
         "prim2")
-   (--> ((in-hole E (builtin-prim op (val ...))) εs Σ)
-        ((in-hole E (δ op val ... εs Σ)) εs Σ)
+   (--> ((in-hole E (builtin-prim op (val ...))) ε Σ)
+        ((in-hole E (δ op val ... ε Σ)) ε Σ)
         "builtin-prim")
    (==> (if val e_1 e_2)
         e_1
@@ -84,11 +86,6 @@
    (==> (if (exception-r val) e_1 e_2)
 	(exception-r val)
 	"if-exception")|#
-   (==> (seq (return-r val) e)
-	(return-r val)
-	"seq-return")
-   (==> (seq (exception-r val) e)
-        (exception-r val))
    #|
    (==> (seq break-r e)
 	break-r
@@ -103,18 +100,12 @@
    (==> (loop val)
         vnone
         "loop")
-   (==> (loop (in-hole H break-r))
-        break-r
+   (==> (loop (in-hole H break))
+        vnone
         "loop-break")
-   (==> break
-        break-r
-        "break")
    (==> (return val)
 	(return-r val)
 	"return")
-   (==> (raise val)
-        (exception-r val)
-        "raise") ;; TODO: check type of val
    (==> (try val (e_exc ...) val_else e_finally)
         e_finally
         "try-noexc")
@@ -122,37 +113,37 @@
         (try e_else () vnone e_finally)
         (side-condition (not (val? (term e_else))))
         "try-else")
-   (==> (try (in-hole T (exception-r val)) () e_else e_finally)
+   (==> (try (in-hole T (raise val)) () e_else e_finally)
         (seq e_finally (exception-r val))
         "try-exc-nohandler")
-   (==> (try (in-hole T (exception-r val)) ((except () e) e_exc ...) e_else e_finally)
+   (==> (try (in-hole T (raise val)) ((except () e) e_exc ...) e_else e_finally)
         (try e () vnone e_finally)
         "try-exc-notype")
-   (==> (try (in-hole T (exception-r val)) ((except () (x) e) e_exc ...) e_else e_finally)
+   (==> (try (in-hole T (raise val)) ((except () (x) e) e_exc ...) e_else e_finally)
         (try (let (x local = val) in e) () vnone e_finally)
         "try-exc-notype-named")
-   (==> (try (in-hole T (exception-r val)) ((except (e_type1 e_type ...) e) e_exc ...) e_else e_finally)
+   (==> (try (in-hole T (raise val)) ((except (e_type1 e_type ...) e) e_exc ...) e_else e_finally)
         (try (if (builtin-prim "isinstance" (val e_type1)) ;; in principle "isinstance" should handle tuple (tuple (e_type1 e_type ...))
                  e
                  (try (in-hole T (exception-r val)) (e_exc ...) e_else vnone))
              () vnone e_finally)
         "try-exc-type")
-   (==> (try (in-hole T (exception-r val)) ((except (e_type1 e_type ...) (x) e) e_exc ...) e_else e_finally)
+   (==> (try (in-hole T (raise val)) ((except (e_type1 e_type ...) (x) e) e_exc ...) e_else e_finally)
         (try (if (builtin-prim "isinstance" (val e_type1)) ;; in principle "isinstance" should handle tuple (tuple (e_type1 e_type ...))
                  (let (x local = val) in e)
-                 (try (in-hole T (exception-r val)) (e_exc ...) e_else vnone))
+                 (try (in-hole T (raise val)) (e_exc ...) e_else vnone))
              () vnone e_finally)
         "try-exc-type-named")
    (==> (try (in-hole T r) (e_exc ...) e_else e_finally)
         (seq e_finally r)
         (side-condition (not (val? (term r))))
-        (side-condition (not (redex-match? λπ (exception-r any) (term r))))
+        (side-condition (not (redex-match? λπ (raise any) (term r))))
         "try-nonval")
    ;; NOTE(dbp): I don't think this is the correct behavior - uncaught exceptions
    ;; should percolate up as (exception-r val) results, NOT cause racket errors.
    ;;    agreed. (exception-r val) should be the reduction result. -yao
-   (--> ((in-hole T (exception-r val)) εs Σ)
-        ((exception-r val) εs Σ)
+   (--> ((in-hole T (raise val)) ε Σ)
+        ((err val) ε Σ)
         (side-condition (not (redex-match? λπ hole (term T)))) ;; avoid cycle
         "exc-uncaught")
    (==> (module val e)
@@ -176,26 +167,14 @@
          (override-store Σ ref_1 val_1))
         (where ref_1 ,(new-loc))
         "let")
-   (--> ((in-hole E (let (x_1 local = (return-r val_1)) in e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E e)
-         ((extend-env ε_1 x_1 ref_1) ε ...)
-         (override-store Σ ref_1 val_1))
-        (where ref_1 ,(new-loc))
-        "let-ret")
-   (--> ((in-hole E (let (x_1 local = break-r) in e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E e)
-         ((extend-env ε_1 x_1 ref_1) ε ...)
-         (override-store Σ ref_1 vnone))
-        (where ref_1 ,(new-loc))
-        "let-brk")
    #|
    (==> (let (x_1 (exception-r val)) e_1)
         (exception-r val)
         "let-exc")|#
+   (--> ((in-hole E (id x global))
+         (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...))
+         (name Σ ((ref_3 val_3) ... (ref val) (ref_4 val_4))))
+        ((in-hole E val) σ Σ))
    (--> ((in-hole E (id x_1 local))
          (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
@@ -206,22 +185,22 @@
         (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
         (side-condition (not (redex-match? λπ (undefined-val) (term val_1)))) ;; TODO: exception for undefined
         "id-local")
-   (--> ((in-hole E (get-field (pointer-val ref) string_1)) εs Σ)
-        ((in-hole E (store-lookup Σ ref_1)) εs Σ)
+   (--> ((in-hole E (get-field (pointer-val ref) string_1)) ε Σ)
+        ((in-hole E (store-lookup Σ ref_1)) ε Σ)
         (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))
         "E-GetField")
-   (--> ((in-hole E (get-field (pointer-val ref_obj) string)) εs Σ)
-        ((in-hole E val_result) εs Σ_result)
+   (--> ((in-hole E (get-field (pointer-val ref_obj) string)) ε Σ)
+        ((in-hole E val_result) ε Σ_result)
         (where (obj-val (pointer-val ref) mval ((string_1 ref_2) ...))
                (store-lookup Σ ref_obj))
         (where (Σ_result val_result)
           (class-lookup (pointer-val ref_obj) (store-lookup Σ ref) string Σ))
         "E-GetField-Class")
    (--> ((in-hole E (get-field (obj-val x mval ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
-         εs
+         ε
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
         ((in-hole E (get-field val_1 string_1))
-         εs
+         ε
          store)
         (side-condition (not (string=? "__class__" (term string_1))))
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
@@ -257,12 +236,12 @@
          (override-store Σ ref_1 val_1))
         (side-condition (not (member (term x_1) (term (x_2 ... x_3 ...)))))
         "assign-local-bound")
-   (--> ((in-hole E (assign (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1) := val_1)) εs Σ)
-        ((in-hole E vnone) εs (override-store Σ ref_1 val_1))
+   (--> ((in-hole E (assign (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1) := val_1)) ε Σ)
+        ((in-hole E vnone) ε (override-store Σ ref_1 val_1))
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
         "E-AssignUpdate")
-   (--> ((in-hole E (assign (get-field (obj-val x mval ((string ref) ... )) string_1) := val_1)) εs Σ)
-        ((in-hole E (obj-val x mval ((string_1 ref_new) (string ref) ...))) εs Σ_1)
+   (--> ((in-hole E (assign (get-field (obj-val x mval ((string ref) ... )) string_1) := val_1)) ε Σ)
+        ((in-hole E (obj-val x mval ((string_1 ref_new) (string ref) ...))) ε Σ_1)
         (side-condition (not (member (term string_1) (term (string ...)))))
         "E-AssignAdd"
         (where (Σ_1 ref_new) (extend-store Σ val_1)))
@@ -325,7 +304,7 @@
   maybe-bind-method : val val Σ -> (Σ val)
   [(maybe-bind-method (pointer-val ref_obj) (pointer-val ref_result) Σ)
    (Σ_3 (pointer-val ref_method))
-   (where (obj-val any_fun (meta-closure εs (λ (x ...) opt-var_1 e opt-var_2)) ())
+   (where (obj-val any_fun (meta-closure ε (λ (x ...) opt-var_1 e opt-var_2)) ())
     (store-lookup Σ ref_result))
    (where (Σ_1 ref_self) (extend-store Σ (pointer-val ref_obj)))
    (where (Σ_2 ref_func) (extend-store Σ_1 (pointer-val ref_result)))
@@ -349,6 +328,124 @@
   [(get-new-loc ((ref_1 val_1) ...))
    ,(add1 (apply max (cons 0 (term (ref_1 ...)))))])
 
+(define-metafunction λπ
+  subst-exprs : x any (e ...) -> (e ...)
+  [(subst-exprs x any ()) ()]
+  [(subst-exprs x any (e e_rest ...))
+   ((subst-one x any e) (subst-exprs x any (e_rest ...)))])
+
+(define-metafunction λπ
+  subst-fun : x any (x ...) opt-var e opt-var -> e
+  [(subst-fun x any (y ...) (x) e opt-var) e]
+  [(subst-fun x any (y ...) opt-var e (x)) e]
+  [(subst-fun x any (y ...) opt-var_1 e opt-var_2) e
+   (side-condition (member (term x) (term (y ...))))]
+  [(subst-fun x any (y ...) opt-var_1 e opt-var_2) (subst-one x any e)])
+
+(define-metafunction λπ
+  subst-mval : x any mval -> mval
+  [(subst-mval x any (meta-num number)) (meta-str number)]
+  [(subst-mval x any (meta-str string)) (meta-str string)]
+  [(subst-mval x any (meta-list (val ...)))
+   (meta-list (subst-exprs x any (val ...)))]
+  [(subst-mval x any (meta-tuple (val ...)))
+   (meta-tuple (subst-exprs x any (val ...)))]
+  [(subst-mval x any (meta-set (val ...)))
+   (meta-set (subst-exprs x any (val ...)))]
+  [(subst-mval x any (meta-class y)) (meta-class y)] ;; this is a name not a variable
+  [(subst-mval x any (meta-closure (λ (y ...) opt-var_1 e opt-var_2)))
+   (meta-closure (λ (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e opt-var_2) opt-var_2))]
+  [(subst-mval x any (meta-none)) (meta-none)]
+  [(subst-mval x any (no-meta)) (no-meta)]
+  [(subst-mval x any (meta-port)) (meta-port)])
+
+
+(define-metafunction λπ
+  subst-v : x any val -> val
+	[(subst-v x any (obj-val val mval ((string ref) ...)))
+   (obj-val (subst-v x any val) (subst-mval x any mval) ((string ref) ...))]
+	[(subst-v x any (obj-val y mval ((string ref) ...))) ;; this id is always global, so never subst into it
+   (obj-val y (subst-mval x any mval) ((string ref) ...))]
+  [(subst-v x any (pointer-val ref)) (pointer-val ref)]
+  [(subst-v x any (undefined-val)) (undefined-val)]
+  [(subst-v x any (sym string)) (sym string)])
+
+(define-metafunction λπ
+  subst-one : x any e -> e
+  [(subst-one x any (id x local)) any]
+  [(subst-one x any (id y global)) (id y global)] ;; leave globals intact
+  [(subst-one x any (id y local)) (id y local)
+   (side-condition (not (equal? (term y) (term x))))]
+  [(subst-one x any true) true]
+  [(subst-one x any false) false]
+  [(subst-one x any none) none]
+  [(subst-one x any undefined) undefined]
+  [(subst-one x any (fetch e)) (fetch (subst-one x any e))]
+  [(subst-one x any (set! e_1 e_2))
+   (set! (subst-one x any e_1) (subst-one x any e_2))]
+  [(subst-one x any (alloc e)) (fetch (subst-one x any e))]
+  [(subst-one x any (object e mval))
+   (object (subst-one x any e) (subst-mval x any mval))]
+  [(subst-one x any (get-field e string))
+   (get-field (subst-one x any e) string)]
+  [(subst-one x any (seq e_1 e_2))
+   (seq (subst-one x any e_1) (subst-one x any e_2))]
+  [(subst-one x any (assign e_1 := e_2))
+   (assign (subst-one x any e_1) (subst-one x any e_2))]
+  [(subst-one x any (if e_1 e_2 e_3))
+   (if (subst-one x any e_1)
+       (subst-one x any e_2)
+       (subst-one x any e_3))]
+  [(subst-one x any (let (x local = e_b) in e))
+   (let (x local = e_b) in e)]
+  [(subst-one x any (let (y local = e_b) in e))
+   (let (y local = e_b) in (subst-one x any e))
+   (side-condition (not (equal? (term y) (term x))))]
+  [(subst-one x any (let (y global = e_b) in e)) ;; leave globals intact again
+   (let (y global = e_b) in (subst x any e))]
+  [(subst-one x any (app e (e_arg ...)))
+   (app (subst-one x any e) (subst-exprs x any (e_arg ...)))]
+  [(subst-one x any (app e (e_arg ...) e_star))
+   (app (subst-one x any e) (subst-exprs x any (e_arg ...)) (subst-one x any e_star))]
+  [(subst-one x any (fun (y ...) opt-var_1 e opt-var_2))
+   (fun (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e opt-var_2))]
+  [(subst-one x any (while e_1 e_2 e_3))
+   (while (subst-one x any e_1)
+          (subst-one x any e_2)
+          (subst-one x any e_3))]
+  [(subst-one x any (loop e)) (loop (subst-one x any e))]
+  [(subst-one x any (return e)) (return (subst-one x any e))]
+  [(subst-one x any (builtin-prim op (e ...)))
+   (builtin-prim op (subst-exprs x any (e ...)))]
+  [(subst-one x any (list e_c (e ...)))
+   (list (subst-one x any e_c) (subst-exprs x any (e ...)))]
+  [(subst-one x any (tuple e_c (e ...)))
+   (tuple (subst-one x any e_c) (subst-exprs x any (e ...)))]
+  [(subst-one x any (set e_c (e ...)))
+   (set (subst-one x any e_c) (subst-exprs x any (e ...)))]
+  [(subst-one x any (raise)) (raise)]
+  [(subst-one x any (raise e)) (raise (subst-one x any e))]
+  [(subst-one x any (tryexcept e_t x e_c e_e)) ;; need to skip catch block if caught
+   (tryexcept (subst-one x any e_t)
+              e_c
+              (subst-one x any e_e))]
+  [(subst-one x any (tryexcept e_t y e_c e_e)) 
+   (tryexcept (subst-one x any e_t)
+              (subst-one x any e_c)
+              (subst-one x any e_e))]
+  [(subst-one x any (tryfinally e_t e_f))
+   (tryfinally (subst-one x any e_t) (subst-one x any e_f))]
+  [(subst-one x any break) break]
+  [(subst-one x any (module e_p e_b))
+   (module (subst-one x any e_p) (subst-one x any e_b))]
+  [(subst-one x any val)
+   (subst-v x any val)])
+
+(define-metafunction λπ
+  subst : (x ...) (any ...) e -> e
+  [(subst () () e) e]
+  [(subst (x x_rest ..._1) (any any_rest ..._1) e)
+   (subst (x_rest ...) (any_rest ...) (subst-one x any e))])
 
 #|
 ;; simply use this subst function for now
