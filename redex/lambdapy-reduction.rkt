@@ -12,18 +12,10 @@
   (reduction-relation
    λπ
    #:domain p
-   (==> none
-        vnone
-        "none")
-   (==> undefined
-        (undefined-val)
-        "undefined")
-   (==> true
-	vtrue
-	"true")
-   (==> false
-	vfalse
-	"false")
+   (==> none vnone "none")
+   (==> undefined (undefined-val) "undefined")
+   (==> true vtrue "true")
+   (==> false vfalse "false")
    (--> ((in-hole E (tryexcept (in-hole T (raise val)) x e_c e_e)) ε Σ)
         ((in-hole T (seq (subst-one x val e_c) e_e)) ε Σ)) ;;TODO(joe): allocation of var, else semantics
    (--> ((in-hole E (list val_c (val ...))) ε Σ)
@@ -59,12 +51,6 @@
         "E-Object"
         (where ref_new (get-new-loc Σ))
         (where Σ_1 (override-store Σ ref_new (obj-val val mval ()))))
-   (--> ((in-hole E (prim1 op val)) ε Σ)
-        ((in-hole E (δ op val ε Σ)) ε Σ)
-        "prim1")
-   (--> ((in-hole E (prim2 op val_1 val_2)) ε Σ)
-        ((in-hole E (δ op val_1 val_2 ε Σ)) ε Σ)
-        "prim2")
    (--> ((in-hole E (builtin-prim op (val ...))) ε Σ)
         ((in-hole E (δ op val ... ε Σ)) ε Σ)
         "builtin-prim")
@@ -159,14 +145,14 @@
         (fresh x_new)
         (where ref_new ,(new-loc))
         "let")|#
-   (--> ((in-hole E (let (x_1 local = val_1) in e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E e)
-         ((extend-env ε_1 x_1 ref_1) ε ...) ;; let-body's env will leak out, but it seems interp does it
-         (override-store Σ ref_1 val_1))
-        (where ref_1 ,(new-loc))
-        "let")
+   (--> ((in-hole E (let (x global = val) in e)) ε Σ)
+        ((in-hole E e) (extend-env ε x ref) Σ_1)
+        (where (Σ_1 ref) (extend-store Σ val))
+        "E-LetGlobal")
+   (--> ((in-hole E (let (x local = val) in e)) ε Σ)
+        ((in-hole E (subst-one x ref e)) ε Σ_1)
+        (where (Σ_1 ref) (extend-store Σ val))
+        "E-LetLocal")
    #|
    (==> (let (x_1 (exception-r val)) e_1)
         (exception-r val)
@@ -175,7 +161,7 @@
          (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...))
          (name Σ ((ref_3 val_3) ... (ref val) (ref_4 val_4) ...)))
         ((in-hole E val) ε Σ))
-   (--> ((in-hole E (id x_1 local)) ε Σ)
+   (--> ((in-hole E (id x local)) ε Σ)
         ((in-hole E (raise (obj-val %str (meta-str "Unbound identifier") ()))) ε Σ)
         "E-UnboundId")
    (--> ((in-hole E (get-field (pointer-val ref) string_1)) ε Σ)
@@ -189,14 +175,12 @@
         (where (Σ_result val_result)
           (class-lookup (pointer-val ref_obj) (store-lookup Σ ref) string Σ))
         "E-GetField-Class")
-   (--> ((in-hole E (assign (id x_1 local) := val_1))
-         (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
-         Σ)
-        ((in-hole E vnone)
-         env
-         (override-store Σ ref_1 val_1))
-        (side-condition (not (member (term x_1) (term (x_2 ... x_3 ...)))))
-        "assign-local-bound")
+   (--> ((in-hole E (assign (id x global) := val)) (name ε ((x_2 ref_2) ... (x ref) (x_3 ref_3) ...)) Σ)
+        ((in-hole E val) ε (override-store Σ ref val))
+        "E-AssignGlobal")
+   (--> ((in-hole E (assign ref := val)) ε Σ)
+        ((in-hole e val) ε (override-store Σ ref val))
+        "E-AssignLocal")
    (--> ((in-hole E (assign (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1) := val_1)) ε Σ)
         ((in-hole E vnone) ε (override-store Σ ref_1 val_1))
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
@@ -245,6 +229,7 @@
 
 (define-metafunction λπ
   extend-store/list : Σ (val ...) -> (Σ (ref ...))
+  [(extend-store/list Σ ()) (Σ ())]
   [(extend-store/list Σ (val)) (Σ_1 (ref))
    (where (Σ_1 ref) (extend-store Σ val))]
   [(extend-store/list Σ (val val_rest ...)) (Σ_1 (ref ref_rest ...))
@@ -303,6 +288,7 @@
 (define-metafunction λπ
   subst-exprs : x any (e ...) -> (e ...)
   [(subst-exprs x any ()) ()]
+  [(subst-exprs x any (e)) (subst-one x any e)]
   [(subst-exprs x any (e e_rest ...))
    ((subst-one x any e) (subst-exprs x any (e_rest ...)))])
 
@@ -316,7 +302,7 @@
 
 (define-metafunction λπ
   subst-mval : x any mval -> mval
-  [(subst-mval x any (meta-num number)) (meta-str number)]
+  [(subst-mval x any (meta-num number)) (meta-num number)]
   [(subst-mval x any (meta-str string)) (meta-str string)]
   [(subst-mval x any (meta-list (val ...)))
    (meta-list (subst-exprs x any (val ...)))]
@@ -381,7 +367,7 @@
   [(subst-one x any (app e (e_arg ...) e_star))
    (app (subst-one x any e) (subst-exprs x any (e_arg ...)) (subst-one x any e_star))]
   [(subst-one x any (fun (y ...) opt-var_1 e opt-var_2))
-   (fun (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e opt-var_2))]
+   (fun (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e opt-var_2) opt-var_2)]
   [(subst-one x any (while e_1 e_2 e_3))
    (while (subst-one x any e_1)
           (subst-one x any e_2)

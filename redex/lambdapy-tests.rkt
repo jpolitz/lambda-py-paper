@@ -7,12 +7,15 @@
 
 (require redex
          "../base/python-core-syntax.rkt"
+         "../base/python-tools.rkt"
          "core-to-redex.rkt"
          "lambdapy-reduction.rkt"
          "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
 (require (only-in plai-typed/untyped some none))
+
+(set-pypath "/home/joe/src/Python-3.2.3/python")
 
 (define-syntax (expect stx)
   (syntax-case stx ()
@@ -224,7 +227,54 @@
   {(ref val) ... (ref_str (obj-val (pointer-val ref_cls)
                                    (meta-str "identity function")
                                    ()))
-   (ref_n val_n)}))
+   (ref_n val_n) ...}))
+
+(full-expect
+ (,(core->redex (CApp (CFunc '() (none) (CReturn (CObject (CId 'str (GlobalId))
+                                                          (some (MetaStr "no args")))) (none))
+                      (list)
+                      (none)))
+  {(str 5)}
+  ,inherit-Σ)
+ ((pointer-val ref_str)
+  ε
+  {(ref val) ... (ref_str (obj-val (pointer-val ref_cls)
+                                   (meta-str "no args")
+                                   ()))
+   (ref_n val_n) ...}))
+
+(full-expect
+ (,(core->redex (CApp
+                 (CApp (CFunc '(x) (none)
+                             (CReturn (CFunc '(y) (none) (CReturn (CId 'x (LocalId))) (none)))
+                             (none))
+                       (list (CObject (CId 'str (GlobalId))
+                                      (some (MetaStr "close over this one"))))
+                       (none))
+                 (list (CNone))
+                 (none)))
+  {(str 5)}
+  ,inherit-Σ)
+ ((pointer-val ref_str)
+  ε
+  {(ref val) ... (ref_str (obj-val (pointer-val ref_cls)
+                                   (meta-str "close over this one")
+                                   ()))
+   (ref_n val_n) ...}))
+
+(full-expect
+ (,(core->redex (get-core-syntax (open-input-string "
+def f(x):
+  return x
+f('a-str')
+")))
+  {(%str 1)}
+  {(1 vnone)})
+ ((pointer-val ref_str)
+  {(%str 1) (f ref_f)}
+  {(ref_1 val_1) ...
+   (ref_str (obj-val any_cls (meta-str "a-str") ()))
+   (ref_n val_n) ...}))
 
 
 (test-results)
