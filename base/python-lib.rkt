@@ -14,6 +14,7 @@
          "modules/builtin-modules.rkt"
          "util.rkt"
          "python-lib-bindings.rkt"
+         (typed-in "python-lib-list.rkt" (python-libs : (listof string)))
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
          (typed-in "parse-python.rkt"
@@ -57,42 +58,19 @@ that calls the primitive `print`.
                 (desugar-macros
                   (new-scope-phase
                     (get-structured-python pyast)))))))
-               (list "pylib/none.py"
-                     "pylib/bool.py"
-                     "pylib/str.py"
-                     "pylib/tuple.py"
-                     "pylib/list.py"
-                     "pylib/dict.py"
-                     "pylib/set.py"
-                     "pylib/type.py"
-                     "pylib/function.py"
-                     "pylib/method.py"
-                     "pylib/super.py"
-                     "pylib/range.py"
-                     "pylib/seq_iter.py"
-                     "pylib/print.py"
-                     "pylib/filter.py"
-                     "pylib/any.py"
-                     "pylib/all.py"
-                     "pylib/import.py"
-                     "pylib/file.py"
-                     "pylib/isinstance.py"
-                     "pylib/callable.py"
-                     "py-prelude.py"
-                    ))))
+               python-libs)))
          (some-v pylib-programs))]
      [some (v) v]))
                  
 
 (define-type-alias Lib (CExpr -> CExpr))
-
-(define (python-lib [expr : CExpr]) : CExpr
-  (local [(define (cascade-lets bindings body)
+(define (cascade-lets bindings body)
             (if (empty? bindings)
                 body
                 (local [(define b (first bindings))]
                   (CLet (bind-left b) (GlobalId) (bind-right b)
-                      (cascade-lets (rest bindings) body)))))]
+                      (cascade-lets (rest bindings) body)))))
+(define (python-lib [expr : CExpr]) : CExpr
     (cascade-lets lib-function-dummies
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
@@ -101,4 +79,4 @@ that calls the primitive `print`.
                                   (list (bind 'True (assign 'True (CTrue)))
                                         (bind 'False (assign 'False (CFalse)))))
                              (get-builtin-modules)
-                             (list (CModule-body expr)))))))
+                             (list (CModule-body expr))))))

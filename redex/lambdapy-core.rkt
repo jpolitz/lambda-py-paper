@@ -52,6 +52,7 @@
      (class x e e)
      (object e mval)
      (get-field e string)
+     (get-attr e e)
      (seq e e)
      (assign e := e)
      (if e e e)
@@ -99,6 +100,8 @@
      (set E (e ...))
      (set val E)
      (get-field E string)
+     (get-attr E e)
+     (get-attr val E)
      (builtin-prim op E)
      (raise E)
      (return E)
@@ -132,6 +135,8 @@
      (set F e)
      (set val F)
      (get-field F string)
+     (get-attr F e)
+     (get-attr val F)
      (builtin-prim op F)
      (raise F)
      (loop F)
@@ -161,6 +166,8 @@
      (set T e)
      (set val T)
      (get-field T string)
+     (get-attr T e)
+     (get-attr val T)
      (builtin-prim op T)
      (raise T)
      (loop T)
@@ -191,6 +198,8 @@
      (set H e)
      (set val H)
      (get-field H string)
+     (get-attr H e)
+     (get-attr val H)
      (builtin-prim op H)
      (raise H)
      (tryexcept H x e e)
@@ -222,6 +231,8 @@
      (set R e)
      (set val R)
      (get-field R string)
+     (get-attr R e)
+     (get-attr val R)
      (builtin-prim op R)
      (raise R)
      (loop R) ;; DO go into active loops to find returns
@@ -238,13 +249,7 @@
 
   ;; identifiers, as per
   ;; http://docs.python.org/3.2/reference/lexical_analysis.html#keywords
-  ((w x y z f g h) (variable-except False class finally is return
-		      None continue for lambda try
-		      True def from nonlocal while
-		      and del global not with
-		      as elif if or yield
-		      assert else import pass
-		      break except in raise))
+  ((w x y z f g h) (variable-except λ δ))
   
   (p (e ε Σ))
   (P (E ε Σ))

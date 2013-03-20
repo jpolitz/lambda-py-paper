@@ -62,9 +62,7 @@
         e_2
         (side-condition (not (term (truthy? val))))
         "if-false")
-   (==> (seq val e)
-        e
-        "E-Seq")
+   (==> (seq val e) e "E-Seq")
    ;; NOTE(yao): this may be unnecessary, since context T deals with it
    ;; I wrote it and then deleted.
    ;; same thing for "seq-return" etc., if we use context to do it
@@ -160,10 +158,15 @@
    (--> ((in-hole E (id x global))
          (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...))
          (name Σ ((ref_3 val_3) ... (ref val) (ref_4 val_4) ...)))
-        ((in-hole E val) ε Σ))
+        ((in-hole E val) ε Σ)
+        "E-GetGlobal")
    (--> ((in-hole E (id x local)) ε Σ)
         ((in-hole E (raise (obj-val %str (meta-str "Unbound identifier") ()))) ε Σ)
         "E-UnboundId")
+   (--> ((in-hole E (id x global)) (name ε ((y ref) ...)) Σ)
+        ((in-hole E (raise (obj-val %str (meta-str "Unbound global") ()))) ε Σ)
+        "E-UnboundGlobal"
+        (side-condition (not (member (term x) (term (y ...))))))
    (--> ((in-hole E (get-field (pointer-val ref) string_1)) ε Σ)
         ((in-hole E (store-lookup Σ ref_1)) ε Σ)
         (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))
@@ -174,10 +177,29 @@
                (store-lookup Σ ref_obj))
         (where (Σ_result val_result)
           (class-lookup (pointer-val ref_obj) (store-lookup Σ ref) string Σ))
+        (side-condition (not (member (term string) (term (string_1 ...)))))
         "E-GetField-Class")
+   (--> ((in-hole E (get-field (pointer-val ref) (pointer-val ref_str))) ε Σ)
+        ((in-hole E (store-lookup Σ ref_1)) ε Σ)
+        (where (obj-val y (meta-str string_1) any_dict) (store-lookup Σ ref_str))
+        (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))
+        "E-GetAttr")
+   (--> ((in-hole E (get-field (pointer-val ref) (pointer-val ref_str))) ε Σ)
+        ((in-hole E val_result) ε Σ_result)
+        (where (obj-val y (meta-str string) any_dict) (store-lookup Σ ref_str))
+        (where (obj-val (pointer-val ref) mval ((string_1 ref_2) ...))
+               (store-lookup Σ ref_obj))
+        (where (Σ_result val_result)
+          (class-lookup (pointer-val ref_obj) (store-lookup Σ ref) string Σ))
+        (side-condition (not (member (term string) (term (string_1 ...)))))
+        "E-GetAttr-Class")
    (--> ((in-hole E (assign (id x global) := val)) (name ε ((x_2 ref_2) ... (x ref) (x_3 ref_3) ...)) Σ)
         ((in-hole E val) ε (override-store Σ ref val))
         "E-AssignGlobal")
+   (--> ((in-hole E (assign (id x global) := val)) (name ε ((y ref) ...)) Σ)
+        ((in-hole E (raise (obj-val %str (meta-str "Unbound global") ()))) ε Σ)
+        "E-AssignGlobalUnbound"
+        (side-condition (not (member (term x) (term (y ...))))))
    (--> ((in-hole E (assign ref := val)) ε Σ)
         ((in-hole e val) ε (override-store Σ ref val))
         "E-AssignLocal")
@@ -288,9 +310,9 @@
 (define-metafunction λπ
   subst-exprs : x any (e ...) -> (e ...)
   [(subst-exprs x any ()) ()]
-  [(subst-exprs x any (e)) (subst-one x any e)]
   [(subst-exprs x any (e e_rest ...))
-   ((subst-one x any e) (subst-exprs x any (e_rest ...)))])
+   ((subst-one x any e) e_subs ...)
+   (where (e_subs ...) (subst-exprs x any (e_rest ...)))])
 
 (define-metafunction λπ
   subst-fun : x any (x ...) opt-var e opt-var -> e
@@ -347,6 +369,8 @@
    (object (subst-one x any e) (subst-mval x any mval))]
   [(subst-one x any (get-field e string))
    (get-field (subst-one x any e) string)]
+  [(subst-one x any (get-attr e_1 e_2))
+   (get-attr (subst-one x any e_1) (subst-one x any e_2))]
   [(subst-one x any (seq e_1 e_2))
    (seq (subst-one x any e_1) (subst-one x any e_2))]
   [(subst-one x any (assign e_1 := e_2))
@@ -386,10 +410,12 @@
   [(subst-one x any (raise e)) (raise (subst-one x any e))]
   [(subst-one x any (tryexcept e_t x e_c e_e)) ;; need to skip catch block if caught
    (tryexcept (subst-one x any e_t)
+              x
               e_c
               (subst-one x any e_e))]
   [(subst-one x any (tryexcept e_t y e_c e_e)) 
    (tryexcept (subst-one x any e_t)
+              y
               (subst-one x any e_c)
               (subst-one x any e_e))]
   [(subst-one x any (tryfinally e_t e_f))

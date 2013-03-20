@@ -22,7 +22,11 @@ Lerner [FILL joke]")}
 @authorinfo["Anand Chitipothu" "" ""]
 @authorinfo["Shriram Krishnamurthi" "Brown University" "sk@cs.brown.edu"]
 
-@abstract{Python is hard}
+@abstract{
+
+Python is a flexible and powerful scripting language with widespread usage.
+
+}
 
 @section{Introduction}
 

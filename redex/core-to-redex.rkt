@@ -9,12 +9,15 @@
   (local [
     (define (var->redex/opt maybe-var)
       (type-case (optionof symbol) maybe-var
-        [some (x) x]
+        [some (x) (term (,x))]
         [none () (term (no-var))]))
     (define (mval->redex mval)
       (type-case MetaVal mval
+        [MetaNone () (term (meta-none))]
+        [MetaNum (n) (term (meta-num ,n))]
         [MetaStr (s) (term (meta-str ,s))]
-        [else (error 'mval->redex (string-append "NYI: " (to-string mval)))]))
+        [MetaClass (c) (term (meta-class ,c))]
+        [else (error 'core->redex (string-append "Shouldn't be seeing this mval in surface output: " (to-string mval)))]))
     (define (mval->redex/opt maybe-mval)
       (type-case (optionof MetaVal) maybe-mval
         [some (m) (mval->redex m)]
@@ -36,9 +39,9 @@
     [CObject (class mval)
      (term (object ,(core->redex class) ,(mval->redex/opt mval)))]
     [CGetField (value attr)
-     (term (get-field ,(core->redex value) ,attr))]
+     (term (get-field ,(core->redex value) ,(symbol->string attr)))]
     [CGetAttr (value attr)
-     (term (get-field ,(core->redex value) ,(core->redex attr)))]
+     (term (get-attr ,(core->redex value) ,(core->redex attr)))]
     [CId (x type)
      (term (id ,x ,(idtype->redex type)))]
     [CSeq (e1 e2) (term (seq ,(core->redex e1) ,(core->redex e2)))]
@@ -50,7 +53,7 @@
      (let [(result (term (let (,x ,(idtype->redex type) = ,(core->redex bind)) in
       ,(core->redex body))))]
       (begin
-        (display (string-append "Result of let: " (string-append (to-string (length result)) "\n\n")))
+        #;(display (string-append "Result of let: " (string-append (to-string (length result)) "\n\n")))
         result))]
     [CApp (fun args stararg)
      (type-case (optionof CExpr) stararg
@@ -73,7 +76,7 @@
                   ,(core->redex orelse)))]
     [CReturn (value) (term (return ,(core->redex value)))]
     [CBuiltinPrim (op args)
-     (term (builtin-prim ,op ,(map core->redex args)))]
+     (term (builtin-prim ,(symbol->string op) ,(map core->redex args)))]
     [CList (class values)
      (term (list ,(core->redex class) ,(map core->redex values)))]
     [CTuple (class values)

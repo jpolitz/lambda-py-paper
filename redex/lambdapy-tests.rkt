@@ -6,6 +6,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require redex
+         (only-in "../base/python-lib-bindings.rkt" lib-function-dummies)
+         "../base/python-lib.rkt"
          "../base/python-core-syntax.rkt"
          "../base/python-tools.rkt"
          "core-to-redex.rkt"
@@ -38,7 +40,7 @@
                       (if (not
                               (and
                                 (redex-match? λπ pat p)))
-                          (begin (display "Found:\n") (pretty-write p) #f)
+                          (begin #;(display "Found:\n") #;(pretty-write p) #f)
                           #t))))))
 
 
@@ -56,14 +58,14 @@
 (expect (if true none undefined) vnone)
 (expect (if false none undefined) (undefined-val))
 (expect (if (raise vtrue) false false)
-	(exn vtrue))
+	(err vtrue))
 (expect (seq true false) vfalse)
 (expect (seq (raise vtrue) false)
 	(err vtrue))
 (expect (seq false (raise vtrue))
 	(err vtrue))
 #;(expect (seq (return true) false)
-	(return-r vtrue))
+	vtrue)
 (expect (while true break false)
 	break-r)
 
@@ -128,73 +130,75 @@
  ((obj-val %str (meta-str "just-var-lookup") ())  ((str 1)) ((1 (obj-val %str (meta-str "just-var-lookup") ())))))
 
 (full-expect
- ((get-field (object (id str global) (meta-str "foo"))
+ ((get-field (object (id %str global) (meta-str "foo"))
              "inherited")
-  {(str 5)}
-  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("inherited" 6))))
+  {(%str 5)}
+  {(4 (obj-val %type (meta-class %str) (("__mro__" 9) ("inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
-   (7 (obj-val str (meta-str "should be looked up") ()))
+   (7 (obj-val %str (meta-str "should be looked up") ()))
    (9 (pointer-val 10))
-   (10 (obj-val tuple (meta-tuple ((pointer-val 4))) ()))})
+   (10 (obj-val %tuple (meta-tuple ((pointer-val 4))) ()))})
  ((pointer-val 7)
   ε Σ))
 
 (full-expect
- ((get-field (object (id str global) (meta-str "foo"))
+ ((get-field (object (id %str global) (meta-str "foo"))
              "shadowed")
-  {(str 5)}
-  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("shadowed" 6))))
+  {(%str 5)}
+  {(4 (obj-val type (meta-class %str) (("__mro__" 9) ("shadowed" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
-   (7 (obj-val str (meta-str "should be looked up") ()))
-   (8 (obj-val object (no-meta) (("shadowed" 9))))
+   (7 (obj-val %str (meta-str "should be looked up") ()))
+   (8 (obj-val %object (no-meta) (("shadowed" 9))))
    (9 (pointer-val 10))
-   (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
+   (10 (obj-val %tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
  ((pointer-val 7)
   ε Σ))
 
 (full-expect
- ((get-field (object (id str global) (meta-str "foo"))
+ ((get-field (object (id %str global) (meta-str "foo"))
              "inherited")
-  {(str 5)}
-  {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
+  {(%str 5)}
+  {(4 (obj-val type (meta-class %str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
-   (7 (obj-val str (meta-str "should not be looked up") ()))
-   (8 (obj-val object (no-meta) (("inherited" 9))))
+   (7 (obj-val %str (meta-str "should not be looked up") ()))
+   (8 (obj-val %object (no-meta) (("inherited" 9))))
    (9 (pointer-val 10))
-   (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
+   (10 (obj-val %tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
  ((pointer-val 10)
   ε Σ))
 
-(define inherit-Σ (term {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
+(define inherit-Σ (term {(4 (obj-val type (meta-class %str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
-   (7 (obj-val str (meta-str "should not be looked up") ()))
-   (8 (obj-val object (no-meta) (("inherited" 11))))
+   (7 (obj-val %str (meta-str "should not be looked up") ()))
+   (8 (obj-val %object (no-meta) (("inherited" 11))))
    (9 (pointer-val 10))
-   (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
+   (10 (obj-val %tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
    (11 (pointer-val 12))
    (12 (obj-val %function (meta-closure (λ (self) (no-var) none (no-var))) ()))}))
 
 (full-expect
- ((get-field (object (id str global) (meta-str "foo"))
+ ((get-field (object (id %str global) (meta-str "foo"))
              "inherited")
-  {(str 5)}
+  {(%str 5)}
   ,inherit-Σ)
  ((pointer-val ref_meth)
-  ε ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
-      (ref_rest val_rest) ...)))
+  ε ((ref val) ...
+     (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+     (ref_rest val_rest) ...)))
+
 
 (full-expect
-  ((object (id str global) (meta-str "just-object-creation"))
-   {(str 1)}
-   {(0 (obj-val type (meta-class str) ()))
+  ((object (id %str global) (meta-str "just-object-creation"))
+   {(%str 1)}
+   {(0 (obj-val %type (meta-class str) ()))
     (1 (pointer-val 0))})
   ((pointer-val ref_1)
-   {(str 1)}
-   {(0 (obj-val type (meta-class str) ()))
+   {(%str 1)}
+   {(0 (obj-val %type (meta-class str) ()))
     (1 (pointer-val 0))
     (ref_1 (obj-val (pointer-val 0) (meta-str "just-object-creation") ()))}))
 
@@ -204,11 +208,11 @@
   (pointer-val ref))
 
 (full-expect
- (,(core->redex (CGetField (CObject (CId 'str (GlobalId)) (some (MetaStr "foo"))) "inherited"))
-  {(str 5)}
+ (,(core->redex (CGetField (CObject (CId '%str (GlobalId)) (some (MetaStr "foo"))) 'inherited))
+  {(%str 5)}
   ,inherit-Σ)
  ((pointer-val ref_meth)
-  ε ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+  ε ((ref val) ... (ref_meth (obj-val any_cls (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
       (ref_rest val_rest) ...)))
 
 (expect-raw
@@ -217,10 +221,10 @@
 
 (full-expect
  (,(core->redex (CApp (CFunc '(x) (none) (CReturn (CId 'x (LocalId))) (none))
-                      (list (CObject (CId 'str (GlobalId))
+                      (list (CObject (CId '%str (GlobalId))
                                      (some (MetaStr "identity function"))))
                       (none)))
-  {(str 5)}
+  {(%str 5)}
   ,inherit-Σ)
  ((pointer-val ref_str)
   ε
@@ -230,11 +234,11 @@
    (ref_n val_n) ...}))
 
 (full-expect
- (,(core->redex (CApp (CFunc '() (none) (CReturn (CObject (CId 'str (GlobalId))
+ (,(core->redex (CApp (CFunc '() (none) (CReturn (CObject (CId '%str (GlobalId))
                                                           (some (MetaStr "no args")))) (none))
                       (list)
                       (none)))
-  {(str 5)}
+  {(%str 5)}
   ,inherit-Σ)
  ((pointer-val ref_str)
   ε
@@ -248,12 +252,12 @@
                  (CApp (CFunc '(x) (none)
                              (CReturn (CFunc '(y) (none) (CReturn (CId 'x (LocalId))) (none)))
                              (none))
-                       (list (CObject (CId 'str (GlobalId))
+                       (list (CObject (CId '%str (GlobalId))
                                       (some (MetaStr "close over this one"))))
                        (none))
                  (list (CNone))
                  (none)))
-  {(str 5)}
+  {(%str 5)}
   ,inherit-Σ)
  ((pointer-val ref_str)
   ε
@@ -276,5 +280,14 @@ f('a-str')
    (ref_str (obj-val any_cls (meta-str "a-str") ()))
    (ref_n val_n) ...}))
 
+(full-expect
+ (,(core->redex (get-core-syntax (open-input-file "../base/pylib/none.py")))
+  () ())
+ ((err val) ε Σ))
+
+(full-expect
+ (,(core->redex (cascade-lets lib-function-dummies (CTrue)))
+  () ())
+ ((obj-val %bool (meta-num 1) ()) ε Σ))
 
 (test-results)

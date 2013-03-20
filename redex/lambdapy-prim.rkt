@@ -5,9 +5,9 @@
 
 (provide (all-defined-out))
 
-(define-term vnone (obj-val none (meta-none) ()))
-(define-term vtrue (obj-val bool (meta-num 1) ()))
-(define-term vfalse (obj-val bool (meta-num 0) ()))
+(define-term vnone (obj-val %none (meta-none) ()))
+(define-term vtrue (obj-val %bool (meta-num 1) ()))
+(define-term vfalse (obj-val %bool (meta-num 0) ()))
 
 (define-metafunction λπ
   mknum : number -> val
@@ -51,6 +51,11 @@
    ,(begin (display (term val)) (display "\n") (term vnone))] ;; not sure how to do print for now
   #;[(δ "callable" (fun-val any ...) ε Σ)
    vtrue]
+  [(δ "is-func?" (pointer-val ref) ε ((ref_1 val_1) ...
+                                      (ref (obj-val any_cls (meta-closure any_closure) any_dict))
+                                      (ref_n val_n) ...))
+   vtrue]
+  [(δ "is-func?" val ε Σ) vfalse]
   [(δ "callable" (obj-val x (meta-class any) any) ε Σ)
    vtrue]
   [(δ "callable" val ε Σ)
