@@ -12,6 +12,7 @@
          "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
+(require (only-in plai-typed/untyped some))
 
 (define-syntax (expect stx)
   (syntax-case stx ()
@@ -120,8 +121,8 @@
   (pointer-val 0))
 
 (full-expect
- ((id str global) ((str 1)) ((1 (obj-val %str (meta-str "foo") ()))))
- ((obj-val %str (meta-str "foo") ())  ((str 1)) ((1 (obj-val %str (meta-str "foo") ())))))
+ ((id str global) ((str 1)) ((1 (obj-val %str (meta-str "just-var-lookup") ()))))
+ ((obj-val %str (meta-str "just-var-lookup") ())  ((str 1)) ((1 (obj-val %str (meta-str "just-var-lookup") ())))))
 
 (full-expect
  ((get-field (object (id str global) (meta-str "foo"))
@@ -134,7 +135,7 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4))) ()))})
  ((pointer-val 7)
-  εs Σ))
+  ε Σ))
 
 (full-expect
  ((get-field (object (id str global) (meta-str "foo"))
@@ -148,7 +149,7 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
  ((pointer-val 7)
-  εs Σ))
+  ε Σ))
 
 (full-expect
  ((get-field (object (id str global) (meta-str "foo"))
@@ -162,7 +163,7 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))})
  ((pointer-val 10)
-  εs Σ))
+  ε Σ))
 
 (define inherit-Σ (term {(4 (obj-val type (meta-class str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
@@ -172,7 +173,7 @@
    (9 (pointer-val 10))
    (10 (obj-val tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
    (11 (pointer-val 12))
-   (12 (obj-val %function (meta-closure () (λ (self) (no-var) none (no-var))) ()))}))
+   (12 (obj-val %function (meta-closure (λ (self) (no-var) none (no-var))) ()))}))
 
 (full-expect
  ((get-field (object (id str global) (meta-str "foo"))
@@ -180,31 +181,31 @@
   {(str 5)}
   ,inherit-Σ)
  ((pointer-val ref_meth)
-  εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+  ε ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
       (ref_rest val_rest) ...)))
 
 (full-expect
-  ((object (id str global) (meta-str "foo"))
+  ((object (id str global) (meta-str "just-object-creation"))
    {(str 1)}
    {(0 (obj-val type (meta-class str) ()))
     (1 (pointer-val 0))})
   ((pointer-val ref_1)
-   [{(str 1)}]
+   {(str 1)}
    {(0 (obj-val type (meta-class str) ()))
     (1 (pointer-val 0))
-    (ref_1 (obj-val (pointer-val 0) (meta-str "foo") ()))}))
+    (ref_1 (obj-val (pointer-val 0) (meta-str "just-object-creation") ()))}))
 
 
 (expect-raw
-  (core->redex (CObject (CSym 'foo) (MetaStr "bar")))
+  (core->redex (CObject (CSym 'foo) (some (MetaStr "bar"))))
   (pointer-val ref))
 
 (full-expect
- (,(core->redex (CGetField (CObject (CId 'str (GlobalId)) (MetaStr "foo")) "inherited"))
+ (,(core->redex (CGetField (CObject (CId 'str (GlobalId)) (some (MetaStr "foo"))) "inherited"))
   {(str 5)}
   ,inherit-Σ)
  ((pointer-val ref_meth)
-  εs ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+  ε ((ref val) ... (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
       (ref_rest val_rest) ...)))
 
 (expect-raw

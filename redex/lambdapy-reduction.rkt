@@ -297,7 +297,7 @@
   maybe-bind-method : val val Σ -> (Σ val)
   [(maybe-bind-method (pointer-val ref_obj) (pointer-val ref_result) Σ)
    (Σ_3 (pointer-val ref_method))
-   (where (obj-val any_fun (meta-closure ε (λ (x ...) opt-var_1 e opt-var_2)) ())
+   (where (obj-val any_fun (meta-closure (λ (x ...) opt-var_1 e opt-var_2)) ())
     (store-lookup Σ ref_result))
    (where (Σ_1 ref_self) (extend-store Σ (pointer-val ref_obj)))
    (where (Σ_2 ref_func) (extend-store Σ_1 (pointer-val ref_result)))
