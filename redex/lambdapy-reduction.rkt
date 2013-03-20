@@ -173,18 +173,11 @@
         "let-exc")|#
    (--> ((in-hole E (id x global))
          (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...))
-         (name Σ ((ref_3 val_3) ... (ref val) (ref_4 val_4))))
-        ((in-hole E val) σ Σ))
-   (--> ((in-hole E (id x_1 local))
-         (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
-         (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
-        ((in-hole E val_1)
-         env
-         store)
-        (side-condition (not (member (term x_1) (term (x_2 ... x_3 ...)))))
-        (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
-        (side-condition (not (redex-match? λπ (undefined-val) (term val_1)))) ;; TODO: exception for undefined
-        "id-local")
+         (name Σ ((ref_3 val_3) ... (ref val) (ref_4 val_4) ...)))
+        ((in-hole E val) ε Σ))
+   (--> ((in-hole E (id x_1 local)) ε Σ)
+        ((in-hole E (raise (obj-val %str (meta-str "Unbound identifier") ()))) ε Σ)
+        "E-UnboundId")
    (--> ((in-hole E (get-field (pointer-val ref) string_1)) ε Σ)
         ((in-hole E (store-lookup Σ ref_1)) ε Σ)
         (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))

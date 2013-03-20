@@ -120,6 +120,10 @@
   (pointer-val 0))
 
 (full-expect
+ ((id str global) ((str 1)) ((1 (obj-val %str (meta-str "foo") ()))))
+ ((obj-val %str (meta-str "foo") ())  ((str 1)) ((1 (obj-val %str (meta-str "foo") ())))))
+
+(full-expect
  ((get-field (object (id str global) (meta-str "foo"))
              "inherited")
   {(str 5)}
