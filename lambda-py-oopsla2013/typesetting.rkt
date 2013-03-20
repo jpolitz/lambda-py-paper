@@ -6,7 +6,6 @@
 (define-syntax-rule (lp-term t)
   (parameterize
      [(default-font-size 11)]
-    (printf "Rendering: \n\n ~a \n\n" (quote t))
   (with-rewriters
    (λ () (render-term λπ t)))))
 (define-syntax-rule (lp-term/val t)
@@ -126,7 +125,6 @@
      (list "" obj "[" fld "]")]))
 
 (define (assign-rewriter lws)
-  (printf "Assign: ~a\n" (map lw-e lws))
   (match lws
     [(list _ _ target colon val _)
      (list "" target colon val)]

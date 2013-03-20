@@ -396,7 +396,7 @@ for the class, which is used to initialize fields, and variables in the class's
 body are also accessible as fields of instances.  @Figure-ref["f:test-class"]
 shows a simple class definition that uses these features.
 
-@figure["f:test-class" @elem{"A sample Python class definition"}]{
+@figure["f:test-class" @elem{A sample Python class definition}]{
 
 @verbatim{
 class Test(object):
@@ -443,31 +443,97 @@ A few things to note:
 We tackle these features through desugaring the class form down to particular
 object structures.  We can turn @code{Test} itself into an object whose class
 is the builtin class @code{type}, and then assign its @(lp-term "__mro__")
-field to the correct sequence of objects.
+field to the correct sequence of objects.  The desugaring below captures most
+of the relevant details, though the full desugaring is slightly longer and more
+complex:
 
 @centered{
   @(lp-term ;; lp-term is just a wrapper around (with-rewriters ... render-term)
-  (let (obj local = (object (id %type local) (meta-class 'Test))) in
+  (let (Test local = (object (id %type local) (meta-class 'Test))) in
+  (let (t1 local = undefined) in
     (seq
-    (assign (get-field obj "__mro__") := (tuple %tuple ((id Test local) (id %object local))))
+    (assign (get-field Test "__mro__") := (tuple %tuple ((id Test local) (id %object local))))
     (seq
-    (assign (get-field obj "__init__") := (fun (self f) (no-var) (assign (get-field self "f") := (id f local))))
+    (assign (get-field Test "__init__") := (fun (self f) (no-var) (assign (get-field self "f") := (id f local))))
     (seq
-    (assign (get-field obj "success") := (object %str (meta-str "success")))
+    (assign (get-field Test "success") := (object %str (meta-str "success")))
     (seq
-    (assign (get-field obj "failure") := (object %str (meta-str "failure")))
-    (assign (get-field obj "runtest") :=
-      (fun (self) (no-var)))))))))
+    (assign (get-field Test "failure") := (object %str (meta-str "failure")))
+    (seq
+    (assign (get-field Test "runtest") :=
+      (fun (self expected) (no-var)
+        (if (builtin-prim "==" (app (get-field (id self local) "f") ()) (id expected local))
+            (app (get-field (id print global) "__call__") ((get-field (id self local) "success")))
+            (app (get-field (id print global) "__call__") ((get-field (id self local) "failure"))))))
+    (seq
+    (assign t1 := (app (get-field Test "__call__") ((fun () (no-var) (object %str (meta-str "correct")) (no-var)))))
+    (seq
+    (app (get-field (get-field (id local t1) "runtest") "__call__") ((object %str (meta-str "correct"))))
+    (app (get-field (get-field (id local t1) "runtest") "__call__") ((object %str (meta-str "incorrect"))))))))))))))
+     
+
 }
 
+So, after this expression evaluates, @(lp-term obj) is an identifier bound to
+an object whose class pointer points to the builtin object @(lp-term %type).
+This new value has a @(lp-term meta-class) value stored as well, which
+designates it as a class object.  The next line sets up the important @(lp-term
+"__mro__") field on the class value, which will be used for future lookups on
+instances of the class.  If more than one superclass had been given, a helper
+would have been called here to resolve the superclass lookup order.  This can
+be implemented in a function written in @(lambda-py), so it isn't an intrinsic
+part of the semantics.
 
+The next three lines perform an interesting transformation. First, the class
+variables @(lp-term success) and @(lp-term failure) have been changed into
+@emph{object assignments} on the class value itself, rather than being
+let-bound variables.  Similarly, the function definition inside the class body
+is turned into an assignment on the class, rather than a let-bound variable.
+Clearly, these values do need to be stored on @(lp-term (id Test local)) at
+some point, since they are later accessed.  We will return to the desugaring of
+classes and scope later, since the desugaring presented here isn't quite the
+whole story.
 
+The last interesting line in the desugaring is where the @(lp-term "__call__")
+field of @(lp-term (id Test local)) is applied.  This is the desugaring of all
+the function applications shown here, but this one is interesting because of
+where the @(lp-term "__call__") method is implemented.  We haven't set it on
+the @(lp-term Test) value, so it must be somewhere in the @(lp-term "__mro__")
+list of its class.  And indeed, it is the @(lp-term %type) class's @(lp-term
+"__call__") method that is responsible for creating a new object value with
+class @(lp-term (id Test local)), calling @(lp-term "__init__"), and returning
+the resulting object.  The @(lp-term %type) class is defined separately from
+desugaring as part of the initial environment that desugared code runs in; we
+discuss more of these engineering decisions in [REF].  The interesting point is
+that even class construction is deferred to a method on a built-in value; we
+express all object creation with only @(lp-term (object e_cls mval)) expressions.
 
+Left implicit in this desugaring is the @(lp-term self)-binding of @(lp-term
+t1) in the two method calls [FILL this should be __getattribute__].
 
 @subsection{Reflection}
 
 Python has a number of reflective operations on the values in its object
-system.  These operations predominantly preserve @emph{integrity} while
+system; we highlight a few examples here.
+
+@verbatim{
+
+class C(object):
+  def method(self):
+    pass
+
+c = C()
+c.__class__ is C # True
+
+bound_method = c.method
+bound_method.__self__ == c
+# the object closed over as self is reachable
+# through the __self__ field
+
+
+}
+
+These operations predominantly preserve @emph{integrity} while
 compromising @emph{confidentiality}.  That is, the allow the user to observe
 and copy values that are internal to objects, but not to change them if they
 would affect the internals of the behavior of the object.
