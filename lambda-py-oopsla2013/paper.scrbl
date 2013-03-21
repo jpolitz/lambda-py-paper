@@ -187,7 +187,7 @@ creating an empty list is:
 
 Where @(lp-term (id %list localid)) is expected to be bound to the built-in
 list class.  In general, the first position of a list expression is the
-@emph{class} of the list object to create.  This must part of the list
+@emph{class} of the list object to create.  This must be a part of the list
 expression because programmers can subclass the builtin @code{list} class and
 create values that can use all the built-in list primitives, but have their
 own set of methods.  The second part of the expression is a list of
@@ -564,7 +564,7 @@ exhibit properties of good design: they are extensible, and provide
 abstractions to the programmer.  This is reflected in their straightforward
 and compositional desugaring.
 
-Not all of Python has this a semantics this obvious.  To illustrate some of
+Not all of Python has a semantics this obvious.  To illustrate some of
 the trickier features, we begin with an example of an analysis task, a
 continuation-passing style transformation, that is difficult in Python.  This
 description actually stems from our false start at implementing generators via
@@ -667,6 +667,8 @@ try:
 except e:
   print(e)
 }
+
+To the following:
 
 @verbatim{
 def except_handler(e): print(e)
@@ -1162,7 +1164,7 @@ particular instances.@note{http://wingware.com/doc/edit/points-of-use}
 This makes variable naming refactorings less precise than in say, an IDE for
 Java, requiring developer intervention to specify which instances should be
 renamed.  We provide a more precise account of scope that would enable
-corrent points-of-use analysis for lexical variables in Python.
+correct points-of-use analysis for lexical variables in Python.
 
 @section{Modules}
 
