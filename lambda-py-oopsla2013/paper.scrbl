@@ -24,7 +24,14 @@ Lerner [FILL joke]")}
 
 @abstract{
 
-Python is a flexible and powerful scripting language with widespread usage.
+We present a small-step operational semantics for Python.  We describe a
+desugaring process for translating Python into this core semantics.  We report
+on testing the composition of this translation and an evaluator for the
+semantics against a real Python implementation.  Along the way we demonstrate
+the utility of our approach by untangling interactions between features in
+Python, especially with scope, in order to model them orthogonally in our core.
+We briefly report on the engineering of the evaluator and desugaring, which
+together constitute a new, (though limited), standalone Python implementation.
 
 }
 
