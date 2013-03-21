@@ -1,7 +1,8 @@
 #lang racket
 
-(require redex)
 (require
+  redex
+  (only-in plai-typed/untyped some-v)
   "lambdapy-core.rkt"
   "../base/builtins/type.rkt" ;; for c3-merge, c3-select mro algorithm
   )
@@ -207,10 +208,10 @@
 
 (define-metafunction λπ
   type-buildmro-help : (val ...) (val ...) Σ -> val
-  [(type-buildmro-help (val_1 ...) (val_2 ...))
-   (obj-val %tuple (val_1 ... val_cls ...) ())
+  [(type-buildmro-help (val_1 ...) (val_2 ...) Σ)
+   (obj-val %tuple (meta-tuple (val_1 ... val_cls ...)) ())
    (where (val_cls ...)
-          ,(c3-merge (term (get-base-mros (val_2 ...) Σ)) (term (val_2 ...))))])
+          ,(some-v (c3-merge (term (get-base-mros (val_2 ...) Σ)) (term (val_2 ...)))))])
 
 
 (define-metafunction λπ

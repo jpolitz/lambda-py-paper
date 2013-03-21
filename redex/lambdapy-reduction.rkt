@@ -33,6 +33,9 @@
    (--> ((in-hole E (fetch (pointer-val ref))) ε Σ)
         ((in-hole E (store-lookup Σ ref)) ε Σ)
         "E-Fetch")
+   #;(--> ((in-hole E (fetch (obj-val any_cls any_meta any_dict))) ε Σ)
+        ((in-hole E (raise (obj-val %str (meta-str "Fetch on object") ()))) ε Σ)
+        "E-FetchErr")
    (--> ((in-hole E (set! (pointer-val ref) val)) ε Σ)
         ((in-hole E val) ε Σ_1)
         "E-Set!"
@@ -90,16 +93,12 @@
    (==> (in-hole R (return val))
         val
         "return")
-   (==> (try val (e_exc ...) val_else e_finally)
-        e_finally
-        "try-noexc")
-   (==> (try val (e_exc ...) e_else e_finally)
-        (try e_else () vnone e_finally)
-        (side-condition (not (val? (term e_else))))
-        "try-else")
-   (==> (try (in-hole T (raise val)) () e_else e_finally)
-        (seq e_finally (exception-r val))
-        "try-exc-nohandler")
+   (==> (tryexcept val x e_catch e_else)
+        e_else
+        "Try-Done")
+   (==> (tryexcept (in-hole T (raise val)) x e_catch e_else)
+        (let (x local = val) in e_catch)
+        "Try-Catch")
    (==> (try (in-hole T (raise val)) ((except () e) e_exc ...) e_else e_finally)
         (try e () vnone e_finally)
         "try-exc-notype")
@@ -370,7 +369,7 @@
   [(subst-one x any (fetch e)) (fetch (subst-one x any e))]
   [(subst-one x any (set! e_1 e_2))
    (set! (subst-one x any e_1) (subst-one x any e_2))]
-  [(subst-one x any (alloc e)) (fetch (subst-one x any e))]
+  [(subst-one x any (alloc e)) (alloc (subst-one x any e))]
   [(subst-one x any (object e mval))
    (object (subst-one x any e) (subst-mval x any mval))]
   [(subst-one x any (get-field e string))
