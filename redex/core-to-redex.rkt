@@ -1,6 +1,8 @@
 #lang plai-typed/untyped
 
 (require
+  (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+  (typed-in racket/list (last : ((listof 'a) -> 'a)))
   redex
   "../base/python-core-syntax.rkt"
   "lambdapy-core.rkt")
@@ -107,6 +109,8 @@
   (term (alloc (builtin-prim ,op ,args))))
 (define (prim-update op to-update args)
   (term (set! ,to-update (builtin-prim ,op ,args))))
+(define (fetch-heads l1 l2)
+  (append (take l1 (- (length l1) 1)) (list (last l2))))
 
 (define (prim->redex opsym args)
   (local [
@@ -116,5 +120,83 @@
   ]
   (case opsym
     ['num+ (prim-alloc op argvs)]
+    ['num- (prim-alloc op argvs)]
+    ['num* (prim-alloc op argvs)]
+    ['num/ (prim-alloc op argvs)]
+    ['num// (prim-alloc op argvs)]
+    ['num% (prim-alloc op argvs)]
+    ['num= (prim-noalloc op argvs)]
+    ['num> (prim-noalloc op argvs)]
+    ['num< (prim-noalloc op argvs)]
+    ['num>= (prim-noalloc op argvs)]
+    ['num<= (prim-noalloc op argvs)]
+    ['numcmp (prim-alloc op argvs)]
+    ['num-str (prim-alloc op argvs)]
+
+    ['str+ (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['str* (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['strcmp (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['strlen (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['strint (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['strmin (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['strmax (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['str-getitem (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['strslice (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['str-hash (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['str= (prim-noalloc op argvs)]
+    ['strin (prim-noalloc op argvs)]
+    ['strbool (prim-noalloc op (fetch-heads argvs argsptrs))]
+
+    ;list
+    ['list+ (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['list-extend
+      (prim-update op (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
+    ['list-len (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['list-init (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['list-getitem (prim-noalloc op argvs)]
+    ['list-remove
+      (prim-update op (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
+    ['list-setitem
+      (prim-update op (first argsptrs) (list (first argvs) (second argvs) (third argsptrs) (fourth argsptrs)))]
+    ['list-str (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['list-set (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['list-tuple (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['list-copy (prim-alloc op (fetch-heads argvs argsptrs))]
+
+    ;tuple
+    ['tuple+ (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['tuple* (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['tuple-len (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['tuple-getitem (prim-noalloc op argvs)]
+    ['tuple-str (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['tuple-set (prim-alloc op (fetch-heads argvs argsptrs))]
+
+    ;set
+    ['set-len (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['set-list (prim-alloc op (fetch-heads argvs argsptrs))]
+    ['set-str (prim-alloc op (fetch-heads argvs argsptrs))]
+
+    ;object 
+    ['obj-str (prim-alloc op argvs)]
+
+    ;function
+    ['is-func? (prim-noalloc op argvs)]
+
+    ;bool
+    ['bool-init (prim-alloc op argvs)]
+
+    ; type
+    ['type-new (prim-alloc op argvs)]
+    ['type-uniqbases (prim-noalloc op argvs)]
+    ['type-buildmro (prim-alloc op argvs)]
+
+    ; Returns the class of the given object
+    ['$class (prim-noalloc op argvs)]
+
+    ['print (prim-noalloc op argvs)]
+
+    ['Is (prim-alloc op argsptrs)]
+    ['IsNot (prim-alloc op argsptrs)]
+
     [else (prim-noalloc op argsptrs)])))
 

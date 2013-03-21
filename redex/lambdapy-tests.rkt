@@ -310,7 +310,7 @@ f('a-str')
 (full-expect
  (,(core->redex (cascade-lets lib-function-dummies
                               (seq-ops (append
-                                        (map (lambda (b) (bind-right b)) (take lib-functions 3))
+                                        (map (lambda (b) (bind-right b)) (take lib-functions 4))
                                         (list (CTrue))
                                         ))))
   () ())

@@ -1,7 +1,10 @@
 #lang racket
 
 (require redex)
-(require "lambdapy-core.rkt")
+(require
+  "lambdapy-core.rkt"
+  "../base/builtins/type.rkt" ;; for c3-merge, c3-select mro algorithm
+  )
 
 (provide (all-defined-out))
 
@@ -51,9 +54,7 @@
    ,(begin (display (term val)) (display "\n") (term vnone))] ;; not sure how to do print for now
   #;[(δ "callable" (fun-val any ...) ε Σ)
    vtrue]
-  [(δ "is-func?" (pointer-val ref) ε ((ref_1 val_1) ...
-                                      (ref (obj-val any_cls (meta-closure any_closure) any_dict))
-                                      (ref_n val_n) ...))
+  [(δ "is-func?" (obj-val any_cls (meta-closure any_closure) any_dict) ε Σ)
    vtrue]
   [(δ "is-func?" val ε Σ) vfalse]
   [(δ "callable" (obj-val x (meta-class any) any) ε Σ)
@@ -169,7 +170,29 @@
    vfalse]
   [(δ "list-setitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 ε Σ)
    (obj-val list (meta-list ,(list-replace (term number_2) (term val_3) (term (val_1 ...)))) ())]
+  [(δ "type-new" (obj-val any_cls (meta-str string) any_dict) ε Σ)
+   (obj-val %type (meta-class ,(string->symbol (term string))) ())]
+  [(δ "type-uniqbases" (obj-val any_cls (meta-tuple ((pointer-val ref) ...)) any_dict) ε Σ)
+   vtrue
+   (side-condition (= (length (term (ref ...)))
+                      (length (remove-duplicates (term (ref ...))))))]
+  [(δ "type-uniqbases" val ε Σ)
+   vfalse]
+
+  [(δ "type-buildmro" 
+    (obj-val any_cls1 (meta-tuple (val_1 ...)) any_dict1)  
+    (obj-val any_cls2 (meta-tuple (val_2 ...)) any_dict2)  
+    ε Σ)
+   (type-buildmro-help (val_1 ...) (val_2 ...) Σ)]
   )
+
+(define-metafunction λπ
+  get-mro : val Σ -> 
+
+
+(define-metafunction λπ
+  type-buildmro-help : (val ...) (val ...) -> val
+  [(type-buildmro-help
 
 (define-metafunction λπ
   object-is? : val x ε Σ -> #t or #f

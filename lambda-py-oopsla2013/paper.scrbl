@@ -24,14 +24,16 @@ Lerner [FILL joke]")}
 
 @abstract{
 
-We present a small-step operational semantics for Python.  We describe a
-desugaring process for translating Python into this core semantics.  We report
-on testing the composition of this translation and an evaluator for the
-semantics against a real Python implementation.  Along the way we demonstrate
-the utility of our approach by untangling interactions between features in
-Python, especially with scope, in order to model them orthogonally in our core.
-We briefly report on the engineering of the evaluator and desugaring, which
-together constitute a new, (though limited), standalone Python implementation.
+We present a small-step operational semantics for the Python
+programming language.  We present both a core language for Python,
+suitable for tools and proofs, and a translation process for
+converting Python source to this core.  We have tested the composition
+of translation and evaluation of the core for conformance with the
+primary Python implementation, thereby giving confidence in the
+fidelity of the semantics. We briefly report on the engineering of
+these components. Finally, we examine subtle aspects of the language,
+identifying scope as a pervasive concern that even impacts features
+that might be considered orthogonal.
 
 }
 
