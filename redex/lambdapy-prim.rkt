@@ -43,8 +43,8 @@
    ,(if (and (exact? (term number_2)) (> (length (term (val_1 ...))) (term number_2)))
         (list-ref (term (val_1 ...)) (term number_2))
         (term vnone))]
-  [(δ "num+" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) ε Σ)
-   (obj-val x_1 (meta-num ,(+ (term number_1) (term number_2))) ())]
+  [(δ "num+" (obj-val any_cls (meta-num number_1) any_1) (obj-val any_cls2 (meta-num number_2) any_2) ε Σ)
+   (obj-val any_cls (meta-num ,(+ (term number_1) (term number_2))) ())]
   [(δ "not" val ε Σ)
    ,(if (term (truthy? val)) (term vfalse) (term vtrue))]
   [(δ "print" val ε Σ)

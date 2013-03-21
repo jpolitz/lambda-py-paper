@@ -76,7 +76,7 @@
                   ,(core->redex orelse)))]
     [CReturn (value) (term (return ,(core->redex value)))]
     [CBuiltinPrim (op args)
-     (term (builtin-prim ,(symbol->string op) ,(map core->redex args)))]
+     (prim->redex op args)]
     [CList (class values)
      (term (list ,(core->redex class) ,(map core->redex values)))]
     [CTuple (class values)
@@ -100,3 +100,21 @@
     [CConstructModule (source)
      (term (construct-module ,(core->redex source)))]
     [CYield (e) (error 'core-to-redex "The Redex model doesn't know anything about CYield.  Use CPS to remove CYields before calling core-to-redex")])))
+
+(define (prim-noalloc op args)
+  (term (builtin-prim ,op ,args)))
+(define (prim-alloc op args)
+  (term (alloc (builtin-prim ,op ,args))))
+(define (prim-update op to-update args)
+  (term (set! ,to-update (builtin-prim ,op ,args))))
+
+(define (prim->redex opsym args)
+  (local [
+    (define argvs (map (lambda (a) (term (fetch ,(core->redex a)))) args))
+    (define argsptrs (map (lambda (a) (core->redex a)) args))
+    (define op (symbol->string opsym))
+  ]
+  (case opsym
+    ['num+ (prim-alloc op argvs)]
+    [else (prim-noalloc op argsptrs)])))
+

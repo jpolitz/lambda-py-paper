@@ -6,8 +6,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require redex
-         (only-in "../base/python-lib-bindings.rkt" lib-function-dummies)
+         (only-in "../base/python-lib-bindings.rkt" lib-function-dummies lib-functions bind-left bind-right)
          "../base/python-lib.rkt"
+         (only-in "../base/util.rkt" seq-ops)
          "../base/python-core-syntax.rkt"
          "../base/python-tools.rkt"
          "core-to-redex.rkt"
@@ -286,7 +287,32 @@ f('a-str')
  ((err val) ε Σ))
 
 (full-expect
+ (,(core->redex (CBuiltinPrim 'num+
+                              (list 
+                               (CObject (CNone) (some (MetaNum 4)))
+                               (CObject (CNone) (some (MetaNum 5))))))
+  () ())
+ ((pointer-val ref)
+  ε
+  ((ref_1 val_1) ...
+   (ref (obj-val any_cls (meta-num 9) ()))
+   (ref_n val_n) ...)))
+
+ 
+
+(full-expect
  (,(core->redex (cascade-lets lib-function-dummies (CTrue)))
+  () ())
+ ((obj-val %bool (meta-num 1) ()) ε Σ))
+
+
+
+(full-expect
+ (,(core->redex (cascade-lets lib-function-dummies
+                              (seq-ops (append
+                                        (map (lambda (b) (bind-right b)) (take lib-functions 3))
+                                        (list (CTrue))
+                                        ))))
   () ())
  ((obj-val %bool (meta-num 1) ()) ε Σ))
 

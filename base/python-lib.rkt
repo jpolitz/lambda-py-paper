@@ -41,7 +41,7 @@ that calls the primitive `print`.
 (define pylib-programs (none))
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
-(define (get-pylib-programs)
+(define (get-pylib-programs paths)
   (type-case (optionof (listof CExpr)) pylib-programs
     [none ()
      (begin
@@ -58,7 +58,7 @@ that calls the primitive `print`.
                 (desugar-macros
                   (new-scope-phase
                     (get-structured-python pyast)))))))
-               python-libs)))
+               paths)))
          (some-v pylib-programs))]
      [some (v) v]))
                  
@@ -74,7 +74,7 @@ that calls the primitive `print`.
     (cascade-lets lib-function-dummies
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
-                             (get-pylib-programs)
+                             (get-pylib-programs python-libs)
                              (map (lambda (b) (bind-right b))
                                   (list (bind 'True (assign 'True (CTrue)))
                                         (bind 'False (assign 'False (CFalse)))))

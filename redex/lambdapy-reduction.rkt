@@ -38,7 +38,7 @@
         "E-Set!"
         (where Σ_1 (override-store Σ ref val)))
    (--> ((in-hole E (alloc val)) ε Σ)
-        ((in-hole E (pointer-val val)) ε Σ_1)
+        ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-Alloc"
         (where (Σ_1 ref_new) (extend-store Σ val)))
    (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) ε Σ)
@@ -374,7 +374,7 @@
   [(subst-one x any (seq e_1 e_2))
    (seq (subst-one x any e_1) (subst-one x any e_2))]
   [(subst-one x any (assign e_1 := e_2))
-   (assign (subst-one x any e_1) (subst-one x any e_2))]
+   (assign (subst-one x any e_1) := (subst-one x any e_2))]
   [(subst-one x any (if e_1 e_2 e_3))
    (if (subst-one x any e_1)
        (subst-one x any e_2)
