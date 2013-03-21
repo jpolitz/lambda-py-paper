@@ -177,7 +177,41 @@
    (side-condition (= (length (term (ref ...)))
                       (length (remove-duplicates (term (ref ...))))))]
   [(δ "type-uniqbases" val ε Σ)
-   vfalse])
+   vfalse]
+
+  [(δ "type-buildmro" 
+    (obj-val any_cls1 (meta-tuple (val_1 ...)) any_dict1)  
+    (obj-val any_cls2 (meta-tuple (val_2 ...)) any_dict2)  
+    ε Σ)
+   (type-buildmro-help (val_1 ...) (val_2 ...) Σ)])
+
+(define-metafunction λπ
+  get-mro : val Σ -> (val ...)
+  [(get-mro (pointer-val ref_obj) Σ)
+   (val_cls ...)
+   (where (obj-val any_cls any_meta
+                   ((string_1 val_1) ...
+                    ("__mro__" (pointer-val ref_mro))
+                    (string_n val_n) ...))
+          (store-lookup ref_obj))
+   (where (obj-val any_cls (meta-tuple (val_cls ...)) any_dict)
+          (store-lookup ref_mro))])
+
+(define-metafunction λπ
+  get-base-mros : (val ...) Σ -> ((val ...) ...)
+  [(get-base-mros () Σ) ()]
+  [(get-base-mros (val val_rest ...) Σ)
+   ((get-mro val Σ) val_restmros ...)
+   (where (val_restmros ...)
+          (get-base-mros (val_rest ...) Σ))])
+
+(define-metafunction λπ
+  type-buildmro-help : (val ...) (val ...) Σ -> val
+  [(type-buildmro-help (val_1 ...) (val_2 ...))
+   (obj-val %tuple (val_1 ... val_cls ...) ())
+   (where (val_cls ...)
+          ,(c3-merge (term (get-base-mros (val_2 ...) Σ)) (term (val_2 ...))))])
+
 
 (define-metafunction λπ
   object-is? : val x ε Σ -> #t or #f

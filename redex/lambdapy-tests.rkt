@@ -298,6 +298,18 @@ f('a-str')
    (ref (obj-val any_cls (meta-num 9) ()))
    (ref_n val_n) ...)))
 
+(full-expect
+ (,(core->redex (CLet 'x (LocalId) (CObject (CNone) (some (MetaStr "foo")))
+                      (CSeq
+                       (CAssign (CGetField (CId 'x (LocalId)) 'updated) (CObject (CNone) (some (MetaStr "val"))))
+                       (CGetField (CId 'x (LocalId)) 'updated))))
+  () ())
+ ((pointer-val ref)
+  ε
+  ((ref_1 val_1) ...
+   (ref (obj-val any_cls (meta-str "val") ()))
+   (ref_n val_n) ...)))
+
  
 
 (full-expect

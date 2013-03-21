@@ -169,7 +169,7 @@
         (side-condition (not (member (term x) (term (y ...))))))
    (--> ((in-hole E (get-field (pointer-val ref) string_1)) ε Σ)
         ((in-hole E (store-lookup Σ ref_1)) ε Σ)
-        (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))
+        (where (obj-val any_cls mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) (store-lookup Σ ref))
         "E-GetField")
    (--> ((in-hole E (get-field (pointer-val ref_obj) string)) ε Σ)
         ((in-hole E val_result) ε Σ_result)
@@ -203,15 +203,21 @@
    (--> ((in-hole E (assign ref := val)) ε Σ)
         ((in-hole e val) ε (override-store Σ ref val))
         "E-AssignLocal")
-   (--> ((in-hole E (assign (get-field (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1) := val_1)) ε Σ)
-        ((in-hole E vnone) ε (override-store Σ ref_1 val_1))
+   (--> ((in-hole E (assign (get-field (pointer-val ref_obj)  string_1) := val_1)) ε Σ)
+        ((in-hole E val_1) ε (override-store Σ ref_1 val_1))
+        (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...))
+               (store-lookup Σ ref_obj))
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
         "E-AssignUpdate")
-   (--> ((in-hole E (assign (get-field (obj-val x mval ((string ref) ... )) string_1) := val_1)) ε Σ)
-        ((in-hole E (obj-val x mval ((string_1 ref_new) (string ref) ...))) ε Σ_1)
+   (--> ((in-hole E (assign (get-field (pointer-val ref_obj) string_1) := val_1)) ε Σ)
+        ((in-hole E val_1) ε Σ_2)
+        (where (obj-val any_cls mval ((string ref) ... ))
+               (store-lookup Σ ref_obj))
+        (where (Σ_1 ref_new) (extend-store Σ val_1))
+        (where Σ_2 (override-store Σ_1 ref_obj 
+                      (obj-val any_cls mval ((string_1 ref_new) (string ref) ...))))
         (side-condition (not (member (term string_1) (term (string ...)))))
-        "E-AssignAdd"
-        (where (Σ_1 ref_new) (extend-store Σ val_1)))
+        "E-AssignAdd")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ..._1))) ε Σ)
         ((in-hole E (subst (x ...) (ref_arg ...) e)) ε Σ_1)
         (where (obj-val any_c (meta-closure (λ (x ..._1) (no-var) e opt-var)) any_dict)
@@ -380,12 +386,12 @@
        (subst-one x any e_2)
        (subst-one x any e_3))]
   [(subst-one x any (let (x local = e_b) in e))
-   (let (x local = e_b) in e)]
+   (let (x local = (subst-one x any e_b)) in e)]
   [(subst-one x any (let (y local = e_b) in e))
-   (let (y local = e_b) in (subst-one x any e))
+   (let (y local = (subst-one x any e_b)) in (subst-one x any e))
    (side-condition (not (equal? (term y) (term x))))]
   [(subst-one x any (let (y global = e_b) in e)) ;; leave globals intact again
-   (let (y global = e_b) in (subst-one x any e))]
+   (let (y global = (subst-one x any e_b)) in (subst-one x any e))]
   [(subst-one x any (app e (e_arg ...)))
    (app (subst-one x any e) (subst-exprs x any (e_arg ...)))]
   [(subst-one x any (app e (e_arg ...) e_star))
