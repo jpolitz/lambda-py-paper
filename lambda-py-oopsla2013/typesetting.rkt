@@ -35,11 +35,14 @@
 (metafunction-font-size 11)
 
 (define (metafun-rewriter lws)
-  (define envs (list-ref lws 2))
-  (define lampart (lw-e (list-ref lws 3)))
-  (match lampart
-    [(list _ _ args vararg body classarg _)
-     (list "λ" "<" envs ">" args vararg "." body)]))
+  (cond
+    [(list? lws)
+     (define lampart (lw-e (list-ref lws 2)))
+     (match lampart
+       [(list _ _ args vararg body classarg _)
+        (list "λ" args vararg "." body)]
+       [else (list lampart)])]
+    [else (list lws)]))
 
 (define (rewrite-dict-tuple lws)
   (match (lw-e lws)

@@ -177,22 +177,7 @@
    (side-condition (= (length (term (ref ...)))
                       (length (remove-duplicates (term (ref ...))))))]
   [(δ "type-uniqbases" val ε Σ)
-   vfalse]
-
-  [(δ "type-buildmro" 
-    (obj-val any_cls1 (meta-tuple (val_1 ...)) any_dict1)  
-    (obj-val any_cls2 (meta-tuple (val_2 ...)) any_dict2)  
-    ε Σ)
-   (type-buildmro-help (val_1 ...) (val_2 ...) Σ)]
-  )
-
-(define-metafunction λπ
-  get-mro : val Σ -> 
-
-
-(define-metafunction λπ
-  type-buildmro-help : (val ...) (val ...) -> val
-  [(type-buildmro-help
+   vfalse])
 
 (define-metafunction λπ
   object-is? : val x ε Σ -> #t or #f

@@ -128,7 +128,7 @@ its fidelity to real-world Python programs.
 
 @figure["f:values" @elem{Values in @(lambda-py)}]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(val mval εs ε ref opt-var))))
+    (lambda () (render-language λπ #:nts '(val mval ε ref opt-var))))
 }
 
 @section{Warmup: Pythonic Values and Objects}
