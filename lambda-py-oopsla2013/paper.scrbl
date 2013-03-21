@@ -11,16 +11,15 @@
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 
-@title{Python: The Full Monty@(elem #:style "thanks" "Title credit Benjamin S.
-Lerner [FILL joke]")}
-@authorinfo["Joe Gibbs Politz" "Brown University" "joe@cs.brown.edu"]
-@authorinfo["Sumner Warren" "Brown University" "FILL"]
-@authorinfo["Matthew Milano" "Brown University" "matthew@cs.brown.edu"]
-@authorinfo["Daniel Patterson" "Brown University" "dbpatter@cs.brown.edu"]
-@authorinfo["Alejandro Martinez" "" ""]
-@authorinfo["Junsong Li" "" ""]
-@authorinfo["Anand Chitipothu" "" ""]
-@authorinfo["Shriram Krishnamurthi" "Brown University" "sk@cs.brown.edu"]
+@title{Python: The Full Monty@(elem #:style "thanks" "Title courtesy of Benjamin S.  Lerner, an expert in the field.")}
+@authorinfo["Joe Gibbs Politz" "Providence, RI, USA" "joe@cs.brown.edu"]
+@authorinfo["Alejandro Martinez" "La Plata, BA, Argentina" "amtriathlon@gmail.com"]
+@authorinfo["Matthew Milano" "Providence, RI, USA" "matthew@cs.brown.edu"]
+@authorinfo["Sumner Warren" "Providence, RI, USA" "jswarren@cs.brown.edu"]
+@authorinfo["Daniel Patterson" "Providence, RI, USA" "dbpatter@cs.brown.edu"]
+@authorinfo["Junsong Li" "Beijing, China" "ljs.darkfish@gmail.com"]
+@authorinfo["Anand Chitipothu" "Bangalore, India" "anandology@gmail.com"]
+@authorinfo["Shriram Krishnamurthi" "Providence, RI, USA" "sk@cs.brown.edu"]
 
 @abstract{
 
@@ -1184,6 +1183,19 @@ complications of @emph{scope}, a naive desugaring strategy for a CPS
 transformation isn't effective.  We step through this initial approach on a
 simple model of Python's scope, and then discuss how our different model of
 desugaring scope helps fix the problems of this naive solution.
+
+@section{Perspective}
+
+@itemlist[
+
+  @item{Many overloadings and implicit method calls are nice}
+
+  @item{However, there are corner cases, and they have to do with the thing stuck in programmers' face: scope}
+
+  @item{Unclear if scope behavior is a product of growing up from a dynamic language or intentional}
+
+  @item{All the values of Python, all the scope of something saner, would be a really nice thing to have}
+]
 
 @section{Engineering \& Evaluation}
 
