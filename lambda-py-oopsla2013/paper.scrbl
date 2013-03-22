@@ -11,8 +11,9 @@
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
+@title{Python: The Full Monty@(elem #:style "thanks" "Title courtesy of Benjamin S.  Lerner, an expert in the field.") @(linebreak) @smaller{A Tested Semantics for Python}}
 
-@title{Python: The Full Monty@(elem #:style "thanks" "Title courtesy of Benjamin S.  Lerner, an expert in the field.")}
+
 @authorinfo["Joe Gibbs Politz" "Providence, RI, USA" "joe@cs.brown.edu"]
 @authorinfo["Alejandro Martinez" "La Plata, BA, Argentina" "amtriathlon@gmail.com"]
 @authorinfo["Matthew Milano" "Providence, RI, USA" "matthew@cs.brown.edu"]
@@ -583,6 +584,7 @@ To illustrate the easy transition from function to generator, consider this
 (perhaps foolish) program in Python:
 
 @verbatim{
+
 def f():
   x = 0
   while True:
@@ -592,6 +594,7 @@ def f():
 f() # evaluates to 1
 f() # evaluates to 1
 # ...
+
 }
 
 This function, when called, always starts what would be an infinite loop if it
@@ -600,6 +603,7 @@ didn't immediately return @code{1}.  By changing the {\tt return} statement to a
 number of such values:
 
 @verbatim{
+
 def f():
   x = 0
   while True:
@@ -611,6 +615,7 @@ gen.next() # evaluates to 1
 gen.next() # evaluates to 2
 gen.next() # evaluates to 3
 # ...
+
 }
 
 The application @code{f()} no longer immediately evaluates the body of the
@@ -618,7 +623,6 @@ function.  Instead, it creates an object with (at least) a @code{next} method.
 When @code{next} is invoked, it evaluates up to the next {\tt yield} statement,
 returns the value provided there, and stores its state for future @code{next}
 calls.  The documentation of @code{yield} says as much (emphasis added):
-
 
 ...the execution proceeds to the first @code{yield} expression, where it is
 suspended again, returning the value of [the @code{yield expression}] to the
