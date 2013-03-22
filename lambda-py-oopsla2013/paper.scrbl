@@ -6,7 +6,8 @@
   "../redex/lambdapy-core.rkt"
   "../redex/lambdapy-reduction.rkt"
   "../redex/lambdapy-prim.rkt"
-  "typesetting.rkt")
+  "typesetting.rkt"
+  "figures.rkt")
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
@@ -550,7 +551,7 @@ compromising @emph{confidentiality}.  That is, the allow the user to observe
 and copy values that are internal to objects, but not to change them if they
 would affect the internals of the behavior of the object.
 
-@section{Pythonic Patterns}
+@subsection{Pythonic Patterns}
 
 Pythonic objects can have a number of so-called @emph{magic fields} that allow
 for overriding the behavior of built-in syntactic forms.  These magic fields
@@ -928,6 +929,10 @@ f()
 }
 
 @subsection{Classes and Scope}
+
+@figure*["f:class-scope" "Interactions between class bodies and function scope"]{
+  @class-scope
+}
 
 We observe a different closure behavior for variables in a class definition than
 we do for variables elsewhere in Python.  Consider the following example:
