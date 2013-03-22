@@ -11,7 +11,7 @@
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
-@title{Python: The Full Monty@(elem #:style "thanks" "Title courtesy of Benjamin S.  Lerner, an expert in the field.") @(linebreak) @smaller{A Tested Semantics for Python}}
+@title{Python: The Full Monty@(linebreak)@smaller{A Tested Semantics for Python}}
 
 @authorinfo["Joe Gibbs Politz" "Providence, RI, USA" "joe@cs.brown.edu"]
 @authorinfo["Alejandro Martinez" "La Plata, BA, Argentina" "amtriathlon@gmail.com"]
@@ -560,17 +560,15 @@ the flexibility that Python is well-known for.
 
 @section{Python, the Hard Parts}
 
-Python's value and object model, and the desugaring of surface forms to it,
-exhibit properties of good design: they are extensible, and provide
-abstractions to the programmer.  This is reflected in their straightforward
-and compositional desugaring.
+Not all of Python has a semantics as straightforward as that presented so far.
 
-Not all of Python has a semantics this obvious.  To illustrate some of
-the trickier features, we begin with an example of an analysis task, a
-continuation-passing style transformation, that is difficult in Python.  This
-description actually stems from our false start at implementing generators via
-CPS that ran afoul of scoping issues.  By the end of the paper, we will make
-clear all the pieces that go into solving this problem.
+
+To illustrate some of the trickier features, we begin with an example of an
+analysis task, a continuation-passing style transformation, that is difficult
+in Python.  This description actually stems from our false start at
+implementing generators via CPS that ran afoul of scoping issues.  By the end
+of the paper, we will make clear all the pieces that go into solving this
+problem.
 
 @subsection{The Semantics of Generators}
 
