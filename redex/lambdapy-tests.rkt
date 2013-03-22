@@ -58,8 +58,11 @@
 (expect undefined (undefined-val))
 
 ;; object values
-(expect (list none (true false))
-        (obj-val list (meta-list (vtrue vfalse)) () vnone))
+(full-expect
+ ((list none (true false)) () ())
+ ((pointer-val 1)
+  ()
+  ((1 (obj-val val_none (meta-list (val_true val_false)) ())))))
 
 ;; control flow
 (expect (if true none undefined) vnone)
@@ -74,7 +77,7 @@
 #;(expect (seq (return true) false)
 	vtrue)
 (expect (while true break false)
-	break-r)
+	vnone)
 
 
 ;; binding
