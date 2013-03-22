@@ -1301,6 +1301,80 @@ transformation isn't effective.  We step through this initial approach on a
 simple model of Python's scope, and then discuss how our different model of
 desugaring scope helps fix the problems of this naive solution.
 
+Generators in Python are constructed from any function that contains @code{yield}
+statements instead of @code{return} statements. If called, the function that was
+defined returns a generator object, and the generator object contains a @code{__next__}
+method. This method will run the body of the original function until the first yield,
+then suspend the computation, storing local variables and stack frames, returning
+the value that was passed to @code{yield}. For example:
+
+@verbatim{
+def f():
+  n = 0
+  while True:
+    yield n
+    n += 1
+g = f()
+g.__next__() # returns 0
+g.__next__() # returns 1
+g.__next__() # returns 2
+#...
+}
+
+An obvious encoding for this pattern is to use continuations, which
+allow us to encode the local variables and stack in runtime values
+that we can save and restore. As explored earlier, details of Pythonic
+scope prevent a standard CPS transformation from working.  However,
+after the lexical transformation detailed in [REF], we can convert to
+CPS in a standard manner. Due to our result types encoding control
+flow, we have five continuations, one for a normal value being passed to
+the next instruction, one for a @code{return} statement, one each for
+@code{break} and @code{continue}, and one for the exception throwing
+@code{raise}.
+
+We use this to implement generators via local CPS, which results in
+a transformation from a core with @code{yield} to a core without @code{yield}
+that behaves similarly to the reference implementation. We are able to achieve
+this with only local CPS transformation because of the way in which Python's
+generators are lexically defined by the presense of @code{yield} statements.
+Since only a function with a @code{yield} statement can be a generator, and
+@code{yield} is a statement, not a value that could be passed elsewhere,
+the only place that we need access to the call stack and local variables is
+within the code that makes up the generator.
+
+For our implementation, we first add to our core language a
+@code{yield} expression, which corresponds to the @code{yield}
+statement in Python. As the final stage of desugaring, we identify
+functions that contain @code{yield}. These will become generators.  To
+convert them, in the body of the function we construct a generator
+object and store the old body, after CPS transformation, as a
+@code{___resume} attribute on the object. The @code{__next__} method
+on the generator, when called, will call the @code{___resume} closure
+with any arguments that are passed in. To handle yielding, we desugar
+the core @code{yield} expression to update the @code{___resume}
+attribute to store the current normal continuation, and then
+@code{return} the value that was yielded.
+
+The only final parts that we need to handle are for exceptions and for
+when the generator is runs past the end of the body of its
+definition. In the latter case, the generator raises a
+@code{StopIteration} exception. We encode this by setting the initial
+normal continuation to code that will update @code{___resume} to
+always raise @code{StopIteration}, and then to raise that
+exception. Thus, if we evaluate the entire body of the generator, we
+will pass the result to this continuation, and the proper behavior will
+occur.
+
+Similarly, if an uncaught exception occurs in a generator, the
+generator will raise that exception, and any subsequent calls to the
+generator will result in @code{StopIteration}. We handle this by
+setting the initial exception continuation to be code that updates
+@code{___resume} to always raise @code{StopIteration}, and then we
+raise the exception that was passed to the continuation. Since each
+@code{try} block in CPS installs a new exception continuation, if
+a value is passed to the top-level exception handler it means that
+the exception was not caught, and again the expected behavior will occur.
+
 @section{Perspective}
 
 @itemlist[
