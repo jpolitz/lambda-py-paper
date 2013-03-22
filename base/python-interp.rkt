@@ -10,6 +10,7 @@
          "builtins/method.rkt"
          "util.rkt"
          (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
+         (typed-in "python-lib.rkt" (builtins-symbol : 'a))
          (typed-in racket/base (hash-copy : ((hashof 'a 'b) -> (hashof 'a 'b))))
          (typed-in racket/base (hash-map : ((hashof 'a 'b) ('a 'b -> 'c) -> (listof 'c))))
          (typed-in racket/base (hash-count : ((hashof 'a 'b) -> number)))
@@ -249,7 +250,7 @@
                   [else (mk-exception 'TypeError (format "Non-string in field lookup: ~a" vattr) env sto)])]
                 [else (error 'interp "is-obj-ptr? must have lied about the field in field lookup")])]
               [else (mk-exception 'TypeError (format "Non-object in field lookup: ~a" vval) env sto)])]
-            [else (error 'interp (format "Non-object pointers in get-field: ~a" (cons vval vattr)))]))))))]
+            [else (error 'interp (format "Non-object pointers in get-field: ~a" (list vval vattr)))]))))))]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
                     [v*s (v1 s1) (interp-env e2 env s1 stk)]
@@ -482,20 +483,31 @@
                                                 (hash-set e sym loc)
                                                 (hash-set s loc vnone)
                                                 (hash-set attr sym loc)))]))
+
+                        (define (filter-env vars e new-env)
+                          (cond [(empty? vars) new-env]
+                                [else
+                                 (filter-env (rest vars) e
+                                             (hash-set new-env
+                                                       (first vars)
+                                                       (some-v (lookup-global (first vars) e))))]))
+                        
                         (define-values (new-env new-sto module-attr)
                           (inject-vars global-var
-                                       (hash empty) ; NOTE: passing empty hash as env
+                                       (filter-env builtins-symbol env (hash empty))
+                                       ;(hash empty) ; NOTE: passing empty hash as env
                                        s-code
                                        (hash empty)))]
                                         ; interpret the code in module, raise any exception as it is
                                         ; ImportError should be handled in __import__
                                         ; TODO: filter the built-in functions instead of interpreting python-lib again
-                       (handle-result env (interp-env (python-lib (CModule (CNone) xcode))
-                                                      (list new-env) new-sto stk)
-                                      (lambda (v-module s-module)
-                                        (begin ;(pprint v-module)
-                                          (alloc-result (VObject '$module (none) module-attr)
-                                                        s-module))))))])))]
+                       (begin ;(pprint global-var)
+                              (handle-result env (interp-env (CModule (CNone) xcode)
+                                                             (list new-env) new-sto stk)
+                                             (lambda (v-module s-module)
+                                               (begin ;(pprint v-module)
+                                                 (alloc-result (VObject '$module (none) module-attr)
+                                                               s-module)))))))])))]
     
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)]
@@ -560,7 +572,7 @@
     [(not (is-obj-ptr? cptr s))
      (mk-exception 'AttributeError
                    (string-append 
-                    (string-append (pretty cptr) " object has no attribute ")
+                    (string-append (pretty cptr (hash empty)) " object has no attribute ")
                     (symbol->string n))
                    e
                    s)]
@@ -700,9 +712,9 @@
     [Return (vexpr sexpr)
      (raise-user-error (format "Unexpected return reached toplevel: ~a" vexpr))]
     [Break (sexpr)
-     (raise-user-error (format "Unexpected break reached toplevel"))]
+     (raise-user-error "Unexpected break reached toplevel")]
     [Continue (sexpr)
-     (raise-user-error (format "Unexpected continue reached toplevel"))]
+     (raise-user-error "Unexpected continue reached toplevel")]
     [Exception (vexpr sexpr)
                (raise-user-error (string-append (pretty-exception vexpr sexpr #t) ""))])))
 
