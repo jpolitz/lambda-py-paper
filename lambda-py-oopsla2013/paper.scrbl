@@ -1,8 +1,9 @@
 #lang scribble/sigplan @10pt @preprint
 
 @(require scriblib/footnote scribble/manual scriblib/figure racket/base)
-@(require redex)
 @(require
+  slideshow/pict
+  redex
   "../redex/lambdapy-core.rkt"
   "../redex/lambdapy-reduction.rkt"
   "../redex/lambdapy-prim.rkt"
@@ -1140,7 +1141,7 @@ f("x-value", "y-value")().g()
 In this example, we have three local scopes: the body of the function f, the
 body of the class definition c, and the body of the function g.  The scopes of
 @code{c} and @code{g} close over the same scope as @code{f}, but have distinct,
-non-nesting scopes themselves.  @Figure-ref["f:classscope"] shows the
+non-nesting scopes themselves.  @Figure-ref["f:class-scope"] shows the
 relationship graphically.  Algorithmically, we add new steps to scope
 desugaring:
 
@@ -1266,13 +1267,121 @@ and definitions/assignments in class bodies result in the creation of class
 members.  The nonlocal and global keyword do not require special treatment 
 beyond what we have outlined here, even when present in class bodies.
 
-@subsection{Rest}
+@subsection{Generators Redux}
 
-Most of Python's scope (with a few exceptions noted below), can be modelled
-with a lexically-scoped core semantics.  Some operations do require
-@emph{reifying} lexical scope into a value, but with very few exceptions, this
-reification cannot be reflected back into ordinary variables and cause
-dynamic-scope like behavior.
+@figure["f:generators" "The desugaring of generators"]{
+
+@verbatim{def f(x ...): body-with-yield
+
+}
+
+@emph{desugars to...}
+
+@(linebreak)
+
+@(lp-term
+  (fun (x ...)
+    (let (done local = 
+      (fun () (raise (app (id StopIteration global) ())))) in
+    (let (initializer local = 
+      (fun (self)
+        (let (end-of-gen-normal local = 
+          (fun (last-val)
+            (seq
+            (assign (get-field (id self local) "__next__") := (id done local))
+            (raise (app (id global StopIteration) ()))))) in
+        (let (end-of-gen-exn local = 
+          (fun (exn-val)
+            (seq
+            (assign (get-field (id self local) "__next__") := (id done local))
+            (raise exn-val)))) in
+        (let (unexpected-case local =
+          (fun (v)
+            (raise (app (id SyntaxError global) ())))) in
+        (let (resumer local =
+          (fun (yield-send-value)
+            (return
+              (app (cps-of body-with-yield)
+                   ((id end-of-gen-normal local)
+                    (id unexpected-case local)
+                    (id end-of-gen-exn local)
+                    (id unexpected-case local)
+                    (id unexpected-case local)))))) in
+        (assign (get-field (id self local) "___resume") := (id resumer local)))))))) in
+      (app (id %generator global) ((id initializer local)))))))
+
+@verbatim{
+
+class %generator(object):
+    def __init__(self, init):
+        init(self)
+
+    def __next__(self, resume_arg):
+        if len(args) > 0:
+            return self.___resume(resume_arg)
+        else:
+            return self.___resume(None)
+
+    def __iter__(self):
+        return self
+        
+    def __list__(self):
+        return [x for x in self]
+
+
+}
+
+}
+
+With the transformation to a lexical core in hand, we can return to our
+discussion of generators, and their implementation with a local CPS
+transformation.
+
+To implement generators, we first desugar Python down to a version of
+@(lambda-py) with an explicit @code{yield} statement, passing @code{yields}
+through unchanged.  As the final stage of desugaring, we identify functions
+that contain @code{yield}, and convert them to generators via local CPS.  To
+convert them, in the body of the function we construct a generator object and
+store the CPS-ed body as a @code{___resume} attribute on the object. The
+@code{__next__} method on the generator, when called, will call the
+@code{___resume} closure with any arguments that are passed in. To handle
+yielding, we desugar the core @code{yield} expression to update the
+@code{___resume} attribute to store the current normal continuation, and then
+@code{return} the value that was yielded.
+
+Matching Python's operators for control flow, we have five continuations, one
+for the normal completion of a statement or expression going onto the next, one
+for a @code{return} statement, one each for @code{break} and @code{continue},
+and one for the exception throwing @code{raise}.  This means that each CPSed
+expression becomes an anonymous function of five arguments, and can be passed
+in the appropriate behavior for each control operator.
+
+We use this configurability to handle two special cases of generators:
+
+@itemlist[
+
+  @item{Exceptions thrown during execution that are uncaught by the generator}
+
+  @item{Running the generator to completion}
+
+]
+
+In the latter case, the generator raises a @code{StopIteration} exception. We
+encode this by setting the initial ``normal'' continuation to a function that
+will update @code{___resume} to always raise @code{StopIteration}, and then to
+raise that exception. Thus, if we evaluate the entire body of the generator, we
+will pass the result to this continuation, and the proper behavior will occur.
+
+Similarly, if an uncaught exception occurs in a generator, the generator will
+raise that exception, and any subsequent calls to the generator will result in
+@code{StopIteration}. We handle this by setting the initial @code{raise}
+continuation to be code that updates @code{___resume} to always raise
+@code{StopIteration}, and then we raise the exception that was passed to the
+continuation. Since each @code{try} block in CPS installs a new exception
+continuation, if a value is passed to the top-level exception handler it means
+that the exception was not caught, and again the expected behavior will occur.
+
+@section{Perspective}
 
 Existing editors use heuristics to figure out if variables could be bound to
 particular instances.@note{http://wingware.com/doc/edit/points-of-use}
@@ -1280,102 +1389,6 @@ This makes variable naming refactorings less precise than in say, an IDE for
 Java, requiring developer intervention to specify which instances should be
 renamed.  We provide a more precise account of scope that would enable
 correct points-of-use analysis for lexical variables in Python.
-
-@section{Modules}
-
-Python's module system combines Python's notions of objects and scope to both
-get a representation of the global bindings in one module, and introduce them
-as an object or bindings in another.  Some patterns of module importing are
-strictly lexical, and can be modeled via inlining.  Others amount to dynamic
-code loading that affects scope in a way that isn't determinable until runtime
-time.
-
-@section{Generators}
-
-Via the @code{yield} statement, Python allows the automatic creation of
-generator objects from function-like expression forms.  Generators and the {\tt
-yield} operation are often modelled using local or delimited continuations, or
-can be implemented explicitly with continuation-passing style.  However, due to
-complications of @emph{scope}, a naive desugaring strategy for a CPS
-transformation isn't effective.  We step through this initial approach on a
-simple model of Python's scope, and then discuss how our different model of
-desugaring scope helps fix the problems of this naive solution.
-
-Generators in Python are constructed from any function that contains @code{yield}
-statements instead of @code{return} statements. If called, the function that was
-defined returns a generator object, and the generator object contains a @code{__next__}
-method. This method will run the body of the original function until the first yield,
-then suspend the computation, storing local variables and stack frames, returning
-the value that was passed to @code{yield}. For example:
-
-@verbatim{
-def f():
-  n = 0
-  while True:
-    yield n
-    n += 1
-g = f()
-g.__next__() # returns 0
-g.__next__() # returns 1
-g.__next__() # returns 2
-#...
-}
-
-An obvious encoding for this pattern is to use continuations, which
-allow us to encode the local variables and stack in runtime values
-that we can save and restore. As explored earlier, details of Pythonic
-scope prevent a standard CPS transformation from working.  However,
-after the lexical transformation detailed in [REF], we can convert to
-CPS in a standard manner. Due to our result types encoding control
-flow, we have five continuations, one for a normal value being passed to
-the next instruction, one for a @code{return} statement, one each for
-@code{break} and @code{continue}, and one for the exception throwing
-@code{raise}.
-
-We use this to implement generators via local CPS, which results in
-a transformation from a core with @code{yield} to a core without @code{yield}
-that behaves similarly to the reference implementation. We are able to achieve
-this with only local CPS transformation because of the way in which Python's
-generators are lexically defined by the presense of @code{yield} statements.
-Since only a function with a @code{yield} statement can be a generator, and
-@code{yield} is a statement, not a value that could be passed elsewhere,
-the only place that we need access to the call stack and local variables is
-within the code that makes up the generator.
-
-For our implementation, we first add to our core language a
-@code{yield} expression, which corresponds to the @code{yield}
-statement in Python. As the final stage of desugaring, we identify
-functions that contain @code{yield}. These will become generators.  To
-convert them, in the body of the function we construct a generator
-object and store the old body, after CPS transformation, as a
-@code{___resume} attribute on the object. The @code{__next__} method
-on the generator, when called, will call the @code{___resume} closure
-with any arguments that are passed in. To handle yielding, we desugar
-the core @code{yield} expression to update the @code{___resume}
-attribute to store the current normal continuation, and then
-@code{return} the value that was yielded.
-
-The only final parts that we need to handle are for exceptions and for
-when the generator is runs past the end of the body of its
-definition. In the latter case, the generator raises a
-@code{StopIteration} exception. We encode this by setting the initial
-normal continuation to code that will update @code{___resume} to
-always raise @code{StopIteration}, and then to raise that
-exception. Thus, if we evaluate the entire body of the generator, we
-will pass the result to this continuation, and the proper behavior will
-occur.
-
-Similarly, if an uncaught exception occurs in a generator, the
-generator will raise that exception, and any subsequent calls to the
-generator will result in @code{StopIteration}. We handle this by
-setting the initial exception continuation to be code that updates
-@code{___resume} to always raise @code{StopIteration}, and then we
-raise the exception that was passed to the continuation. Since each
-@code{try} block in CPS installs a new exception continuation, if
-a value is passed to the top-level exception handler it means that
-the exception was not caught, and again the expected behavior will occur.
-
-@section{Perspective}
 
 @itemlist[
 
