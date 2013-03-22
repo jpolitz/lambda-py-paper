@@ -127,7 +127,6 @@
    ;;    agreed. (exception-r val) should be the reduction result. -yao
    (--> ((in-hole T (raise val)) ε Σ)
         ((err val) ε Σ)
-        (side-condition (not (redex-match? λπ hole (term T)))) ;; avoid cycle
         "exc-uncaught")
    (==> (module val e)
         e
@@ -142,22 +141,21 @@
         (fresh x_new)
         (where ref_new ,(new-loc))
         "let")|#
-   (--> ((in-hole E (let (x global = val) in e)) ε Σ)
+   (--> ((in-hole E (let (x global = v+undef) in e)) ε Σ)
         ((in-hole E e) (extend-env ε x ref) Σ_1)
-        (where (Σ_1 ref) (extend-store Σ val))
+        (where (Σ_1 ref) (extend-store Σ v+undef))
         "E-LetGlobal")
-   (--> ((in-hole E (let (x local = val) in e)) ε Σ)
+   (--> ((in-hole E (let (x local = v+undef) in e)) ε Σ)
         ((in-hole E (subst-one x ref e)) ε Σ_1)
-        (where (Σ_1 ref) (extend-store Σ val))
+        (where (Σ_1 ref) (extend-store Σ v+undef))
         "E-LetLocal")
    #|
    (==> (let (x_1 (exception-r val)) e_1)
         (exception-r val)
         "let-exc")|#
    (--> ((in-hole E (id x global))
-         (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...))
-         (name Σ ((ref_3 val_3) ... (ref val) (ref_4 val_4) ...)))
-        ((in-hole E val) ε Σ)
+         (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...)) Σ)
+        ((in-hole E (store-lookup Σ ref)) ε Σ)
         "E-GetGlobal")
    (--> ((in-hole E (id x local)) ε Σ)
         ((in-hole E (raise (obj-val %str (meta-str "Unbound identifier") ()))) ε Σ)
@@ -225,7 +223,12 @@
                (extend-store/list Σ (val ...)))
         "E-App")
    (--> ((in-hole E ref) ε Σ)
-        ((in-hole E (store-lookup Σ ref)) ε Σ))
+        ((in-hole E val) ε Σ)
+        "E-GetVar"
+        (judgment-holds (store-lookup/j Σ ref val)))
+   (--> ((in-hole E ref) ε (name Σ ((ref_1 v+undef_1) ... (ref (undefined-val)) (ref_n v+undef_n) ...)))
+        ((in-hole E (raise (obj-val %str (meta-str "Uninitialized local") ()))) ε Σ)
+        "E-GetVarUndef")
    with
    [(--> (in-hole P e_1) (in-hole P e_2))
     (==> e_1 e_2)]
@@ -238,31 +241,32 @@
 
 (define-metafunction λπ
   override-store : Σ ref val -> Σ
-  [(override-store ((ref_2 val_2) ...) ref_1 val_1)
-   ((ref_2 val_2) ... (ref_1 val_1))
+  [(override-store ((ref_2 v+undef_2) ...) ref_1 val_1)
+   ((ref_2 v+undef_2) ... (ref_1 val_1))
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))]
-  [(override-store ((ref_2 val_2) ... (ref_1 val_0) (ref_3 val_3) ...) ref_1 val_1)
-   ((ref_2 val_2) ... (ref_1 val_1) (ref_3 val_3) ...)
+  [(override-store ((ref_2 v+undef_2) ... (ref_1 v+undef_0) (ref_3 v+undef_3) ...) ref_1 val_1)
+   ((ref_2 v+undef_2) ... (ref_1 val_1) (ref_3 v+undef_3) ...)
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))])
  
 (define-metafunction λπ
-  extend-store : Σ val -> (Σ ref)
-  [(extend-store (name Σ ((ref val) ...)) val_new)
-   (((ref val) ... (ref_new val_new)) ref_new)
+  extend-store : Σ v+undef -> (Σ ref)
+  [(extend-store (name Σ ((ref v+undef) ...)) v+undef_new)
+   (((ref v+undef_new) ... (ref_new v+undef_new)) ref_new)
    (where ref_new (get-new-loc Σ))])
 
 (define-metafunction λπ
-  extend-store/list : Σ (val ...) -> (Σ (ref ...))
+  extend-store/list : Σ (v+undef ...) -> (Σ (ref ...))
   [(extend-store/list Σ ()) (Σ ())]
-  [(extend-store/list Σ (val)) (Σ_1 (ref))
-   (where (Σ_1 ref) (extend-store Σ val))]
-  [(extend-store/list Σ (val val_rest ...)) (Σ_1 (ref ref_rest ...))
-   (where (Σ_1 (ref_rest ...))
-          (extend-store/list Σ (val_rest ...)))])
+  [(extend-store/list Σ (v+undef)) (Σ_1 (ref))
+   (where (Σ_1 ref) (extend-store Σ v+undef))]
+  [(extend-store/list Σ (v+undef v+undef_rest ...)) (Σ_2 (ref ref_rest ...))
+   (where (Σ_1 ref) (extend-store Σ v+undef))
+   (where (Σ_2 (ref_rest ...))
+          (extend-store/list Σ_1 (v+undef_rest ...)))])
 
 (define-metafunction λπ
   get-new-loc : Σ -> ref
-  [(get-new-loc ((ref_1 val_1) ...))
+  [(get-new-loc ((ref_1 v+undef_1) ...))
    ,(add1 (apply max (cons 0 (term (ref_1 ...)))))])
 
 (define-metafunction λπ

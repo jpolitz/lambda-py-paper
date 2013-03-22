@@ -46,6 +46,10 @@
                           (begin #;(display "Found:\n") #;(pretty-write p) #f)
                           #t))))))
 
+(full-expect
+ ((let (x local = (undefined-val)) in
+   (id x local)) () ())
+ ((err val_err) ε Σ))
 
 ;; Primitive values
 (expect none vnone)
@@ -312,14 +316,14 @@ f('a-str')
    (ref (obj-val any_cls (meta-str "val") ()))
    (ref_n val_n) ...)))
 
- 
+
 
 (full-expect
  (,(core->redex (cascade-lets lib-function-dummies (CTrue)))
   () ())
  ((obj-val %bool (meta-num 1) ()) ε Σ))
 
-(full-expect
+#;(full-expect
  (,(core->redex (cascade-lets lib-function-dummies
                               (seq-ops (append
                                         (map (lambda (b) (bind-right b)) lib-functions)

@@ -6,7 +6,7 @@
 
 (define-language λπ
   ;; heap
-  (Σ ((ref val) ...))
+  (Σ ((ref v+undef) ...))
   ;; type of references
   (ref natural)
   
@@ -18,8 +18,8 @@
 	 (obj-val val mval ((string ref) ...))
 	 (obj-val x mval ((string ref) ...))
    (pointer-val ref)
-   (undefined-val)
    (sym string))
+  (v+undef v (undefined-val))
 
   ;; primitive operators
   (op string)
@@ -80,7 +80,7 @@
      (module e e)
      (construct-module e)
      (err val)
-     val)
+     v+undef)
   
   ;; evaluation context
   (E hole

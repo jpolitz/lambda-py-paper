@@ -186,10 +186,19 @@
     ε Σ)
    (type-buildmro-help (val_1 ...) (val_2 ...) Σ)])
 
+;; NOTE(joe): We restrict store-lookup to returning values;
+;; the special case for ref_unbound notices when an undefined
+;; is matched in the store, and won't let it be looked up.
 (define-metafunction λπ
   store-lookup : Σ ref -> val
-  [(store-lookup ((ref_1 val_1) ... (ref val) (ref_n val_n) ...) ref)
+  [(store-lookup ((ref_1 v+undef_1) ... (ref val) (ref_n v+undef_n) ...) ref)
    val])
+
+(define-judgment-form λπ
+  #:mode (store-lookup/j I I O)
+  #:contract (store-lookup/j Σ ref val)
+  [(store-lookup/j
+    ((ref_1 v+undef_1) ... (ref val) (ref_n v+undef_n) ...) ref val)])
 
 (define-metafunction λπ
   fetch-pointer : val Σ -> val
