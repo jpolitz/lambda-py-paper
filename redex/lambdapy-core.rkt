@@ -78,6 +78,7 @@
      undefined
      break
      (module e e)
+     (construct-module e)
      (err val)
      val)
   

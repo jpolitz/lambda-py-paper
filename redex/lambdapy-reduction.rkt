@@ -1,11 +1,11 @@
 #lang racket
 
-(require redex)
-;(require redex/tut-subst)
-(require "lambdapy-core.rkt"
-         "lambdapy-prim.rkt")
+(require
+  redex
+  "lambdapy-core.rkt"
+  "lambdapy-prim.rkt")
 
-(provide λπ-red override-store class-lookup class-lookup-mro maybe-bind-method subst)
+(provide λπ-red override-store class-lookup class-lookup-mro store-lookup maybe-bind-method subst)
 
 
 (define λπ-red
@@ -231,9 +231,6 @@
     (==> e_1 e_2)]
    ))
 
-(define new-loc
-  (let ([n 0])
-    (lambda () (begin (set! n (add1 n)) n))))
 
 (define-metafunction λπ
   extend-env : ε x ref -> ε
@@ -262,15 +259,6 @@
   [(extend-store/list Σ (val val_rest ...)) (Σ_1 (ref ref_rest ...))
    (where (Σ_1 (ref_rest ...))
           (extend-store/list Σ (val_rest ...)))])
-
-(define-metafunction λπ
-  fetch-pointer : val Σ -> val
-  [(fetch-pointer (pointer-val ref) Σ) (store-lookup Σ ref)])
-
-(define-metafunction λπ
-  store-lookup : Σ ref -> val
-  [(store-lookup ((ref_1 val_1) ... (ref val) (ref_n val_n) ...) ref)
-   val])
 
 (define-metafunction λπ
   get-new-loc : Σ -> ref
@@ -428,6 +416,8 @@
   [(subst-one x any break) break]
   [(subst-one x any (module e_p e_b))
    (module (subst-one x any e_p) (subst-one x any e_b))]
+  [(subst-one x any (construct-module e))
+   (construct-module (subst-one x any e))]
   [(subst-one x any val)
    (subst-v x any val)])
 
@@ -437,6 +427,9 @@
   [(subst (x x_rest ..._1) (any any_rest ..._1) e)
    (subst (x_rest ...) (any_rest ...) (subst-one x any e))])
 
+(define new-loc
+  (let ([n 0])
+    (lambda () (begin (set! n (add1 n)) n))))
 #|
 ;; simply use this subst function for now
 (define-metafunction λπ

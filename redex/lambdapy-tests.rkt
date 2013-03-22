@@ -23,7 +23,8 @@
 (define-syntax (expect stx)
   (syntax-case stx ()
       ((_ e v)
-       #'(test-->>∃ λπ-red (term (e () ()))
+       #'(test-->>∃ #:steps 1000000
+                    λπ-red (term (e () ()))
                     (λ (p) (equal? (term v) (first p)))))))
 
 (define-syntax (expect-raw stx)
@@ -36,7 +37,8 @@
 (define-syntax (full-expect stx)
   (syntax-case stx ()
       ((_ (e ε Σ) pat)
-       #'(test-->>∃ λπ-red (term (e ε Σ))
+       #'(test-->>∃ #:steps 1000000
+                    λπ-red (term (e ε Σ))
                     (λ (p)
                       (if (not
                               (and
@@ -317,12 +319,10 @@ f('a-str')
   () ())
  ((obj-val %bool (meta-num 1) ()) ε Σ))
 
-
-
 (full-expect
  (,(core->redex (cascade-lets lib-function-dummies
                               (seq-ops (append
-                                        (map (lambda (b) (bind-right b)) (take lib-functions 4))
+                                        (map (lambda (b) (bind-right b)) lib-functions)
                                         (list (CTrue))
                                         ))))
   () ())

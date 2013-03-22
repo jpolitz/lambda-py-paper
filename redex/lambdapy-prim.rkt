@@ -2,7 +2,7 @@
 
 (require
   redex
-  (only-in plai-typed/untyped some-v)
+  (only-in plai-typed/untyped some-v some?)
   "lambdapy-core.rkt"
   "../base/builtins/type.rkt" ;; for c3-merge, c3-select mro algorithm
   )
@@ -187,16 +187,25 @@
    (type-buildmro-help (val_1 ...) (val_2 ...) Σ)])
 
 (define-metafunction λπ
+  store-lookup : Σ ref -> val
+  [(store-lookup ((ref_1 val_1) ... (ref val) (ref_n val_n) ...) ref)
+   val])
+
+(define-metafunction λπ
+  fetch-pointer : val Σ -> val
+  [(fetch-pointer (pointer-val ref) Σ) (store-lookup Σ ref)])
+
+(define-metafunction λπ
   get-mro : val Σ -> (val ...)
   [(get-mro (pointer-val ref_obj) Σ)
    (val_cls ...)
    (where (obj-val any_cls any_meta
-                   ((string_1 val_1) ...
-                    ("__mro__" (pointer-val ref_mro))
-                    (string_n val_n) ...))
-          (store-lookup ref_obj))
-   (where (obj-val any_cls (meta-tuple (val_cls ...)) any_dict)
-          (store-lookup ref_mro))])
+                   ((string_1 ref_1) ...
+                    ("__mro__" ref_mro)
+                    (string_n ref_n) ...))
+          (store-lookup Σ ref_obj))
+   (where (obj-val any_cls2 (meta-tuple (val_cls ...)) any_dict)
+          (fetch-pointer (store-lookup Σ ref_mro) Σ))])
 
 (define-metafunction λπ
   get-base-mros : (val ...) Σ -> ((val ...) ...)
@@ -206,13 +215,18 @@
    (where (val_restmros ...)
           (get-base-mros (val_rest ...) Σ))])
 
+(define (merge l1 l2)
+  (define result (c3-merge l1 l2))
+  (cond
+    [(some? result) (some-v result)]
+    [else '()])) ;; TODO(joe): failure case here
+
 (define-metafunction λπ
   type-buildmro-help : (val ...) (val ...) Σ -> val
   [(type-buildmro-help (val_1 ...) (val_2 ...) Σ)
    (obj-val %tuple (meta-tuple (val_1 ... val_cls ...)) ())
    (where (val_cls ...)
-          ,(some-v (c3-merge (term (get-base-mros (val_2 ...) Σ)) (term (val_2 ...)))))])
-
+          ,(merge (term (get-base-mros (val_2 ...) Σ)) (term (val_2 ...))))])
 
 (define-metafunction λπ
   object-is? : val x ε Σ -> #t or #f
