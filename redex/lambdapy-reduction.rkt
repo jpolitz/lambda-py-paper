@@ -251,7 +251,7 @@
 (define-metafunction λπ
   extend-store : Σ v+undef -> (Σ ref)
   [(extend-store (name Σ ((ref v+undef) ...)) v+undef_new)
-   (((ref v+undef_new) ... (ref_new v+undef_new)) ref_new)
+   (((ref v+undef) ... (ref_new v+undef_new)) ref_new)
    (where ref_new (get-new-loc Σ))])
 
 (define-metafunction λπ
