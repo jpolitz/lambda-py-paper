@@ -1183,31 +1183,36 @@ desugaring:
 
 ]
 
-Under this scheme our example would desugar as:
+Recalling that the instance variables of a class desugar roughly to assignments
+to the class object itself, the function would desugar to the following:
 
-@verbatim{
-def f(x, y):
-  def extracted-g(self): pass
-  class c: 
-    x = 4
-    g = extracted-g
-  return c
-f("x-value", "y-value")().g()
-
+@centered{
+  @(lp-term
+    (let (f local = (undefined-val)) in
+      (assign (id f local) :=
+        (fun (x y)
+          (let (extracted-g local = (undefined-val)) in
+          (let (c local = (undefined-val)) in
+            (seq
+            (assign (id extracted-g local) := (fun () none))
+            (seq
+            (assign (id c local) := (class "c"))
+            (seq
+            (assign (get-field (id c local) "x") := (obj-val %int (meta-num 4) ()))
+            (seq
+            (assign (get-field (id c local) "g") := (id extracted-g local))
+            (return (id c local))))))))))))
 }
 
-This preserves our desired semantics: the bodies of functions defined in 
-c-scope will close over f-scope, and the statements written in c-scope 
-will evaluate in c-scope.
+This preserves our desired semantics: the bodies of functions defined in the
+class @code{C} will close over the @code{x} and @code{y} from the function
+definition, and the statements written in c-scope can still see those bindings.
 
 @subsubsection{Desugaring classes: instance variables}
 
-Though the semantics of closures defined in class bodies have been solved, 
-We have yet to deal with the notion of instance variables - how does @code{"x = 4"}
-go from creating a local variable in c-scope to creating an instance variable
-in objects of class c?  To solve this problem, @(lambda-py) notes that there is no
-apparent difference between classes which introduce identifiers in their body
-and classes which introduce identifiers by field assignment.  That is,
+We said, when discussing classes in [REF], that there is no apparent difference
+between classes which introduce identifiers in their body and classes which
+introduce identifiers by field assignment.  That is,
 
 @verbatim{
 class c:
@@ -1221,52 +1226,37 @@ class c: pass
 c.x = 3
 }
 
-will produce the same class.  This observation is the key insight into
-@(lambda-py)'s treatment of instance variables.  We re-visit our now
-well-trodden example:
+will produce the same class.  We do, however, have to still account for
+@emph{uses} of the instance variables inside the class body, which are referred
+to with the variable name, not with a field lookup like @code{c.x}.  This
+observation is the key insight into @(lambda-py)'s treatment of instance
+variables.  We perform a final desugaring step for instance variables, where we
+let-bind them in a new scope just for evaluating the class body, and desugar
+each instance variable assignment into both a class assignment and an
+assignment to the variable itself:
 
-@verbatim{
-def f(x, y):
-  class c:
-    x = 4
-    def g(self): pass
-  return c
-f("x-value", "y-value")().g()
-}
-
-In order to achieve Python's semantics, we desugar first to:
-
-@verbatim{
-def f(x, y):
-  def extracted-g(self): pass
-  class c: 
-    x = 4
-    def g(self): 
-      return extracted-g(self)
-  return c
-f("x-value", "y-value")().g()
-}
-
-And to handle instance variables, we further desugar to:
-
-@verbatim{
-def f(x, y):
-  let extracted-g = Undefined in 
-    let c = Undefined in {
-      extracted-g := def extracted-g(self): 
-        pass
-      c := class c: pass
-      let x = Undefined in 
-        let g = Undefined in {
-          c.x = 4
-          x = c.x
-          c.g = def g(self): 
-            return extracted-g(self)
-          g = c.g
-        }
-      return c
-    }
-f("x-value", "y-value")().g()
+@centered{
+  @(lp-term
+    (let (f local = (undefined-val)) in
+      (assign (id f local) :=
+        (fun (x y)
+          (let (extracted-g local = (undefined-val)) in
+          (let (c local = (undefined-val)) in
+            (seq
+            (assign (id extracted-g local) := (fun () none))
+            (seq
+            (assign (id c local) := (class 'c))
+            (seq
+              (let (g local = (undefined-val)) in
+              (let (x local = (undefined-val)) in
+                (seq
+                (assign (get-field (id c local) "x") := (obj-val %int (meta-num 4) ()))
+                (seq
+                (assign (id x local) := (obj-val %int (meta-num 4) ()))
+                (seq
+                (assign (get-field (id c local) "g") := (id extracted-g local))
+                (assign (id g local) := (id extracted-g local)))))))
+            (return (id c local)))))))))))
 }
 
 We have thus achieved everything necessary for Python's class semantics; 

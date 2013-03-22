@@ -161,7 +161,8 @@
     [(list _ fun args _ body _)
      (list fun args body)]
     [(list _ fun args body _)
-     (list fun args body)]))
+     (list fun args body)]
+    [else (error 'fun (format "Fun rewriter fell through: ~a" (map lw-e lws)))]))
 
 (define (module-rewriter lws)
   (match lws
