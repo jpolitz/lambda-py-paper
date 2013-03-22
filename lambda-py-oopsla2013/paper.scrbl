@@ -12,7 +12,7 @@
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 
-@title{Python: The Full Monty@(elem #:style "thanks" "Title courtesy of Benjamin S.  Lerner, an expert in the field.")}
+@title{Python: The Full Monty}
 @authorinfo["Joe Gibbs Politz" "Providence, RI, USA" "joe@cs.brown.edu"]
 @authorinfo["Alejandro Martinez" "La Plata, BA, Argentina" "amtriathlon@gmail.com"]
 @authorinfo["Matthew Milano" "Providence, RI, USA" "matthew@cs.brown.edu"]
@@ -1276,3 +1276,8 @@ running 100 tests from around 7 minutes to around 22 seconds.  A corollary is
 that evaluating @(lambda-py) programs is relatively quick, but desugaring and
 loading external files is not.
 
+@;{Acknowledgments:
+- Ben Lerner for title
+- NSF and Google for funding
+- Brown for hosting
+}
