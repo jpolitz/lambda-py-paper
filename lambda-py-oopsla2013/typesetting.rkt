@@ -154,6 +154,15 @@
     [(list _ _ cls metaval _)
      (list "〈" cls "," metaval "〉")]))
 
+(define (fun-rewriter lws)
+  (match lws
+    [(list _ fun args _ body _ _)
+     (list fun args body)]
+    [(list _ fun args _ body _)
+     (list fun args body)]
+    [(list _ fun args body _)
+     (list fun args body)]))
+
 (define (module-rewriter lws)
   (match lws
     [(list _ _ _ body _)
@@ -223,6 +232,7 @@
     ['module module-rewriter]
     ['seq seq-rewriter]
     ['let let-rewriter]
+    ['fun fun-rewriter]
 
     ['override-store override-rewriter]
     ['extend-store extend-rewriter]

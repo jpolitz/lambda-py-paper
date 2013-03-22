@@ -198,7 +198,7 @@
         "E-AssignGlobalUnbound"
         (side-condition (not (member (term x) (term (y ...))))))
    (--> ((in-hole E (assign ref := val)) ε Σ)
-        ((in-hole e val) ε (override-store Σ ref val))
+        ((in-hole E val) ε (override-store Σ ref val))
         "E-AssignLocal")
    (--> ((in-hole E (assign (get-field (pointer-val ref_obj)  string_1) := val_1)) ε Σ)
         ((in-hole E val_1) ε (override-store Σ ref_1 val_1))

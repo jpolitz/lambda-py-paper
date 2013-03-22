@@ -128,7 +128,7 @@ its fidelity to real-world Python programs.
 
 @figure["f:values" @elem{Values in @(lambda-py)}]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(val mval ε ref opt-var))))
+    (lambda () (render-language λπ #:nts '(v val v+undef mval ε ref opt-var))))
 }
 
 @section{Warmup: Pythonic Values and Objects}
@@ -826,20 +826,83 @@ certain program points.  Note also that variable declarations are not scoped to
 all blocks---here they are scoped to function definitions:
 
 @verbatim{
-import random
-def f():
-  if random.random() > .5: x = 'big'
-  else                   : pass
-  return x
 
-f() # either evaluates to 'big' or
-    # throws an exception
+def f(y):
+  let x = Undefined in {
+    if y > .5: x := 'big'
+    else     : pass
+    return x
+  }
+
+f(0) # throws an exception
+f(1) # evaluates to "big"
+
 }
 
 @; I moved the desugaring for local scope and nonlocal scope to after the 
 @; discussion of python's scope.  I don't have a strong preference for the 
 @; ordering, I just wanted the desugaring discussion to be compacted for the
 @; purposes of writing.  --matthew
+@; I think it flows better to build up the algorithm incrementally -joe
+
+@subsubsection{Desugaring for Local Scope}
+
+Handling simple declarations of variables and updates to variables is
+straightforward to translate into a lexically-scoped language.  @(lambda-py)
+has a usual @code{let} form that allows for lexical binding.  In desugaring, we
+scan the body of the function and accumulate all the variables on the left-hand
+side of assignment statements in the body.  These are let-bound at the top of
+the function to a special value, @(lp-term (undefined-val)), which evaluates to an
+exception in any context other than a @code{let}-binding context.  We use
+@code{x := e} as the expression form for variable assignment, which is not a
+binding form in the core.  So in @(lambda-py), the example above rewrites to:
+
+@centered{
+  @(lp-term
+    (let (f global = (undefined-val)) in
+      (seq
+      (assign f :=
+        (fun (y) (no-var)
+         (let (x local = (undefined-val)) in
+          (seq
+          (if (builtin-prim "num>" ((id y local) (object %float (meta-num 0.5))))
+              (assign x := (object %str (meta-str "big")))
+              none)
+          (return (id x local))))
+         (no-var)))
+      (seq
+      (app (id f global) ((object %float (meta-num 0))))
+      (app (id f global) ((object %float (meta-num 1))))))))
+}
+
+In the first application (to 0), the assignment will never happen, and the
+attempt to look up the @(lp-term (undefined-val))-valued @(lp-term x) in the
+return tstatement will fail with an exception.  In the second application, the
+assignment in the then-branch will change the value of @(lp-term x) in the
+store to a non-@(lp-term (undefined-val)) string value, and the string
+@(lp-term "big") will be returned.
+
+The algorithm for desugaring scope so far is thus:
+
+@itemlist[
+
+  @item{For each function body:
+  
+    @itemlist[
+      @item{Collect all variables on the left-hand side of @(lp-term =) in a set @emph{locals}, stopping at other function boundaries,}
+
+      @item{For each variable @(lp-term var) in @emph{locals}, wrap the
+      function body in a @(lp-term let)-binding of @(lp-term var) to @(lp-term
+      (undefined-val)).}
+    ]
+  }
+
+]
+
+This strategy works for simple assignments that may or may not occur within a
+function, and maintains lexical structure for the possibly-bound variables in a
+given scope.  This covers only the simplest cases of Pythonic scope, however.
+
 
 @subsection{Closing Over Variables}
 
@@ -857,10 +920,12 @@ f()() # evaluates to 'closed-over-variable'
 
 However, since @code{=} defines a new local variable, one cannot close over a
 variable and mutate it with the constructs we've seen so far; @code{=} simply
-defines a new variable with the same name.  This was the underlying problem
-with the attempted CPS translation from the last section, and a manifestation
-of the difficulty of having the same syntactic form for both variable binding
-and update.
+defines a new variable with the same name.  This is mirrored in our desugaring:
+the desugaring of the inner function adds a new let-binding for @(lp-term x)
+inside its own body, shadowing any bindings from outside.  This was the
+underlying problem with the attempted CPS translation from the last section,
+highlighting the consequences of using the same syntactic form for both
+variable binding and update.
 
 @verbatim{
 def g():
@@ -875,11 +940,12 @@ g() # evaluates to
 }
 
 Closing over a mutation is, however, a common and useful pattern.  Perhaps
-recognizing this, with Python 3.0 came a new keyword to allow this pattern,
-@code{nonlocal}.  A function definition can include a @code{nonlocal}
-declaration at the top, which allows mutations within the function's body to
-refer to variables in enclosing scopes.  If we add such a declaration to the
-previous example, we get a different answer:
+recognizing this, Python's maintainers added a new keyword in Python 3.0 to
+allow this pattern, called @code{nonlocal}, appropriately enough.  A function
+definition can include a @code{nonlocal} declaration at the top, which allows
+mutations within the function's body to refer to variables in enclosing scopes
+on a per-variable basis.  If we add such a declaration to the previous example,
+we get a different answer:
 
 @verbatim{
 
@@ -919,7 +985,53 @@ g() # evaluates to
 
 Thus, the presence or absence of a @code{nonlocal} declaration can change an
 assignment statement from a binding occurrence of a variable to an assigning
-occurence.
+occurence.  We can augment our algorithm for desugaring scope to reflect this:
+
+@itemlist[
+
+  @item{For each function body:
+  
+    @itemlist[
+      @item{Collect all variables on the left-hand side of @(lp-term =) in a set @emph{locals}, stopping at other function boundaries,}
+
+      @item{Let @emph{locals'} be @emph{locals} with any variables in
+      @code{nonlocal} declarations removed,}
+
+      @item{For each variable @(lp-term var) in @emph{locals'}, wrap the
+      function body in a @(lp-term let)-binding of @(lp-term var) to @(lp-term
+      (undefined-val)).}
+    ]
+  }
+
+]
+
+So the above program would desugar to the following, which @emph{does not}
+let-bind @(lp-term x) inside the body of the function assigned to @(lp-term h).
+
+@centered{
+  @(lp-term
+    (let (g global = (undefined-val)) in
+      (seq
+      (assign g :=
+        (fun ()
+         (let (x local = (undefined-val)) in
+          (let (h local = (undefined-val)) in
+            (seq
+            (assign x := (obj-val %str (meta-str "not affected by h") ()))
+            (seq
+            (assign h :=
+              (fun ()
+                (seq
+                (assign x := (obj-val %str (meta-str "inner x") ()))
+                (return (id x local)))))
+            (return (tuple %tuple ((app (app (id h local) ()) ()) (id x local))))))))))
+      (app (id g local) ()))))
+
+}
+
+The assignment to @(lp-term x) inside the body of @(lp-term h) behaves as a
+typical assignment statement in a closure-based language like Scheme, ML, or
+JavaScript: it mutates the let-bound @(lp-term x) defined in @(lp-term g).
 
 @;{
 TODO(joe): This is true, but we might not care
@@ -956,20 +1068,21 @@ f()
 
 @subsection{Classes and Scope}
 
-@figure*["f:class-scope" "Interactions between class bodies and function scope"]{
-  @class-scope
-}
+We've covered some subtleties of scope for local and nonlocal variables and
+their interaction with closures.  What we've presented so far would be enough
+to recover lexical scope for a CPS transformation for generators if function
+bodies contained only other functions.  However, it turns out that we observe a
+different closure behavior for variables in a class definition than we do for
+variables elsewhere in Python, and we must address classes to wrap up the story
+on scope.
 
-We observe a different closure behavior for variables in a class definition than
-we do for variables elsewhere in Python.  Consider the following example:
-
+@figure["f:classexample" "An example of class and function scope interacting"]{
 @verbatim{
 def f(x, y):
   print(x); print(y); print("")
   class c:
     x = 4
     print(x); print(y)
-    print(locals()["x"])
     print("")
     def g(self):
       print(x); print(y); print(c)
@@ -977,117 +1090,99 @@ def f(x, y):
 
 f("x-value", "y-value")().g()
 
-}
-
-When we execute this code, our 10 print statements are executed in the same order as they appear
-in the source code.  We see this result:
-
-@verbatim{
+# produces this result:
 
 x-value
 y-value
 
 4
 y-value
-4
 
 x-value
 y-value
 <class '__main__.c'>
 
 }
-
-Here we observe an interesting phenomenon: in the body of @code{g} the local variable created by the assignment x = 4
-has seemingly vanished.  It is not closed over by the function @code{g}; the
-body of @code{g} seems to "skip" the scope in
-which x is bound to 4, instead closing over the outer scope in which @code{x}
-is bound to @code{"x-value"}.
-At first glance this does not appear to be compatible with our previous notions of Pythonic closures;
-we will see, however, that the correct desugaring is capable of expressing the semantics of scope in 
-Python's classes within the framework we have already established for dealing with python's scope.  
-
-@subsection{Desugaring Scope}
-
-@subsubsection{Desugaring for Local Scope}
-
-Handling simple declarations of variables and updates to variables 
-is straightforward to translate into a lexically-scoped
-language.  @(lambda-py) has a usual @code{let} form that allows for lexical
-binding.  In desugaring, we scan the body of the function and accumulate all
-the variables on the left-hand side of assignment statements in the body.
-These are let-bound at the top of the function to a special value, {\tt
-Undefined}, which evaluates to an exception in any context other than a {\tt
-let}-binding context.  We use @code{x := e} as the expression form for variable
-assignment, which is not a binding form in the core.
-So in @(lambda-py), the example above rewrites to:
-
-@verbatim{
-import random
-def f():
-  let x = Undefined in {
-    if random.random() > .5: x := 'big'
-    else                   : pass
-    return x
-  }
-
-f() # either evaluates to 'big' or
-    # throws an exception
 }
 
-This strategy is simple and works for variables defined in the branches of
-@code{if} statements and loop bodies.  It is far from the whole story for
-Pythonic scope, however.
-
-@subsubsection{Desugaring for @code{nonlocal} Scope}
-
-The rule for desugaring @code{nonlocal} variables refines this desugaring for
-simple local variables.  In terms of purely lexical @code{let}-bindings, a
-@code{nonlocal} declaration means that re-binding particular variables to
-@code{Undefined} should be skipped.  So the program with a single @code{h}
-above can be desugared to:
-
-@verbatim{
-def g():
-  let x = Undefined in {
-    x := 'not affected by h'
-    def h():
-      # no new binding added for x here!
-      x := 'inner x'
-      return x
-    return (h(), x)
-  }
-
-g() # evaluates to
-    # ('inner x', 'inner x')
+@figure*["f:class-scope" "Interactions between class bodies and function scope"]{
+  @class-scope
 }
+
+Consider the example in @figure-ref["f:classexample"].  Here we observe an
+interesting phenomenon: in the body of @code{g}, the value of the variable
+@code{x} is @emph{not} @code{4}, the value of the most recent apparent
+assignment to @code{x}.  In fact, the body of @code{g} seems to "skip" the
+scope in which x is bound to 4, instead closing over the outer scope in which
+@code{x} is bound to @code{"x-value"}.  At first glance this does not appear to
+be compatible with our previous notions of Pythonic closures.  We will see,
+however, that the correct desugaring is capable of expressing the semantics of
+scope in classes within the framework we have already established for dealing
+with Python's scope.  
 
 @subsubsection{Desugaring classes}
 
-Desugaring classes is substantially more complicated than handling simple
-local and nonlocal cases.  Let's return to the example from section [REF],
+Desugaring classes is substantially more complicated than handling simple local
+and nonlocal cases.  Consdier the example from @figure-ref["f:classexample"],
 stripped of print statements: 
 
 @verbatim{
+
 def f(x, y):
   class c:
     x = 4
     def g(self): pass
   return c
 f("x-value", "y-value")().g()
+
 }
 
-In this example, we have three local scopes in play: the body of the function f,
-the body of the class definition c, and the body of the function g.  We will refer
-to these scopes as f-scope, c-scope, and g-scope.  c-scope can see bindings created
-in f-scope.  g-scope can see bindings created in f-scope, but not bindings created in 
-c-scope.  To accomplish this behavior @(lambda-py):
+In this example, we have three local scopes: the body of the function f, the
+body of the class definition c, and the body of the function g.  The scopes of
+@code{c} and @code{g} close over the same scope as @code{f}, but have distinct,
+non-nesting scopes themselves.  @Figure-ref["f:classscope"] shows the
+relationship graphically.  Algorithmically, we add new steps to scope
+desugaring:
+
 
 @itemlist[
-  @item{Extracts all functions,}
-  @item{Renames and rebinds them in f-scope,}
-  @item{And replaces their bodies with calls to the newly-bound functions.}
-]
+
+  @item{For each function body:
   
+    @itemlist[
+
+      @item{For each nested class body:
+        @itemlist[
+          
+          @item{Collect all the function definitions within the class body.
+          Let the set of their names be @(lp-term defnames) and the set of the
+          expressions be @(lp-term defbodies),}
+
+          @item{Generate a fresh variable @(lp-term deflifted) for each variable in
+          @(lp-term defnames).  Add assignment statements to the function body just
+          before the class definition assigning each @(lp-term deflifted) to the
+          corresponding expression in @(lp-term defbodies),}
+
+          @item{Change each function definition in the body of the class to
+          @(lp-term (assign defname := (id deflifted local)))}
+          
+
+        ]
+      }
+
+      @item{Collect all variables on the left-hand side of @(lp-term =) in a set @emph{locals}, stopping at other function boundaries,}
+
+      @item{Let @emph{locals'} be @emph{locals} with any variables in
+      @code{nonlocal} declarations removed,}
+
+      @item{For each variable @(lp-term var) in @emph{locals'}, wrap the
+      function body in a @(lp-term let)-binding of @(lp-term var) to @(lp-term
+      (undefined-val)).}
+    ]
+  }
+
+]
+
 Under this scheme our example would desugar as:
 
 @verbatim{
@@ -1095,8 +1190,7 @@ def f(x, y):
   def extracted-g(self): pass
   class c: 
     x = 4
-    def g(self): 
-      return extracted-g(self)
+    g = extracted-g
   return c
 f("x-value", "y-value")().g()
 
