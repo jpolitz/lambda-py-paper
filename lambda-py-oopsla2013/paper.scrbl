@@ -759,7 +759,7 @@ identifiers, into traditional lexically scoped closures.
 Global scope is still handled specially, since it exhibits a form of dynamic
 scope that isn't straightforward to capture with traditional
 let-bindings.@note{We actually exploit this dynamic scope in bootstrapping
-Python's object system [REF]}
+Python's object system [REF].}
 
 We proceed by describing Python's handling of scope for local variables, the
 extension to @code{nonlocal}, and the interaction of both of these features with
@@ -767,23 +767,17 @@ classes.
 
 @subsection{Declaring and Updating Local Variables}
 
-In Python, the assignment operator @code{=} performs local variable binding:
-
+In Python, the operator @code{=} performs local variable binding:
 @verbatim{
-
 def f():
   x = 'local variable'
   return x
 
 f() # evaluates to 'local variable'
-
 }
-
 The syntax for updating and creating a local variable are identical, so
 subsequent @code{=} statements mutate the variable created by the first.
-
 @verbatim{
-
 def f():
   x = 'local variable'
   x = 'reassigned'
@@ -791,35 +785,23 @@ def f():
   return x
 
 f() # evaluates to 'reassigned again'
-
 }
 
-It is a crucial point that there is @emph{no syntactic difference} between a
-statement that updates a variable and one that initially binds it.  This fact,
-combined with the fact that bindings can occur within branching statements as
-well, so it isn't statically determinable if a variable will be defined at
-certain program points.  Note also that variable declarations are not scoped to
-all blocks---here they are scoped to function definitions:
-
+Crucially, there is @emph{no syntactic difference} between a statement
+that updates a variable and one that initially binds it.  Because
+bindings can also be introduced inside branches of conditionals, it
+isn't statically determinable if a variable will be defined at certain
+program points.  Note also that variable declarations are not scoped
+to all blocks---here they are scoped to function definitions:
 @verbatim{
-
 def f(y):
-  let x = Undefined in {
-    if y > .5: x := 'big'
-    else     : pass
-    return x
-  }
+ if y > .5: x = 'big'
+ else : pass
+ return x
 
 f(0) # throws an exception
 f(1) # evaluates to "big"
-
 }
-
-@; I moved the desugaring for local scope and nonlocal scope to after the 
-@; discussion of python's scope.  I don't have a strong preference for the 
-@; ordering, I just wanted the desugaring discussion to be compacted for the
-@; purposes of writing.  --matthew
-@; I think it flows better to build up the algorithm incrementally -joe
 
 @subsubsection{Desugaring for Local Scope}
 
@@ -865,7 +847,6 @@ are shown in @figure-ref["f:skull"], along with the rule for let-binding local
 identifiers.
 
 The algorithm for desugaring scope so far is thus:
-
 @itemlist[
 
   @item{For each function body:
@@ -880,57 +861,52 @@ The algorithm for desugaring scope so far is thus:
   }
 
 ]
-
 This strategy works for simple assignments that may or may not occur within a
 function, and maintains lexical structure for the possibly-bound variables in a
-given scope.  This covers only the simplest cases of Pythonic scope, however.
+given scope.  Unfortunately, this covers only the simplest cases of Pythonic scope.
 
 
 @subsection{Closing Over Variables}
 
 Bindings from outer scopes can be @emph{seen} by inner scopes:
-
 @verbatim{
 def f():
-  x = 'closed-over-variable'
+  x = 'closed-over'
   def g()
     return x
   return g
 
-f()() # evaluates to 'closed-over-variable'
+f()() # evaluates to 'closed-over'
 }
-
 However, since @code{=} defines a new local variable, one cannot close over a
 variable and mutate it with the constructs we've seen so far; @code{=} simply
-defines a new variable with the same name.  This is mirrored in our desugaring:
-the desugaring of the inner function adds a new let-binding for @(lp-term x)
+defines a new variable with the same name:
+@verbatim{
+def g():
+  x = 'not affected by h'
+  def h():
+    x = 'inner x'
+    return x
+  return (h(), x)
+
+g() # evaluates to
+    # ('inner x', 'not affected by h')
+}
+This is mirrored in our desugaring:
+each function adds a new let-binding
 inside its own body, shadowing any bindings from outside.  This was the
 underlying problem with the attempted CPS translation from the last section,
 highlighting the consequences of using the same syntactic form for both
 variable binding and update.
 
-@verbatim{
-def g():
-  x = 'not affected by h'
-  def h()
-    x = 'inner x'
-    return x
-  return (x, h())
-
-g() # evaluates to
-    # ('not affected by h', 'inner x')
-}
-
-Closing over a mutation is, however, a common and useful pattern.  Perhaps
-recognizing this, Python's maintainers added a new keyword in Python 3.0 to
-allow this pattern, called @code{nonlocal}, appropriately enough.  A function
+Closing over a mutable variable is, however, a common and useful pattern.  Perhaps
+recognizing this, Python added a new keyword in Python 3.0 to
+allow this pattern, called @code{nonlocal}.  A function
 definition can include a @code{nonlocal} declaration at the top, which allows
 mutations within the function's body to refer to variables in enclosing scopes
 on a per-variable basis.  If we add such a declaration to the previous example,
 we get a different answer:
-
 @verbatim{
-
 def g():
   x = 'not affected by h'
   def h():
@@ -941,15 +917,11 @@ def g():
 
 g() # evaluates to
     # ('inner x', 'inner x')
-
 }
-
 The @code{nonlocal} declaration allows the inner assignment to @code{x} to
 ``see'' the outer binding from @code{g}.  This effect can span any nesting
 depth of functions:
-
 @verbatim{
-
 def g():
   x = 'not affected by h'
   def h():
@@ -962,13 +934,11 @@ def g():
 
 g() # evaluates to
     # ('inner x', 'inner x')
-
 }
 
 Thus, the presence or absence of a @code{nonlocal} declaration can change an
 assignment statement from a binding occurrence of a variable to an assigning
-occurence.  We can augment our algorithm for desugaring scope to reflect this:
-
+occurence.  We augment our algorithm for desugaring scope to reflect this:
 @itemlist[
 
   @item{For each function body:
@@ -986,10 +956,8 @@ occurence.  We can augment our algorithm for desugaring scope to reflect this:
   }
 
 ]
-
-So the above program would desugar to the following, which @emph{does not}
+Thus the above program would desugar to the following, which @emph{does not}
 let-bind @(lp-term x) inside the body of the function assigned to @(lp-term h).
-
 @centered{
   @(lp-term
     (let (g global = (undefined-val)) in
@@ -1010,13 +978,9 @@ let-bind @(lp-term x) inside the body of the function assigned to @(lp-term h).
       (app (id g local) ()))))
 
 }
-
 The assignment to @(lp-term x) inside the body of @(lp-term h) behaves as a
 typical assignment statement in a closure-based language like Scheme, ML, or
 JavaScript: it mutates the let-bound @(lp-term x) defined in @(lp-term g).
-
-@;{
-TODO(joe): This is true, but we might not care
 
 @subsection{Global vs Local Unbound Errors}
 
@@ -1190,24 +1154,20 @@ This achieves our desired semantics: the bodies of functions defined in the
 class @code{C} will close over the @code{x} and @code{y} from the function
 definition, and the statements written in c-scope can still see those bindings.
 
-@subsubsection{Desugaring classes: instance variables}
+@subsubsection{Instance Variables}
 
-We said, when discussing classes in [REF], that there is no apparent difference
-between classes which introduce identifiers in their body and classes which
+When we introduced classes [REF] we said that there is no apparent difference
+between classes that introduce identifiers in their body and classes that
 introduce identifiers by field assignment.  That is,
-
 @verbatim{
 class c:
  x = 3
 }
-
 and 
-
 @verbatim{
 class c: pass
 c.x = 3
 }
-
 will produce the same class.  We do, however, have to still account for
 @emph{uses} of the instance variables inside the class body, which are referred
 to with the variable name, not with a field lookup like @code{c.x}.  This
@@ -1216,7 +1176,6 @@ variables.  We perform a final desugaring step for instance variables, where we
 let-bind them in a new scope just for evaluating the class body, and desugar
 each instance variable assignment into both a class assignment and an
 assignment to the variable itself:
-
 @centered{
   @(lp-term
     (let (f local = (undefined-val)) in
@@ -1240,25 +1199,19 @@ assignment to the variable itself:
                 (assign (id g local) := (id extracted-g local)))))))
             (return (id c local)))))))))))
 }
-
-We have thus achieved everything necessary for Python's class semantics; 
+We have now covered Python's class semantics:
 function bodies do not close over the class body's scope, class bodies
-create their own local scope, statements in class bodies are executed sequentially 
+create their own local scope, statements in class bodies are executed sequentially,
 and definitions/assignments in class bodies result in the creation of class
-members.  The nonlocal and global keyword do not require special treatment 
+members.  The @code{nonlocal} and @code{global} keywords do not require special treatment 
 beyond what we have outlined here, even when present in class bodies.
 
 @subsection{Generators Redux}
 
 @figure["f:generators" "The desugaring of generators"]{
-
-@verbatim{def f(x ...): body-with-yield
-
-}
+@verbatim{def f(x ...): body-with-yield}
 
 @emph{desugars to...}
-
-@(linebreak)
 
 @(lp-term
   (fun (x ...)
@@ -1291,8 +1244,9 @@ beyond what we have outlined here, even when present in class bodies.
         (assign (get-field (id self local) "___resume") := (id resumer local)))))))) in
       (app (id %generator global) ((id initializer local)))))))
 
-@verbatim{
+@emph{where...}
 
+@verbatim{
 class %generator(object):
     def __init__(self, init):
         init(self)
@@ -1308,10 +1262,7 @@ class %generator(object):
         
     def __list__(self):
         return [x for x in self]
-
-
 }
-
 }
 
 With the transformation to a lexical core in hand, we can return to our
