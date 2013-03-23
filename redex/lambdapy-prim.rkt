@@ -39,7 +39,7 @@
    val_1
    (side-condition (equal? (length (term (val_0 ...))) (term number_2)))]
   [(δ "list-getitem" (obj-val any_c1 (meta-list (val_1 ...)) any_1) (obj-val any_c2 (meta-num number_2) any_2) ε Σ)
-   vnone]
+   (obj-val %none (meta-none) ())]
   [(δ "list-setitem" (obj-val any_c1 (meta-list (val_0 ... val_1 val_2 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 val_4 ε Σ)
    (obj-val val_4 (meta-list (val_0 ... val_3 val_2 ...)) ())
    (side-condition (equal? (length (term (val_0 ...))) (term number_2)))]

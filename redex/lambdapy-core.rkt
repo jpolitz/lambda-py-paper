@@ -30,14 +30,13 @@
   ;; types of meta-val
   (mval (meta-num number)
         (meta-str string)
+        (meta-none) ;; The Python value
         (meta-list (val ...))
         (meta-tuple (val ...))
         (meta-set (val ...))
         (meta-class x)
         (meta-closure (λ (x ...) opt-var e opt-var))
-        (meta-none) ;; The Python value
-        (no-meta)
-        (meta-port)) ;; TODO(dbp): figure out how to represent port
+        (no-meta))
 
   (opt-var (x) (no-var))
   

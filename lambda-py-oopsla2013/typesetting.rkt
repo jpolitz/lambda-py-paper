@@ -41,7 +41,7 @@
      (match lampart
        [(list _ _ args vararg body classarg _)
         (list "λ" args vararg "." body)]
-       [else (list lampart)])]
+       [else (list "" lampart)])]
     [else (list lws)]))
 
 (define (rewrite-dict-tuple lws)
@@ -142,8 +142,8 @@
 
 (define (list-rewriter lws)
   (match lws
-    [(list _ _ cls lst _)
-     (append (list "〈" cls ",")
+    [(list _ list-word cls lst _)
+     (append (list list-word "〈" cls ",")
              (list-literal-rewriter lst)
              (list "〉"))]))
 
@@ -156,10 +156,10 @@
 
 (define (fun-rewriter lws)
   (match lws
-    [(list _ fun args _ body _ _)
-     (list fun args body)]
-    [(list _ fun args _ body _)
-     (list fun args body)]
+    [(list _ fun args star body _ _)
+     (list fun args star body)]
+    [(list _ fun args star body _)
+     (list fun args star body)]
     [(list _ fun args body _)
      (list fun args body)]
     [else (error 'fun (format "Fun rewriter fell through: ~a" (map lw-e lws)))]))

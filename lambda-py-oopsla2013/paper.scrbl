@@ -127,119 +127,87 @@ show how generators can be implemented with local CPS.  Finally, we describe
 the results of testing our desugaring and interpreter against CPython to ensure
 its fidelity to real-world Python programs.
 
+@section{Warmup: A Quick Tour of @(lambda-py)}
+
 @figure["f:values" @elem{Values in @(lambda-py)}]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(v val v+undef mval ε ref opt-var))))
+    (lambda () (render-language λπ #:nts '(v val mval ref Σ v+undef opt-var))))
 }
 
-@section{Warmup: Pythonic Values and Objects}
 
-An expressive object model is one of the core features of Python.  Pythons
-object and class system has support for single and multiple inheritance, static
-and instance members and methods, monkey-patching, proxying, and more.
+For a large portion of @(lambda-py)'s object and value model, we do not find
+anything particularly surprising. For these features, describing Python in
+terms of @(lambda-py) is a labor-intensive, but straightforward, formalization
+of information available in documentation or obvious from test cases.  We
+provide an overview of the object model of @(lambda-py) and Python, some of the
+basic operations on objects, and the shape of our small step semantics.  This
+introduces notation and concepts that will be used later in the document to
+explain the harder parts of Python's semantics.
 
+@subsection{@(lambda-py) Values}
 
-@subsection{Built-in Values}
+@Figure-ref["f:values"] shows the representation of values in @(lambda-py),
+which we use the metavariables @(lp-term v) and @(lp-term val) to range over.
+All the values in @(lambda-py) are either objects, written as triples in
+@(lp-term 〈〉), or references to entries in the store Σ, written @(lp-term
+(pointer-val ref)).  The special term @(lp-term (undefined-val)) represents
+yet-to-be-bound identifiers, we address it when we discuss scope in [REF].
 
-Python has a few commonly-used built-in datatypes with rich (but implicit)
-interfaces.  Dictionaries, tuples, and lists are all supported directly in
-Python syntax, and all implement their own overloading of common operations:
+Each @(lambda-py) object is written as a triple of one of the forms:
 
-@verbatim{
-s = "str"
-d = { "dictionaries":  "with",
-      0:               "or more ",
-      "comp" + "uted": "keys" }
-t = ("heter", 0, "geneous tuples")
-l = ["heter", 0, "geneous lists"]
-st = {"heter", 0, "geneous sets"}
-assert(len(s) == len(d) == len(t)
-    == len(l) == len(s) == 3)
-assert(s[0] == "s")
-assert(d[0] == "or more")
-assert(t[0] == l[0] == "heter")
+@centered{
+  @(lp-term (obj-val v mval ((string ref) ...)))
+  @(newline)
+  @(lp-term (obj-val x mval ((string ref) ...)))
 }
 
-All of these builtin values have special, builtin behavior that cannot be
-completely emulated by programmers in Python.  We give these values
-distinguished forms in our semantics.  However, these builtin values are
-@emph{not} the values of the language themselves.  They only appear as part of
-a larger object value.  Every value that the Python programmer sees truly is
-an object: there is no such thing as a ``primitive string'' that a programmer
-can directly get a reference to in Python.
+These objects have their @emph{class} in the first position, their primitive
+content in the second, and the dictionary of string-indexed fields that they
+holds in the third.  The class value is either another @(lambda-py) value or a
+lazily-evaluated identifier pointing to an environment of built-in classes.
+The @emph{meta-val} position holds special kinds of builtin data, of which
+there is one per builtin type that @(lambda-py) models: numbers, strings, the
+distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
+functions.
 
-@subsubsection{Creating Values}
-
-@Figure-ref["f:values"] shows the representation of values in @(lambda-py).
-Each @(lambda-py) object, written as a triple of the form @(lp-term (obj-val val mval ((string ref) ...))), has distinguished positions for its class, its primitive
-content (if any), and the dictionary of string-indexed fields that it holds.
-The class value is any other Python value, though non-objects may end up
-throwing runtime errors.  The @emph{meta-val} position holds special kinds of
-builtin data, of which there is one per builtin type that @(lambda-py) models.
-
-As an example, we'll step through the various stages of constructing and using
-a built-in list in @(lambda-py).  Lists are built with object expressions,
-which have two pieces: the @emph{class} of the object being constructed, and
-the @emph{meta-val}, if any, that stores primitive data.  The expression for
-creating an empty list is:
-
-@centered[
-  @(lp-term (list (id %list localid) ()))
-]
-
-Where @(lp-term (id %list localid)) is expected to be bound to the built-in
-list class.  In general, the first position of a list expression is the
-@emph{class} of the list object to create.  This must be a part of the list
-expression because programmers can subclass the builtin @code{list} class and
-create values that can use all the built-in list primitives, but have their
-own set of methods.  The second part of the expression is a list of
-expressions that will evaluate to the elements of the list.  For example, a
-list containing the numbers 1 and 3 is written:
-
-@(define (lst1)
-  (lp-term (list (id %list localid) ((object (id %int localid) (meta-num 1)) (object (id %int localid) (meta-num 3))))))
-
-@centered[
-  @(lst1)
-]
-
-The object creation expressions for numbers similarly indicate that the
-@(lp-term %int) class should be used for their methods.  The rule for
-evaluating list expressions themselves allocates a new location on the heap
-for the resulting list, and constructs a value with the given class and a
-list-typed @(lp-term mval) to hold its elements:
+Python programmers never manipulate object values directly; rather, they always
+work with references to objects.  Thus, many of the operations in @(lambda-py)
+involve the heap, and few are purely functional.  As an example of what such an
+operation looks like, take constructing a list, which allocates a new reference
+in the store holding the list value, and returns a pointer to the newly-created
+reference is returned:
 
 @centered[
   @(lp-reduction '("E-List"))
 ]
 
-Here, the @"@" indicates a reference value, which is pointing to a new object
-which is added to the store Σ.  This also shows the shape of reductions for
-@(lambda-py), which is a small-step relation over triples of expressions
-@(lp-term e), environment lists @(lp-term εs),@note{We discuss the need for a
-list of environments, rather than just a single environment, in [REF].} and
-stores @(lp-term Σ).  We define evaluation contexts @(lp-term E) in the usual
-way to enforce an evaluation order on expressions.
+E-List is a good example for understanding the shape of evaluation in
+@(lambda-py).  The general form of the reduction relation is over expressions
+@(lp-term e), global environments @(lp-term ε), and heaps @(lp-term Σ):
 
-In this style, to fully evaluate @(lst1), the reduction would
-allocate 3 new references: one for each number, and one for the resulting
-list:
-
-@itemlist[
-  @item{@(lp-term (Σ(ref_list))) = @(lp-term (obj-val %list (meta-list ((pointer-val ref_one) (pointer-val ref_three))) ()))}
-  @item{@(lp-term (Σ(ref_one))) = @(lp-term (obj-val %int (meta-num 1) ()))}
-  @item{@(lp-term (Σ(ref_three))) = @(lp-term (obj-val %int (meta-num 3) ()))}
+@centered[
+  @(lp-term (e ε Σ)) @(arrow->pict '-->) @(lp-term (e ε Σ))
 ]
 
-And the reference value @(lp-term (pointer-val ref_list)) would be placed back
-into the active context.  Similar rules for tuples, dictionaries, and sets are
-shown in @figure-ref["f:steps-values"].
+In the E-List rule, we also make use of evaluation contexts @(lp-term E) to
+enforce an order of operations and eager calling semantics.  Since this is a
+standard technique in a Felleisen-Hieb style small step semantics, we defer its
+definition to the appendix [REF] [CITE].  The relevant points for the list
+construction is that a new list is constructed and put in the store with the
+class and list of values copied from the list expression itself via the
+@(lp-term alloc) metafunction, and the value put back in the evaluation context
+is a pointer @(lp-term ref_new) to that list.
+
+Similar rules for objects in general, tuples, and sets are shown in
+@figure-ref["f:steps-values"].  Lists, tuples, and sets are given their own
+expression forms because they need to evaluate all of their sub-expressions and
+have corresponding evaluation contexts.
 
 @figure["f:steps-values" (elem (lambda-py) " reduction rules for creating objects")]{
   @(lp-reduction '("E-Object" "E-Tuple" "E-Set" "E-List"))
 }
 
-@subsubsection{Accessing Built-in Values}
+@subsection{Accessing Built-in Values}
 
 @figure*["f:delta" (elem "A sample of " (lambda-py) " primitives")]{
   @(lp-metafunction δ '(0 1 2 3))
@@ -276,8 +244,10 @@ more like:
                                   (fetch (object (id %int local) (meta-num 0))))))
 }
 
-Similarly, we can use @(lp-term set!) and @(lp-term alloc) to update the
-values in lists, and to allocate the return values of primitive operations.
+Similarly, we can use @(lp-term set!) and @(lp-term alloc) to update the values
+in lists, and to allocate the return values of primitive operations.  We
+desugar to patterns like the above from Python's actual surface operators for
+accessing the elements of a list in expressions like @code{mylist[2]}.
 
 @subsection{Updating and Accessing Fields}
 
@@ -289,20 +259,19 @@ expression
   @(lp-term (assign (get-field e_obj str_f) := e_val))
 }
 
-has one of two behaviors, defined in @figure-ref["f:simple-objs"].  If @(lp-term
-str_f) is a string that is already a member of @(lp-term e_obj), that field is
-imperatively updated with @(lp-term e_val).  If the string is not present,
-then a new field is added to the object, with a newly-allocated store
-position, and the object is functionally updated.  We combine this functional
-update with @(lp-term set!) expressions on reference values in order to model
-objects with an imperatively extended set of fields.
+has one of two behaviors, defined in @figure-ref["f:simple-objs"].  Both
+behaviors work over references to objects, not over objects themselves, in
+contrast to @(lp-term δ).  If @(lp-term str_f) is a string that is already a
+member of @(lp-term e_obj), that field is imperatively updated with @(lp-term
+e_val).  If the string is not present, then a new field is added to the object,
+with a newly-allocated store position, and the object's location in the heap is
+updated.
 
 The simplest rule for accessing fields simply checks in the object's dictionary
 for the provided name and returns the appropriate value, shown in E-GetField in
-@figure-ref["f:simple-objs"].  E-GetField works over reference values, rather
-than objects directly, because we will need it in the next section to handle
-the binding of @(lp-term self) references.  [FILL why are they literal strings
-and not meta-vals that contain strings?]
+@figure-ref["f:simple-objs"].  E-GetField also works over reference values,
+rather than objects directly.  [FILL update to meta-vals that contain strings
+and not literal strings]
 
 @figure*["f:simple-objs" @elem{Simple field access and update in @(lambda-py)}]{
   @(lp-reduction '("E-AssignUpdate" "E-AssignAdd" "E-GetField"))
@@ -310,27 +279,46 @@ and not meta-vals that contain strings?]
 
 @subsection{First-class Functions}
 
-
-We represent function values in the usual way, as abstractions that store a
-list of environments:@note{We discuss in [REF] why we store an environment
-@emph{list} instead of just a single environment}.  As shown in
-@figure-ref["f:functions"], function expressions @(lp-term (fun (x ...) e))
-evaluate to closures that store the current list @(lp-term εs).  Python also
-allows for variable-arity functions, which we explicitly support in the
-semantics via an extra argument that holds all additional values passed to the
-function beyond those in the list @(lp-term (x ...)).
-
 @figure*["f:functions" @elem{Evaluating function expressions}]{
   @(lp-reduction '("E-Fun"))
 }
 
-[FILL] functions as objects.
+Functions in Python are objects like any other.  They are defined with the
+keyword @code{def}, which produces a callable object with a mutable set of
+fields, whose class is the built-in @(lp-term function) class.  For example a
+programmer is free to write:
 
-The full language of expressions for @(lambda-py) is in
-@figure-ref["f:exprs"].  We defer a full explanation of all the terms in that
-semantics, and the full reduction relation, to the appendix [REF].  We
-continue here by focusing on some of the cases in the semantics that are
-unique to Python.
+@verbatim{
+
+def f():
+  return 22
+
+f.x = 22
+f() # evaluates to 22
+
+}
+
+We model functions as just another kind of object value, with a type of
+@(lp-term mval) that looks like the usual functional λ: 
+
+@centered{
+  @(lp-term (meta-closure (λ (x ...) opt-var e)))   
+}
+
+The only deviation from the norm is that we have an explicit optional position
+for a varargs identifier: if @(lp-term opt-var) is of the form @(lp-term (y)),
+then if the function is called with more arguments than are in its list of
+variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
+@(lp-term y) in the body.
+
+@subsection{Loops, Exceptions, and Modules}
+
+The full language of expressions for @(lambda-py) is in @figure-ref["f:exprs"].
+We defer a full explanation of all the terms in that figure, and the full
+reduction relation, to the appendix [REF].  This includes a mostly-routine
+encoding of control operators via special evaluation contexts, and a mechanism
+for loading new code via modules.  We continue here by focusing on some of the
+cases in the semantics that are unique to Python.
 
 @figure["f:exprs" (elem (lambda-py) " expressions")]{
   @(with-rewriters
@@ -339,6 +327,9 @@ unique to Python.
 
 
 @section{Classes, Methods, and Pythonic Desugarings}
+
+[FILL This section is waiting on rewrites (Alejandro) to the class/object model
+to make it fully line up with reality]
 
 The first complex feature of Python we address is a featureful first-class
 class system.  We'll discuss how @(lambda-py) models its lookup algorithm
@@ -659,10 +650,12 @@ application.  These operators include simple sequences, loops combined with
 @code{break} and @code{continue}, and @code{try-except} and @code{try-finally}
 combined with @code{raise} (generators cannot use @code{return}).
 
-Our transformations introduce functions that accepted a continuation for each
-possible kind of control operator, and turns uses of control operators into
-applications of the appropriate continuation.  For example, a @code{try-except}
-block can be changed from:
+Our CPS transformation turns every expression into a function that accepts an
+argument for each of the above control operators, and turns uses of control
+operators into applications of the appropriate continuation inside the
+function.  By passing in different continuation arguments, the caller of the
+resulting function has complete control over the behavior of control operators.
+For example, we might rewrite a @code{try-except} block from
 
 @verbatim{
 
@@ -848,6 +841,10 @@ f(1) # evaluates to "big"
 
 @subsubsection{Desugaring for Local Scope}
 
+@figure*["f:skull" "Handling undefined identifiers"]{
+  @(lp-reduction '(E-LetLocal E-GetVar E-GetVarUndef))
+}
+
 Handling simple declarations of variables and updates to variables is
 straightforward to translate into a lexically-scoped language.  @(lambda-py)
 has a usual @code{let} form that allows for lexical binding.  In desugaring, we
@@ -878,10 +875,12 @@ binding form in the core.  So in @(lambda-py), the example above rewrites to:
 
 In the first application (to 0), the assignment will never happen, and the
 attempt to look up the @(lp-term (undefined-val))-valued @(lp-term x) in the
-return tstatement will fail with an exception.  In the second application, the
+return statement will fail with an exception.  In the second application, the
 assignment in the then-branch will change the value of @(lp-term x) in the
 store to a non-@(lp-term (undefined-val)) string value, and the string
-@(lp-term "big") will be returned.
+@(lp-term "big") will be returned.  The reduction rules that handle these cases
+are shown in @figure-ref["f:skull"], along with the rule for let-binding local
+identifiers.
 
 The algorithm for desugaring scope so far is thus:
 
@@ -1205,7 +1204,7 @@ to the class object itself, the function would desugar to the following:
             (return (id c local))))))))))))
 }
 
-This preserves our desired semantics: the bodies of functions defined in the
+This achieves our desired semantics: the bodies of functions defined in the
 class @code{C} will close over the @code{x} and @code{y} from the function
 definition, and the statements written in c-scope can still see those bindings.
 
@@ -1340,14 +1339,15 @@ transformation.
 To implement generators, we first desugar Python down to a version of
 @(lambda-py) with an explicit @code{yield} statement, passing @code{yields}
 through unchanged.  As the final stage of desugaring, we identify functions
-that contain @code{yield}, and convert them to generators via local CPS.  To
-convert them, in the body of the function we construct a generator object and
-store the CPS-ed body as a @code{___resume} attribute on the object. The
-@code{__next__} method on the generator, when called, will call the
-@code{___resume} closure with any arguments that are passed in. To handle
-yielding, we desugar the core @code{yield} expression to update the
-@code{___resume} attribute to store the current normal continuation, and then
-@code{return} the value that was yielded.
+that contain @code{yield}, and convert them to generators via local CPS.  We
+show the desugaring machinery @emph{around} the CPS transformation in
+@figure-ref["f:generators"].  To desugar them, in the body of the function we
+construct a generator object and store the CPS-ed body as a @code{___resume}
+attribute on the object. The @code{__next__} method on the generator, when
+called, will call the @code{___resume} closure with any arguments that are
+passed in. To handle yielding, we desugar the core @code{yield} expression to
+update the @code{___resume} attribute to store the current normal continuation,
+and then @code{return} the value that was yielded.
 
 Matching Python's operators for control flow, we have five continuations, one
 for the normal completion of a statement or expression going onto the next, one
