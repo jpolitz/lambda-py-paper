@@ -553,24 +553,20 @@ the flexibility that Python is well-known for.
 @section{Python, the Hard Parts}
 
 Not all of Python has a semantics as straightforward as that presented so far.
-It has a unique notion of scope, with new scope operators added in Python 3 to
+Python has a unique notion of scope, with new scope operators added in Python 3 to
 provide some features of more traditional static scoping.  It also has powerful
-implicit constructs for control flow, most notably generators.  We proceed by
-presenting the behavior of Python's generators, how we'd like to express them
-using traditional programming languages wisdom, and what we need to do so.
+control flow constructs, notably generators. We now begin examining these in detail.
 
-@subsection{Generators and Local CPS: A Semantics Parable}
+@subsection{Generators}
 
 Python has a built-in notion of @emph{generators}, which provide a control-flow
 construct, @code{yield}, that can implement lazy or generative sequences and
 coroutines.  The programmer interface for creating a generator in Python is
 straightforward: any function definition that uses the @code{yield} keyword in
-its body is automatically converted into an object with so-called generator
+its body is automatically converted into an object with a generator
 interface.  To illustrate the easy transition from function to generator,
-consider this (perhaps foolish) program in Python:
-
+consider this simple program:
 @verbatim{
-
 def f():
   x = 0
   while True:
@@ -580,16 +576,16 @@ def f():
 f() # evaluates to 1
 f() # evaluates to 1
 # ...
-
 }
+When called, this function always returns @code{1}.
 
-This function, when called, always starts what would be an infinite loop if it
-didn't immediately return @code{1}.  By changing the {\tt return} statement to
-a @code{yield} statement, a generator is created instead that can produce an
-arbitrary number of such values:
-
+Changing @code{return} to @code{yield}
+turns this into a generator. As a result, applying @code{f()} no longer
+immediately evaluates the body of the function; instead, it creates an 
+object whose @code{next} method evaluates the body until the next
+@code{yield} statement, stores its state for later resumption, and
+returns the yielded value:
 @verbatim{
-
 def f():
   x = 0
   while True:
@@ -601,54 +597,53 @@ gen.next() # evaluates to 1
 gen.next() # evaluates to 2
 gen.next() # evaluates to 3
 # ...
-
 }
 
-The application @code{f()} no longer immediately evaluates the body of the
-function.  Instead, it creates an object with (at least) a @code{next} method.
-When @code{next} is invoked, it evaluates up to the next {\tt yield} statement,
-returns the value provided there, and stores its state for future @code{next}
-calls.  The documentation of @code{yield} says as much (emphasis added) [FILL
-figure out blockquote]:
+Contrast this with the following program, which seems to perform a 
+simple abstraction over the process of yielding:
+@verbatim{
+def f():
+  def do_yield(n):
+    yield n
+  x = 0
+  while True:
+    x += 1
+    do_yield(x)
+}
+Invoking @code{f()} results in an @emph{infinite loop}. That is because
+Python strictly converts only the innermost function with a @code{yield}
+into a generator, so only @code{do_yield} is a generator. Thus, the
+generator stores only the execution context of @code{do_yield}, not of
+@code{f}.
 
-``...the execution proceeds to the first @code{yield} expression, where it is
-suspended again, returning the value of [the @code{yield expression}] to the
-generator's caller. By suspended we mean that @emph{all local state is retained,
-including the current bindings of local variables, the instruction pointer, and
-the internal evaluation stack}. When the execution is resumed by calling one of
-the generator's methods, the function can proceed exactly as if the yield
-expression was just another external
-call.@note{http://docs.python.org/release/3.2.3/reference/expressions.html?highlight=generator#yield-expressions}''
+The experienced linguist will immediately see what is going
+on. Clearly, Python has made a design decision to store only
+@emph{local} continuations.  This design can be justified on the
+grounds that converting a whole program to continuation-passing style
+(CPS) can be onerous, is not modular, can impact performance, and
+depends on the presence of tail-calls (which Python does not have). In
+contrast, it is easy to envision a translation strategy that performs
+only a local conversion to CPS (or, equivalently, stores the local
+stack frames) while still presenting a continuation-free interface to
+the rest of the program.
 
-The emphasized text above highlights that the behavior of generators is
-dependent on the storage of @emph{local} state and variables.  This implies
-that the generator shouldn't need to, for example, keep track of the evaluation
-stack or variables of @emph{other} functions.  It is careful to point out that
-uses of yield can be treated as such an external function call, as well.
-Further, since @code{yield} is a keyword, and not a value, a generator cannot
-delegate the ability to @code{yield} to another function, maintaining the
-locality of the operation.
-
-To the discerning functional programmer, this well-defined design immediately
-suggests an implementation strategy: a local continuation-passing style (CPS)
-transformation.  The usual drawback of CPS---that it is a full-program
-transformation---is alleviated by the careful restriction of @code{yield} to a
-local operation.  That is, generators could be implemented by reifying all
-local control operators into first-class functions and applications, and using
-a bit of state to store a function representing the rest of the computation at
-each @code{yield} point.  With this transformation, generators could be
-understood completely in terms of a rewriting to existing constructs that is
-local to function bodies.
+From the perspective of our semantics, this offers a boon: we don't
+need to use a CPS-style semantics for the whole language!
+Furthermore, generators can be handled by a strictly local rewriting
+process that can be handled by desugaring. That is, generators can be
+handled in the core language by reifying them into into first-class
+functions and applications and using a little state to record which
+function is the continuation of the @code{yield} point. Thus,
+generators seem to fit perfectly with our desguaring strategy.
 
 @subsection{A (Local) CPS Transformation for Python}
 
-Being somewhat discerning functional programmers, we began by attempting to
-implement a CPS transformation for Python.  To implement a local CPS
-transformation, we needed to take the operators that could cause local control
-flow and reify each into a continuation function and an appropriate
-application.  These operators include simple sequences, loops combined with
-@code{break} and @code{continue}, and @code{try-except} and @code{try-finally}
-combined with @code{raise} (generators cannot use @code{return}).
+When converting programs to CPS, we take operators that can cause
+control-flow and reify each into a continuation function and
+appropriate application. These operators include simple sequences,
+loops combined with @code{break} and @code{continue}, and
+@code{try-except} and @code{try-finally} combined with @code{raise}
+(generators cannot use @code{return}).
 
 Our CPS transformation turns every expression into a function that accepts an
 argument for each of the above control operators, and turns uses of control
@@ -656,7 +651,6 @@ operators into applications of the appropriate continuation inside the
 function.  By passing in different continuation arguments, the caller of the
 resulting function has complete control over the behavior of control operators.
 For example, we might rewrite a @code{try-except} block from
-
 @verbatim{
 
 try:
@@ -665,9 +659,7 @@ except e:
   print(e)
 
 }
-
-To:
-
+to
 @verbatim{
 
 def except_handler(e): print(e)
@@ -675,13 +667,11 @@ except_handler(Exception())
 
 }
 
-In the case of generators, a sketch of a solution for rewriting @code{yield}
+In the case of generators, rewriting @code{yield}
 with CPS would involve creating a handler that stores a function holding the
 code for what to do next, and rewriting @code{yield} expressions to call that
 handler:
-
 @verbatim{
-
 def f():
   x = 1
   yield x
@@ -692,17 +682,10 @@ g = f()
 g.next() # evaluates to 1
 g.next() # evaluates to 2
 g.next() # throws "StopIteration"
-
 }
-
-Would be rewritten to something like:@note{ This is a sketch, not
-the true output of an automated process, so we've taken liberties
-with the variable names and continuations' construction. We use a
-dictionary for @code{"next"} to avoid verbose object
-construction.} 
-
+would be rewritten to something like:@note{This being a sketch, we
+have taken some liberties for simplicity.}
 @verbatim{
-
 def f():
 
   def yielder(val, rest_of_function):
@@ -728,39 +711,38 @@ g = f()
 g.['next']() # evaluates to 1
 g.['next']() # evaluates to 2
 g.['next']() # throws "StopIteration"
-
 }
-
 We build the @code{yielder} function, which takes a value, which it returns
 after storing a continuation argument in the @code{to_call_next} field.  The
 @code{next} function always returns the result of calling this stored value.
 Each @code{yield} statement is rewritten to put everything after it into a new
-function definition, which is passed to the call to @code{yielder}.
+function definition, which is passed to the call to @code{yielder}. In
+other words, this is the canonical CPS transformation, applied in the
+usual fashion.
 
 This rewriting is well-intentioned but does not work.  If this
 program is run under Python, it results in an error:
-
 @verbatim{
     x += 1
 UnboundLocalError: local variable 'x'
                    referenced before assignment
 }
-
 This is because Python creates a @emph{new scope} for each function
 definition, and assignments within that scope create new variables.
 In the body of @code{rest}, the assignment @code{x += 1} refers to a
 new @code{x}, not the one defined by @code{x = 1} in @code{start}.  This
 runs counter to traditional notions of functions that can close over
 mutable variables.  And in general, with multiple assignment
-statements and branching control flow, it is completely unclear if a
+statements and branching control flow, it is entirely unclear whether a
 CPS transformation to Python function definitions can work.
 
 The lesson from this example is that the @emph{interaction} of non-traditional
-scope and control flow made a traditional normal-form translation (rewriting to
-CPS) not work.  The straightforward CPS solution, which doesn't require
+scope and control flow made a traditional translation
+not work.  The straightforward CPS solution, which doesn't require
 extending the number of concepts in the language, is inexpressible in Python
 due to the mechanics of variable binding.  We'll move on to describing how we
-can express Pythonic scope in a more traditional lexical model, and later we
+can express Pythonic scope in a more traditional lexical model, and
+later [CITE] we
 will return to a CPS transformation that does work for Python's generators.
 
 @section{Scope}
