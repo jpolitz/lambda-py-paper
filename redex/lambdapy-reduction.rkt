@@ -279,7 +279,7 @@
   class-lookup : val val string Σ -> (Σ val)
   [(class-lookup (pointer-val ref_obj) (obj-val any_c any_mval ((string_1 ref_1) ...  ("__mro__" ref) (string_2 ref_2) ...))
                  string Σ)
-   (maybe-bind-method (pointer-val ref_obj) val_result Σ)
+   (Σ val_result)
    (where (obj-val any_1 (meta-tuple (val_cls ...)) any_3)
           (fetch-pointer (store-lookup Σ ref) Σ))
    (where val_result

@@ -122,10 +122,15 @@ results of testing our semantics against CPython.
 
 @section{Warmup: A Quick Tour of @(lambda-py)}
 
-@figure["f:values" @elem{Values in @(lambda-py)}]{
+@figure["f:exprs" (elem (lambda-py) " expressions")]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(v val mval ref Σ v+undef opt-var))))
+    (lambda () (render-language λπ #:nts '(e t v v+undef opt-var mval Σ ref))))
 }
+
+@figure*["f:skull" "Handling undefined identifiers"]{
+  @(lp-reduction '(E-LetLocal E-GetVar E-GetVarUndef))
+}
+
 
 
 For a large portion of @(lambda-py)'s object and value model, we do not find
@@ -139,12 +144,11 @@ explain the harder parts of Python's semantics.
 
 @subsection{@(lambda-py) Values}
 
-@Figure-ref["f:values"] shows the representation of values in @(lambda-py),
-which we use the metavariables @(lp-term v) and @(lp-term val) to range over.
-All the values in @(lambda-py) are either objects, written as triples in
-@(lp-term 〈〉), or references to entries in the store Σ, written @(lp-term
-(pointer-val ref)).  The special term @(lp-term (undefined-val)) represents
-yet-to-be-bound identifiers, we address it when we discuss scope in [REF].
+@Figure-ref["f:exprs"] shows all the values and expressions @(lambda-py).  The
+metavariables @(lp-term v) and @(lp-term val) range over the values of the
+language.  All the values in @(lambda-py) are either objects, written as
+triples in @(lp-term 〈〉), or references to entries in the store Σ, written
+@(lp-term (pointer-val ref)).
 
 Each @(lambda-py) object is written as a triple of one of the forms:
 
@@ -163,7 +167,16 @@ there is one per builtin type that @(lambda-py) models: numbers, strings, the
 distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
 functions.
 
-Python programmers never manipulate object values directly; rather, they always
+The distinguished @(lp-term (undefined-val)) form represents values on the heap
+that are uninitialized, and whose lookup should raise an exception.
+@Figure-ref["f:skull"] shows the behavior of lookup in heaps Σ for values and
+for @(lp-term (undefined-val)).  The @(lp-term let) form is the only expression
+that handles @(lp-term (undefined-val)), allocating a location for it in the
+store.  An assignment must be performed to change the store to a value at that
+location before a lookup will succeed.  This notion of undefined locations will
+come into play heavily when we discuss scope [REF].
+
+Python programs cannot manipulate object values directly; rather, they always
 work with references to objects.  Thus, many of the operations in @(lambda-py)
 involve the heap, and few are purely functional.  As an example of what such an
 operation looks like, take constructing a list, which allocates a new reference
@@ -306,28 +319,19 @@ variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
 
 @subsection{Loops, Exceptions, and Modules}
 
-The full language of expressions for @(lambda-py) is in @figure-ref["f:exprs"].
-We defer a full explanation of all the terms in that figure, and the full
-reduction relation, to the appendix [REF].  This includes a mostly-routine
+We defer a full explanation of the terms in @figure-ref["f:exprs"], and the
+entire reduction relation, to the appendix [REF].  This includes a mostly-routine
 encoding of control operators via special evaluation contexts, and a mechanism
 for loading new code via modules.  We continue here by focusing on some of the
-cases in the semantics that are unique to Python.
-
-@figure["f:exprs" (elem (lambda-py) " expressions")]{
-  @(with-rewriters
-    (lambda () (render-language λπ #:nts '(e t))))
-}
-
+cases in the semantics that are unique in Python, and how we model them with
+@(lambda-py).
 
 @section{Classes, Methods, and Pythonic Desugarings}
 
-[FILL This section is waiting on rewrites (Alejandro) to the class/object model
-to make it fully line up with reality]
-
-The first complex feature of Python we address is a featureful first-class
-class system.  We'll discuss how @(lambda-py) models its lookup algorithm
-(including multiple inheritance) and its mechanism for binding the self
-parameter in first-class methods.
+Python has a featureful class system with first-class methods, implicit
+reciever binding, multiple inheritance, and more.  In this section we discuss
+what parts of @(lambda-py) are necessary for modelling Python's classes, and
+what we can desugar away as unnecessary complexity.
 
 @subsection{Field Lookup in Classes}
 
@@ -350,12 +354,9 @@ print(C.__mro__)
 
 Field lookups on objects whose class value is @(lp-term C) will first look in
 the dictionary of @(lp-term C), and then in the dictionary of the built-in
-class @(lp-term object).  [FILL hopefully remove discussion of method binding
-here]
-
-We define this lookup algorithm within @(lambda-py) as @(lp-term class-lookup),
-shown in @figure-ref["f:lookup-class"] along with the reduction rule for field
-access that uses it.
+class @(lp-term object).  We define this lookup algorithm within @(lambda-py)
+as @(lp-term class-lookup), shown in @figure-ref["f:lookup-class"] along with
+the reduction rule for field access that uses it.
 
 @figure*["f:lookup-class" @elem{Class lookup}]{
   @para{
@@ -367,181 +368,137 @@ access that uses it.
   @para{
     @(lp-metafunction class-lookup-mro #f)
   }
-  @para{
-    @(lp-metafunction maybe-bind-method #f)
-  }
 }
 
-This rule and the associated metafunctions are interesting for a few reasons.
-[FILL this may change as we make __getattribute__ work, so deferring an
-explanation for now]
+This rule allows us to model field lookups that defer to a superclass (or
+indeed, a list of them).  But @(lp-term "__mro__") fields aren't defined
+explicitly by the programmer; they use higher-leve language constructs to build
+up the inheritance hierarchy the instances eventually use.
 
 
 @subsection{Desugaring Classes}
 
-In the last section, we saw that field lookup depends on a special class
-pointer, and a designated @(lp-term "__mro__") field that contains the
-inheritance chain of the object.  We didn't discuss how classes and their
-associated @(lp-term "__mro__") field get created in the first place.  We next
-briefly describe the class form in Python and some of its behavior.  Rather
-than attempt to do justice to a full description here, we try to capture the
-essence of how @(lambda-py) models Python's classes.
-
-Classes are created with a special @code{class} form in Python.  The simplest
-nontrivial classes can define methods by using the same @code{def} syntax as
-function definitions.  The special method @code{__init__} defines a constructor
-for the class, which is used to initialize fields, and variables in the class's
-body are also accessible as fields of instances.  @Figure-ref["f:test-class"]
-shows a simple class definition that uses these features.
-
-@figure["f:test-class" @elem{A sample Python class definition}]{
+Most Python programmers use the special @code{class} form to create classes in
+Python.  However, @code{class} is merely syntactic sugar for a use of the
+builtin Python function
+@code{type}.@note{http://docs.python.org/3/library/functions.html#type} The
+documentation states explicitly that the two following forms produce
+@emph{identical} type objects:
 
 @verbatim{
-class Test(object):
-  success = 'Test passed'
-  failure = 'Test failed'
-  def __init__(self, f):
-    self.f = f
-  def runtest(self, expected):
-    if self.f() == expected:
-      print(self.success)
-    else:
-      print(self.failure)
 
-t1 = Test(lambda: "correct")
-t1.runtest("correct") # "Test passed"
-t1.runtest("incorrect") # "Test failed"
-}
+class X:
+     a = 1
+
+X = type('X', (object,), dict(a=1))
 
 }
 
-A few things to note:
+This means that to implement classes, we merely need to understand the built-in
+function @code{type}, and how it creates new classes on the fly.  Then it is a
+simple matter to desugar class forms to this function call.
 
-@itemlist[
-
-  @item{The @code{Test} class declares @code{object} to be its superclass by
-  putting @code{object} in the parentheses of the class
-  declaration,@note{Multiple comma-separated superclasses would yield multiple
-  inheritance.}}
-
-  @item{Calling the @code{Test} class value itself causes @code{__init__} to be
-  called,}
-
-  @item{The @code{__init__} method is purely side-affecting, and is passed an
-  already-created (but not initialized) instance of the class,}
-
-  @item{The method receiver @code{t1} is passed to the method @code{runtest}
-  implicitly,}
-
-  @item{The variables @code{success} and @code{failure} are available as fields
-  on @code{self}.}
-
-]
-
-We tackle these features through desugaring the class form down to particular
-object structures.  We can turn @code{Test} itself into an object whose class
-is the builtin class @code{type}, and then assign its @(lp-term "__mro__")
-field to the correct sequence of objects.  The desugaring below captures most
-of the relevant details, though the full desugaring is slightly longer and more
-complex:
+The implementation of @code{type} creates a new object value for the class,
+allocates it, sets the @(lp-term "__mro__") field to be the computed
+inheritance graph,@note{Using a well defined algorithm that is implementable in
+pure Python http://www.python.org/download/releases/2.3/mro/}, and sets the
+fields of the class to be the bindings in the dictionary.  We elide some of the
+verbose detail in the iteration over @(lp-term (id dict local)) by using an
+abbreviation in the form of @(lp-term for) syntax, that actually expands into a
+larger iteration:
 
 @centered{
-  @(lp-term ;; lp-term is just a wrapper around (with-rewriters ... render-term)
-  (let (Test local = (object (id %type local) (meta-class 'Test))) in
-  (let (t1 local = undefined) in
-    (seq
-    (assign (get-field Test "__mro__") := (tuple %tuple ((id Test local) (id %object local))))
-    (seq
-    (assign (get-field Test "__init__") := (fun (self f) (no-var) (assign (get-field self "f") := (id f local))))
-    (seq
-    (assign (get-field Test "success") := (object %str (meta-str "success")))
-    (seq
-    (assign (get-field Test "failure") := (object %str (meta-str "failure")))
-    (seq
-    (assign (get-field Test "runtest") :=
-      (fun (self expected) (no-var)
-        (if (builtin-prim "==" (app (get-field (id self local) "f") ()) (id expected local))
-            (app (get-field (id print global) "__call__") ((get-field (id self local) "success")))
-            (app (get-field (id print global) "__call__") ((get-field (id self local) "failure"))))))
-    (seq
-    (assign t1 := (app (get-field Test "__call__") ((fun () (no-var) (object %str (meta-str "correct")) (no-var)))))
-    (seq
-    (app (get-field (get-field (id local t1) "runtest") "__call__") ((object %str (meta-str "correct"))))
-    (app (get-field (get-field (id local t1) "runtest") "__call__") ((object %str (meta-str "incorrect"))))))))))))))
-     
-
+  @(lp-term
+    (assign (id %type global) :=
+      (fun (classname bases dict)
+        (let (newcls local = (alloc (obj-val %type (meta-class classname) ()))) in
+          (seq
+          (assign (get-field (id newcls local) "__mro__") :=
+            (builtin-prim "type-buildmro" (cls bases)))
+          (seq
+          (for (key elt) in (app (get-field (id dict local) "__items__") ())
+            (assign (get-field (id newcls local) (id key local)) := (id elt local)))
+          (return (id newcls local))))))))
 }
 
-So, after this expression evaluates, @(lp-term obj) is an identifier bound to
-an object whose class pointer points to the builtin object @(lp-term %type).
-This new value has a @(lp-term meta-class) value stored as well, which
-designates it as a class object.  The next line sets up the important @(lp-term
-"__mro__") field on the class value, which will be used for future lookups on
-instances of the class.  If more than one superclass had been given, a helper
-would have been called here to resolve the superclass lookup order.  This can
-be implemented in a function written in @(lambda-py), so it isn't an intrinsic
-part of the semantics.
-
-The next three lines perform an interesting transformation. First, the class
-variables @(lp-term success) and @(lp-term failure) have been changed into
-@emph{object assignments} on the class value itself, rather than being
-let-bound variables.  Similarly, the function definition inside the class body
-is turned into an assignment on the class, rather than a let-bound variable.
-Clearly, these values do need to be stored on @(lp-term (id Test local)) at
-some point, since they are later accessed.  We will return to the desugaring of
-classes and scope later, since the desugaring presented here isn't quite the
-whole story.
-
-The last interesting line in the desugaring is where the @(lp-term "__call__")
-field of @(lp-term (id Test local)) is applied.  This is the desugaring of all
-the function applications shown here, but this one is interesting because of
-where the @(lp-term "__call__") method is implemented.  We haven't set it on
-the @(lp-term Test) value, so it must be somewhere in the @(lp-term "__mro__")
-list of its class.  And indeed, it is the @(lp-term %type) class's @(lp-term
-"__call__") method that is responsible for creating a new object value with
-class @(lp-term (id Test local)), calling @(lp-term "__init__"), and returning
-the resulting object.  The @(lp-term %type) class is defined separately from
-desugaring as part of the initial environment that desugared code runs in; we
-discuss more of these engineering decisions in [REF].  The interesting point is
-that even class construction is deferred to a method on a built-in value; we
-express all object creation with only @(lp-term (object e_cls mval)) expressions.
-
-Left implicit in this desugaring is the @(lp-term self)-binding of @(lp-term
-t1) in the two method calls [FILL this should be __getattribute__].
-
-@subsection{Reflection}
-
-Python has a number of reflective operations on the values in its object
-system; we highlight a few examples here.
-
-@verbatim{
-
-class C(object):
-  def method(self):
-    pass
-
-c = C()
-c.__class__ is C # True
-
-bound_method = c.method
-bound_method.__self__ == c
-# the object closed over as self is reachable
-# through the __self__ field
-
-
-}
-
-These operations predominantly preserve @emph{integrity} while
-compromising @emph{confidentiality}.  That is, the allow the user to observe
-and copy values that are internal to objects, but not to change them if they
-would affect the internals of the behavior of the object.
+This function is relatively simple, but along with the built-in @code{type}
+class, suffices for bootstrapping the object system in @(lambda-py).
 
 @subsection{Pythonic Patterns}
 
 Pythonic objects can have a number of so-called @emph{magic fields} that allow
 for overriding the behavior of built-in syntactic forms.  These magic fields
 can be set anywhere in an object's inheritance hierarchy, and provide a lot of
-the flexibility that Python is well-known for.
+the flexibility for which Python is well-known.
+
+For example, the field accesses that Python programmers write are not directly
+translated to the rules in @(lambda-py).  Even the simple program @code{o.x}
+has an execution that depends heavily on its inheritance hierarchy.  This
+program is actually desugared to:
+@centered{
+@(lp-term (app (get-field (id o local) "__getattribute__") ((id o local) (obj-val %str (meta-str "x") ()))))
+}
+
+For objects that don't override the @(lp-term "__getattribute__") field, the
+built-in object class's implementation does more than simply look up the
+@(lp-term "x") property using the get-field rules we presented in this section.
+Python allows for attributes to implement special accessing functionality via
+@emph{properties},@note{http://docs.python.org/3/library/functions.html#property},
+which can cause special functions to be called on property access.  The
+@(lp-term "__getattribute__") function of @(lp-term (id object local)) checks
+if the value of the field it accesses is a property, and if it is, calls its
+@(lp-term "__get__") method:
+@centered{
+@(lp-term
+  (assign (get-field object "__getattribute__") :=
+    (fun (obj field)
+      (let (value local = (get-attr obj field)) in
+        (if (app (id is-property? global) ((id value local)))
+            (return (app (get-field (id value local) "__get__") ()))
+            (return (id value local)))))))
+}
+
+This pattern is used to implement a myriad of features.  For example, when
+accessing function values on classes, the @(lp-term "__get__") method of the
+function implicitly binds the self argument:
+@verbatim{
+class C(object):
+  def f(self):
+    return self
+
+c = C() # constructs a new C instance
+g = c.f # accessing c.f creates a method object closed over c
+g() is c # evaluates to True
+
+# We can also bind a self value manually:
+self_is_5 = C.f.__get__(5)
+self_is_5() # evaluates to 5
+}
+
+This allows us to, with very few object-based primitives, implement static
+class methods and instance methods.
+
+Python has a number of other special method names that can be overridden to
+provide specialized behavior.  We implement these just as Python; we desugar
+surface expressions into calls to methods with particular names, and provide
+built-in implementations of those methods for arithmetic, dictionary access,
+and a number of other operations.  Some examples:
+@nested{
+
+@code{o[x]} @emph{ desugars to... } @(lp-term (app (get-field (id o local) "__getitem__") ()))
+
+@code{x + y} @emph{ desugars to... } @(lp-term (app (get-field (id o local) "__add__") ((id y local))))
+
+@code{f(x)} @emph{ desugars to... } @(lp-term (app (get-field (id f local) "__call__") ((id x local))))
+
+}
+
+With the basics of @code{type} and object lookup in place, getting all of these
+operations right is just a matter of desugaring to the right method calls, and
+providing the right built-in versions for e.g. numbers to handle the base cases
+for primitive values.  This is what we do for much of our desugaring to
+@(lambda-py), and it is the straightforward, if labor-intensive, part of the
+process.
 
 @section{Python, the Hard Parts}
 
@@ -797,10 +754,6 @@ f(1) # evaluates to "big"
 }
 
 @subsubsection{Desugaring for Local Scope}
-
-@figure*["f:skull" "Handling undefined identifiers"]{
-  @(lp-reduction '(E-LetLocal E-GetVar E-GetVarUndef))
-}
 
 Handling simple declarations of variables and updates to variables is
 straightforward to translate into a lexically-scoped language.  @(lambda-py)
@@ -1179,7 +1132,7 @@ assignment to the variable itself:
             (seq
             (assign (id extracted-g local) := (fun () none))
             (seq
-            (assign (id c local) := (class 'c))
+            (assign (id c local) := (class "c"))
             (seq
               (let (g local = (undefined-val)) in
               (let (x local = (undefined-val)) in
@@ -1327,26 +1280,25 @@ correct points-of-use analysis for lexical variables in Python.
   @item{All the values of Python, all the scope of something saner, would be a really nice thing to have}
 ]
 
-@section{Engineering \& Evaluation}
+@section{Engineering & Evaluation}
 
 Python
 3.2.3.@note{http://www.python.org/getit/releases/3.2.3/, released April 2012}
 
-There are two properties we evaluated for @(lambda-py):
+There are two properties we evaluated for @(lambda-py).
 
-@verbatim{
-\paragraph{Property 1: $\textit{desugar}$ is a total function:}
-\begin{displaymath}
-\forall p \in \textrm{\ Python}, \exists e \in \lambda_\pi \textit{\ such that\ }
-\textit{desugar}(p) = e
-\end{displaymath}
+Property 1: @emph{desugar} is a total function:
 
-\paragraph{Property 2: $\textit{desugar}$ composed with $\rightarrow^*$ is accurate:}
-\begin{displaymath}
-\forall p \in \textrm{\ Python}, \textrm{if\ }
-\textit{eval}_\textit{py}(p) = v
-\textrm{\ then\ } \textit{desugar}(e) \rightarrow^* \textit{desugar}(v)
-\end{displaymath}
+@centered{
+  ∀ p ∈ Python, ∃ @(lp-term e) ∈ @(lambda-py) such that @emph{desugar}(p) = @(lp-term e)
+}
+
+Property 2: @emph{desugar} composed with → is accurate:
+
+@centered{
+  ∀ p,v ∈ Python, if eval(p) = v
+  
+  then @emph{desugar}(p) →* @emph{desugar}(v)
 }
 
 We do not have a proof of either, since doing so would require formalizing

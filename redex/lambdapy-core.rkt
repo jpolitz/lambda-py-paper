@@ -41,39 +41,25 @@
   (opt-var (x) (no-var))
   
   ;; types of expressions
-  (e true
-     false
-     none
-     ref
-     (fetch e)
-     (set! e e)
-     (alloc e)
-     (class x e e)
-     (object e mval)
-     (get-field e string)
-     (get-attr e e)
-     (seq e e)
+  (e true false none ref (id x t)
+     (fetch e) (set! e e) (alloc e)
      (assign e := e)
+     (get-field e string) (get-attr e e)
      (if e e e)
-     (id x t)
      (let (x t = e) in e)
-     ;; NOTE(dbp): app with/without stararg
      (app e (e ...))
      (app e (e ...) e)
-     ;; NOTE(dbp): 4 variants for presence/absence of stararg, symbol for class
-     (fun (x ...) opt-var e opt-var)
-     (while e e e)
-     (loop e) ;; helper syntax for while
+     (seq e e)
+     (class x)
+     (while e e e) (loop e)
      (return e)
      (builtin-prim op (e ...))
-     (list e (e ...))
-     (tuple e (e ...))
-     (set e (e ...))
-     ;; NOTE(dbp): empty raise is "reraise"
-     (raise)
-     (raise e)
+     (fun (x ...) opt-var e opt-var)
+     (object e mval) (list e (e ...))
+     (tuple e (e ...)) (set e (e ...))
      (tryexcept e x e e)
      (tryfinally e e)
+     (raise) (raise e)
      undefined
      break
      (module e e)

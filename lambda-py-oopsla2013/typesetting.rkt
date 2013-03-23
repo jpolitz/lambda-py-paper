@@ -208,6 +208,11 @@
     [(list _ _ op arg ... εs Σ _)
      (append (list "δ(" op) arg (list ")"))]))
 
+(define (subst-one-rewriter lws)
+  (match lws
+    [(list _ lbrack x ref expr rbrack)
+     (list "[" x "/" ref "]" expr)]))
+
 (define (with-rewriters thnk)
   (with-compound-rewriters
    (
@@ -230,7 +235,7 @@
     ['app app-rewriter]
     ['object object-rewriter]
     ['list list-rewriter]
-    ['module module-rewriter]
+   ; ['module module-rewriter]
     ['seq seq-rewriter]
     ['let let-rewriter]
     ['fun fun-rewriter]
@@ -239,6 +244,7 @@
     ['extend-store extend-rewriter]
     ['store-lookup store-lookup-rewriter]
     ['δ delta-rewriter]
+    ['subst-one subst-one-rewriter]
    )
    (thnk)))
 
