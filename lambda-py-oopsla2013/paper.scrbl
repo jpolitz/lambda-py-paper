@@ -24,7 +24,6 @@
 @authorinfo["Shriram Krishnamurthi" "Providence, RI, USA" "sk@cs.brown.edu"]
 
 @abstract{
-
 We present a small-step operational semantics for the Python
 programming language.  We present both a core language for Python,
 suitable for tools and proofs, and a translation process for
@@ -35,97 +34,91 @@ fidelity of the semantics. We briefly report on the engineering of
 these components. Finally, we examine subtle aspects of the language,
 identifying scope as a pervasive concern that even impacts features
 that might be considered orthogonal.
-
 }
 
 @section{Introduction}
 
 @section{Motivation and Contributions}
 
-Python is a widely-used scripting
-language@note{https://github.com/blog/841-those-are-some-big-numbers} with a
-reputation for simplicity and expressivity.  There are a number of tools for
-Python, from style and lint-checkers,@note{https://pypi.python.org/pypi/pylint,
-https://pypi.python.org/pypi/pep8} to simple static
-checkers,@note{https://pypi.python.org/pypi/pyflakes} to code analyzers that
-import and run code to analyze
-it.@note{https://pypi.python.org/pypi/PyChecker}.  There are also a number of
-IDEs for Python, which provide tools like variable name refactoring and code
-completion@note{http://www.jetbrains.com/pycharm/, http://pydev.org/,
-http://wingware.com/, among others}.  These tools are all useful, but all are
-built on an ad hoc understanding of Python, and provide little in the way of
-@emph{guarantees}; in [REF] we note that a simple 8 line program, which uses no
-so-called ``dynamic'' features, confuses their variable rename refactoring
-because of a wrinkle in Pythonic scope
+The Python programming language is currently widely used
+in industry, science, and education. Because of its popularity
+it now has several third-party tools, including analyzers
+that check for various potential error patterns [CITE].
+@; https://pypi.python.org/pypi/pylint
+@; https://pypi.python.org/pypi/pep8
+@; {https://pypi.python.org/pypi/pyflakes}
+@; {https://pypi.python.org/pypi/PyChecker}
+It also features interactive development environments [CITE]
+@; http://www.jetbrains.com/pycharm/, http://pydev.org/,
+@; http://wingware.com/
+that offer a variety of features such as variable-renaming
+refactorings and code completion. Unfortunately, all these tools are
+unsound: for instance, a simple eight-line program that uses no
+``dynamic'' features was able to confuse the variable renaming feature
+of all these environments.
 
-This is not to say that developers shouldn't use these tools; they are
-certainly invaluable for organizing projects, providing symbol completion, and
-managing build and deployments.  They could be made even more helpful, however,
-if their predictions about programs and refactoring tools could be defined
-rigorously and with respect to a semantics for Python, rather than in a
-best-effort manner over the Python AST data structure they happen to use.
+The difficulty of reasoning about Python becomes even more pressing as
+the language is adopted in increasingly important domains. For
+instance, the US Securities and Exchange Commission has proposed using
+Python as an executable specification of financial contracts [CITE],
+@; note{https://www.sec.gov/rules/proposed/2010/33-9117.pdf}, and Python
+and it is now being used to script new network paradigms [CITE].
+@; cite a real paper, not a Web site
+Thus, it is vital to have a precise semantics available for analyzing
+programs and proving properties about them.
 
-Indeed, as Python becomes even more widely used, and in even more
-correctness-sensitive domains, a precise understanding of programs written in
-Python becomes even more important.  The Securities and Exchange Commission has
-proposed using Python as an executable specification of financial
-contracts@note{https://www.sec.gov/rules/proposed/2010/33-9117.pdf}, and Python
-is becoming a scripting language of choice for programming new network
-paradigms@note{http://www.noxrepo.org/pox/about-pox/}.  Is an informal
-understanding of the language sufficient for such domains?  Having a precise
-semantics available for analyzing and proving properties of programs is a much
-more comfortable situation for these applications to be in.
+This paper presents a semantics for Python. Mindful that authors of
+tools and of proofs prefer to contend with small languages, we divide
+the semantics into two parts: a core language, @(lambda-py), with a
+small number of constructs, and a desugaring function that translates
+source programs into the core. The core language is a mostly
+traditional stateful lambda-calculus-like language augmented with
+features to represent the essence of Python (such as classes and
+dictionaries), and should thus be familiar to its potential users.
 
-In this paper, we present a tested semantics for several features of Python
-3.2.3.@note{http://www.python.org/getit/releases/3.2.3/, released April 2012}
-As concrete contributions and artifacts, we have produced and will discuss in
-this paper:
+Because desugaring converts Python surface syntax to the core
+language, when it is composed with an interpreter for @(lambda-py)
+(which is easy to write), we have another implementation of Python. We
+can then ask how this implementation compares with the traditional
+CPython implementation, which represents a form of ground truth. By
+carefully adjusting the core and desugaring, we have achieved high
+fidelity with CPython. Therefore, users can built tools atop
+@(lambda-py), confident that they are capturing the language in all
+its glory.
 
+In the course of creating this high-fidelity semantics, we have also
+identified some peculiar corners of the language, including
+non-orthogonal features. In particular, scope proves to be
+non-trivial and interacts with perhaps unexpected features. Our
+exposition focuses on these aspects.
+
+In sum, this paper makes the following contributions:
 @itemlist[
 
-  @item{A @emph{core semantics} for Python, dubbed @(lambda-py), which is implemented
-  in Redex (and was used to typeset the figures in this document);}
+  @item{a @emph{core semantics} for Python, dubbed @(lambda-py), which
+  is defined as a reduction semantics using PLT Redex [CITE];}
 
-  @item{An @emph{interpreter}, dubbed @(lambda-interp), implemented in 800LOC
-  of Racket, that is a more efficient implementation of @(lambda-py), tested
-  against the Redex model;}
+  @item{an @emph{interpreter}, dubbed @(lambda-interp), implemented in
+  800LOC of Racket, that has been tested against the Redex model;}
 
-  @item{A @emph{desugaring} translation from Python programs to @(lambda-py),
-  implemented in Racket and described here in prose and pseudocode;}
+  @item{a @emph{desugaring} translation from Python programs to @(lambda-py),
+  implemented in Racket;}
 
-  @item{The results of @emph{testing} the composition of desugaring with
-  @(lambda-interp) against a real Python implementation, to demonstrate conformance
-  of @(lambda-py) with real-world Python.}
+  @item{a demonstration of @emph{conformance} of the composition of
+  desugaring with @(lambda-interp) to a real Python implementation; and,}
+
+  @item{@emph{insights} gained from this process.}
 
 ]
 
-This suite of artifacts is a meaningful contribution in itself, regardless of
-any new insights into programming languages theory or practice.  It constitutes
-a formal description of the language, and a mathematical foundation for
-applying well-known programming language techniques to complex, real-world
-applications written in Python.
-
-Along with these concrete implementation and mathematical contributions, we
-also provide some more high-level insight into several feature interactions
-within Python.  Most notably, Python's scope interacts heavily with both
-classes and control flow (in the form of generators), making those features
-difficult to understand independently.  In [REF], We show how we untangle the
-tight coupling of these features, and manage to express them in a traditional
-calculus of scope, control, and objects.
-
-@subsection{Outline} Presenting the entirety of Python's semantics and its
-translation to @(lambda-py) is out of the scope of this document, so we focus
-on a few particular areas.  We first give an overview Python's value and object
-model, whose richness allows many of the other patterns we see in the language.
-We then show how many Pythonic patterns for iteration and overloading can be
-implemented as straightforward expansions to patterns in this object model.
-This also serves as an introduction to the concept of @emph{desugaring} the
-surface language to the core.  Next, we tackle Python's unique treatment of
-scope for variables and closures, and how it interacts with both classes and a
-naïve understanding of generators.  After explaining our model of scope, we
-show how generators can be implemented with local CPS.  Finally, we describe
-the results of testing our desugaring and interpreter against CPython to ensure
-its fidelity to real-world Python programs.
+Presenting the semantics in full is neither feasible, given space
+limits, nor especially enlightening. We instead focus on the parts
+that are important or interesting. We first give an overview of
+@(lambda-py)'s value and object model. We then introduce desugaring by
+showing how several interation and overloading patterns can be
+implemented atop the object model. We then discuss generators,
+classes, and their interaction with scope. Finally, we describe the
+results of testing our semantics against CPython.
 
 @section{Warmup: A Quick Tour of @(lambda-py)}
 
@@ -1336,6 +1329,9 @@ correct points-of-use analysis for lexical variables in Python.
 
 @section{Engineering \& Evaluation}
 
+Python
+3.2.3.@note{http://www.python.org/getit/releases/3.2.3/, released April 2012}
+
 There are two properties we evaluated for @(lambda-py):
 
 @verbatim{
@@ -1406,8 +1402,14 @@ running 100 tests from around 7 minutes to around 22 seconds.  A corollary is
 that evaluating @(lambda-py) programs is relatively quick, but desugaring and
 loading external files is not.
 
+RELATED WORK
+
+- the swedish(?) thesis
+- arjun's \JS
+
 @;{Acknowledgments:
 - Ben Lerner for title
 - NSF and Google for funding
 - Brown for hosting
+- redex
 }
