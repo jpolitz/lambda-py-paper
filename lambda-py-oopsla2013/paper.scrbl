@@ -1282,16 +1282,109 @@ are out of scope for the semantics we've presented. We begin with an overview
 of the engineering work that goes into implementing and testing the semantics,
 and then discuss our results.
 
-@subsection{Python Libraries in Python}
+@subsection{Engineering a Tested Semantics}
+
+We implement an efficient interpreter for @(lambda-py), dubbed
+@(lambda-interp), that we use to test our semantics.  The different
+desugarings and built-in functions we've described need to be carefully
+composed to yield terms in @(lambda-py) that can be tested against real
+Python code.
+
+@subsubsection{Desugaring Phases}
+
+We don't desugar from surface Python to @(lambda-py) terms directly; there
+are several intermediate stages:
+
+@itemlist[
+
+  @item{Lift definitions out of classes as described section [REF]}
+
+  @item{Perform the variable let-binding desugaring, sensitive to @code{global}
+  and @code{nonlocal}, from section [REF].  This is done second to correctly
+  handle occurrences of @code{nonlocal} and @code{global} in class methods.
+  The result of these first two steps is an intermediate language between
+  Python and the core with lexical scope, but many Pythonic surface constructs.}
+
+  @item{Desugar away classes, turn Pythonic operators into method calls, turn
+  @code{for} loops into appropriately-guarded @(lp-term while) loops in the
+  core, and perform other straightforward, compositional desugarings.}
+
+  @item{Find functions containing @code{yield} and desugar them to generators.}
+
+]
+
+These four steps yield a term in our core.  It isn't quite suitable for
+directly running, however, since we desugar to open terms with free
+identifiers.  For example, we desugar the Python program
+@verbatim{
+print(5)
+}
+to
+@centered{
+@(lp-term (app (id print global) ((object (id %int global) (meta-num 5)))))
+}
+which relies on the built-in @(lp-term %int) class being defined.
+
+These built-in classes we defined separately in a combination of core-language
+ASTs built directly in Racket, and Python programs that define built-in
+libraries.  We wrap the terms resulting from desugaring in a context that
+defines binds the built-in values to the free identifiers desugaring creates,
+constructed from these built-in classes.
+
+@subsubsection{Python Libraries in Python}
 
 We implement as many libraries as possible in Python, with one small addition:
 we define a small @emph{superset} of Python with macros that are recognized
 specially by our desugaring to transform into particular @(lambda-py) forms.
 This allows us to write implementations of libraries that more closely match
 Pythonic descriptions of them, while still maintaining the guarantee that
-everything is implementable in @(lambda-py) itself.
+everything is implementable in @(lambda-py) itself.  These libraries run before
+any user code that we test, and are responsible for setting up built-in Python
+objects and functions (e.g. the contents of
+@url{http://docs.python.org/3/library/functions.html})
 
-@subsection{Performance}
+For example, the builtin class for tuples is implemented mostly in Python, but
+for getting the length of a tuple defers to the δ function:
+
+@verbatim{
+class tuple(object):
+  ...
+  def __len__(self):
+    return ___delta("tuple-len", self)
+  ...
+}
+
+All occurrences of @code{___delta(str, e, ...)} are desugared to @(lp-term (builtin-prim (str (e ...)))) directly.  We only do this for @emph{library} files, so normal Python programs can use @code{___delta} as the valid identifier it is.
+
+One other macro that we define is quite useful.  After the class definition of
+tuples, we have the statement
+@verbatim{
+___assign("%tuple", tuple)
+}
+which desugars to an assignment statement @(lp-term (assign (id %tuple global) := (id tuple global))).  Since 
+%-prefixed variables aren't valid in Python,
+this gives us an private namespace of global variables that are
+un-tamperable by Python.  We use these identifiers to construct instances of
+built-in objects like lists and tuples without worrying about user code
+shadowing their definitions.
+
+The first author has experience with defining such libraries directly in core
+code for a similar semantics engineering effort [CITE S5], and defining
+libraries as @(lambda-py) does is a significant engineering improvement for
+generating a readable tested desugaring.
+
+@subsubsection{Performance}
+
+With the desugaring steps above and libraries taken into account, the full
+process for running a Python program is:
+
+@itemlist[
+  @item{Parse and desugar roughly 1 KLOC of libraries implemented in Python}
+  @item{Parse and desugar the target program}
+  @item{Built up a syntax tree of several built-in libraries, coded by building the AST directly in Racket}
+  @item{Compose items 1-3 into a single @(lambda-py) expression}
+  @item{Evaluate the @(lambda-py) expression}
+]
 
 @(lambda-py) is a semantics first, and an implementation of the Python language
 second.  From a semantics perspective, the performance of @(lambda-py) is
@@ -1306,23 +1399,149 @@ add new features!  This required making a few engineering decisions to improve
 performance to the point where running large programs and test suites is
 possible.
 
-In our initial implementation, the execution strategy had a few steps:
-
-@itemlist[
-  @item{Parse and desugar roughly 1 KLOC of libraries implemented in Python}
-  @item{Parse and desugar the target program}
-  @item{Built up a syntax tree of several built-in libraries, coded by building the AST directly in Racket}
-  @item{Compose items 1-3 into a single @(lambda-py) expression}
-  @item{Evaluate the @(lambda-py) expression}
-]
-
 Parsing and desugaring for 1 takes a nontrivial amount of time (on the order of
 4 seconds on the first author's laptop).  When running a suite of tests in
 order, this parsed syntax tree is the same for each test.  Switching to memoize
 this parsing and desugaring for the duration of a test run cut the time for
 running 100 tests from around 7 minutes to around 22 seconds.  A corollary is
 that evaluating @(lambda-py) programs is relatively quick, but desugaring and
-loading external files is not.
+loading external files is not. [FILL update these numbers based on new
+desugarings that take more time before submitting]
+
+
+@subsection{Testing Strategy and Results}
+
+In this initial effort, we test @(lambda-py) and desugaring against 2000 lines
+(151 individual tests) of Python code ported from CPython's unit test suite
+(included with the release in April
+2012)@note{http://www.python.org/getit/releases/3.2.3/}, along with some of our
+own tests.  On these tests we get the same results as CPython itself.  These
+tests cover:
+
+@itemlist[
+
+  @item{Classes and multiple inheritance}
+  @item{Scope}
+  @item{Generators}
+  @item{Operations on built-in values}
+  @item{Pythonic iteration and looping}
+  @item{Exceptions}
+  @item{Basic Modules}
+
+]
+
+We've focused our testing on particular tests that cover interesting corner
+cases.  The strategy for expanding the set of programs we can cover is
+straightforward: new features we encounter are predominantly tackled through
+desugaring, so we merely need to add more tests and update desugaring if
+necessary to handle the new forms.
+
+It would be more convincing to eventually handle all of Python's own
+@code{unittest} infrastructure to run CPython's test suite unchanged.  The
+@code{unittest} framework of CPython unfortunately relies on a number of
+reflective features on modules, and on native libraries, that we don't yet
+cover.  We leave the significant engineering work to get to this point as
+future work.  For now, we manually move the assertions to simpler if-based
+tests, which also run under CPython, to check conformance. [FILL this is
+assuming we/Junsong doesn't get the unittest wrapper working well; we can say
+something better in that case]
+
+Even if we can handle all of unittest, many of CPythons tests are written in
+``doctest'' style, meaning they are essentially a record of a REPL interaction
+that Python's testing tools also understand.  This is especially true for the
+file that tests generators.  More engineering work would be required to run
+these tests as-is, so we manually turn them into tests that we can run.
+
+@subsubsection{Limited and Omitted Features}
+
+Python the system is more than just a programming language; it is also has an
+expansive set of built-in libraries, a FFI to compiled C code, a REPL, and
+different builds for compiling in locales around the world.  In this work, we
+don't attempt to tackle the vast library support of CPython offers, from HMAC
+libraries to HTTP and TCP support, graphics, and more.
+
+Libraries aside, there are several features of the @emph{language} that are
+interesting and difficult to model in @(lambda-py), we discuss these here.
+
+[FILL figure out what's going on with @code{exec}]
+
+For example, the @code{locals} built-in function
+returns a dictionary of the current variable bindings in a given scope:
+@verbatim{
+def f(x):
+  y = 3
+  return locals()
+
+f("x-val")
+# evaluates to {'x': 'x-val', 'y': 3}
+}
+
+This is straightforward to desugar if @code{locals} were merely a keyword that
+expanded in local scope.  However, @code{locals} is a value.  We can change
+this program to pass @code{locals} as an argument, and it still observes the
+internal scope:
+@verbatim{
+def f(x, g):
+  y = 3
+  return g()
+
+f("x-val", locals)
+# evaluates to {'x': 'x-val', 'y': 3,
+#               'g': <builtin function locals>}
+}
+
+This means that @emph{every function call} in the program could potentially be
+an invocation of @code{locals}.  To handle this, we would need to change every
+function call into a test for the @code{locals} function, and if it were found,
+create and pass it a reification of the current scope.  We have not implemented
+this desugaring yet.  The special built-in values @code{super} and @code{dir}
+also exhibit similar dynamic behavior, and have slightly limited
+implementations, but we aren't aware of any others.
+
+The @code{import} statement can affect scope in a way that is not detectable by
+our scope rewriting statically.  For example, in the following program, the
+@code{import} statement adds an unknown set of bindings into the local scope:
+
+@verbatim{
+def f():
+  # this line imports all the global
+  # variables from some_module,
+  # and installs them in local scope
+  from some_module import *
+  print(locals())
+  # indeterminate dictionary
+  return x
+  # is x bound?
+}
+
+We would need to reify scope into objects or some other data structure during
+desugaring to handle this case, as well as the @code{locals} case above.  For
+now, we only handle import statements that bind the module object to a single
+identifier, as in @code{import some_module} or @code{import some_module as local_name}.
+However, this program also gives a warning when run under Python 3, advising
+that @code{import *} should only be used at module scope.
+
+In general, we leave a number of excessively dynamic features, like
+@code{locals}, @code{exec} (which loads new code at runtime), and
+@code{import *}, unhandled.  Related efforts in
+semantics engineering [CITE S5] have techniques for handling these cases, doing
+so is valuable future work that is out of scope for this initial effort.
+
+@subsubsection{Correspondence with Redex}
+
+We run our tests against @(lambda-interp), not against the Redex-defined
+reduction relation for @(lambda-py).  We can run tests on @(lambda-py), but
+performance is excruciatingly slow: it takes over 5 minutes to run individual
+tests under the Redex reduction relation [FILL Joe needs to do more testing of
+this to get a better sense of the timing, only a few cases have been tried].
+To ensure conformance between the interpreter and model, we define a
+translation from the AST of the core and @(lambda-py) terms, which is
+essentially a one-to-one translation, and test that the two correspond for
+smaller unit tests. [FILL Joe needs to do more testing of this, too] This gives
+us confidence that our concise, Redex-defined model is conforms to our
+interpreter, which has been tested for conformance on real Python code.
+
+@section{Related Work}
 
 RELATED WORK
 
