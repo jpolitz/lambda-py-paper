@@ -36,8 +36,6 @@ identifying scope as a pervasive concern that even impacts features
 that might be considered orthogonal.
 }
 
-@section{Introduction}
-
 @section{Motivation and Contributions}
 
 The Python programming language is currently widely used
@@ -330,8 +328,8 @@ cases in the semantics that are unique in Python, and how we model them with
 
 Python has a featureful class system with first-class methods, implicit
 reciever binding, multiple inheritance, and more.  In this section we discuss
-what parts of @(lambda-py) are necessary for modelling Python's classes, and
-what we can desugar away as unnecessary complexity.
+what parts of the class system we put in @(lambda-py), and which parts
+we chose to eliminate by desugaring.
 
 @subsection{Field Lookup in Classes}
 
@@ -340,10 +338,10 @@ dictionary, and didn't discuss the purpose of the class position at all.
 When an object lookup @(lp-term (get-field (obj-val val_c mval d) str))
 doesn't find @(lp-term str) in the local dictionary @(lp-term d), it defers
 to a lookup algorithm on the class value @(lp-term val_c).  More
-specifically, it uses the @(lp-term "__mro__") field of the class to
+specifically, it uses the @(lp-term "__mro__") (short for @emph{method
+resolution order}) field of the class to
 determine which class dictionaries to search for the field.  This field is 
 visible to the Python programmer:
-
 @verbatim{
 class C(object):
   pass # a class that does nothing
@@ -371,9 +369,9 @@ the reduction rule for field access that uses it.
 }
 
 This rule allows us to model field lookups that defer to a superclass (or
-indeed, a list of them).  But @(lp-term "__mro__") fields aren't defined
-explicitly by the programmer; they use higher-leve language constructs to build
-up the inheritance hierarchy the instances eventually use.
+indeed, a list of them).  But programmers don't explicitly define
+@(lp-term "__mro__") fields; rather, they use higher-level language
+constructs to build up the inheritance hierarchy the instances eventually use.
 
 
 @subsection{Desugaring Classes}
@@ -382,31 +380,25 @@ Most Python programmers use the special @code{class} form to create classes in
 Python.  However, @code{class} is merely syntactic sugar for a use of the
 builtin Python function
 @code{type}.@note{http://docs.python.org/3/library/functions.html#type} The
-documentation states explicitly that the two following forms produce
+documentation states explicitly that the two following forms [sic] produce
 @emph{identical} type objects:
-
 @verbatim{
-
 class X:
      a = 1
 
 X = type('X', (object,), dict(a=1))
-
 }
-
 This means that to implement classes, we merely need to understand the built-in
 function @code{type}, and how it creates new classes on the fly.  Then it is a
 simple matter to desugar class forms to this function call.
 
 The implementation of @code{type} creates a new object value for the class,
 allocates it, sets the @(lp-term "__mro__") field to be the computed
-inheritance graph,@note{Using a well defined algorithm that is implementable in
-pure Python http://www.python.org/download/releases/2.3/mro/}, and sets the
+inheritance graph,@note{This uses an algorithm that is implementable in
+pure Python: http://www.python.org/download/releases/2.3/mro/.} and sets the
 fields of the class to be the bindings in the dictionary.  We elide some of the
-verbose detail in the iteration over @(lp-term (id dict local)) by using an
-abbreviation in the form of @(lp-term for) syntax, that actually expands into a
-larger iteration:
-
+verbose detail in the iteration over @(lp-term (id dict local)) by using the
+@(lp-term for) syntactic abbreviation, which expands into the desired iteration:
 @centered{
   @(lp-term
     (assign (id %type global) :=
@@ -420,8 +412,7 @@ larger iteration:
             (assign (get-field (id newcls local) (id key local)) := (id elt local)))
           (return (id newcls local))))))))
 }
-
-This function is relatively simple, but along with the built-in @code{type}
+This function, along with the built-in @code{type}
 class, suffices for bootstrapping the object system in @(lambda-py).
 
 @subsection{Pythonic Patterns}
@@ -432,18 +423,17 @@ can be set anywhere in an object's inheritance hierarchy, and provide a lot of
 the flexibility for which Python is well-known.
 
 For example, the field accesses that Python programmers write are not directly
-translated to the rules in @(lambda-py).  Even the simple program @code{o.x}
-has an execution that depends heavily on its inheritance hierarchy.  This
-program is actually desugared to:
+translated to the rules in @(lambda-py).  Even the execution of @code{o.x}
+depends heavily on its inheritance hierarchy.  This
+program desugars to:
 @centered{
 @(lp-term (app (get-field (id o local) "__getattribute__") ((id o local) (obj-val %str (meta-str "x") ()))))
 }
-
 For objects that don't override the @(lp-term "__getattribute__") field, the
 built-in object class's implementation does more than simply look up the
-@(lp-term "x") property using the get-field rules we presented in this section.
+@(lp-term "x") property using the field access rules we presented earlier.
 Python allows for attributes to implement special accessing functionality via
-@emph{properties},@note{http://docs.python.org/3/library/functions.html#property},
+@emph{properties},@note{http://docs.python.org/3/library/functions.html#property}
 which can cause special functions to be called on property access.  The
 @(lp-term "__getattribute__") function of @(lp-term (id object local)) checks
 if the value of the field it accesses is a property, and if it is, calls its
@@ -467,20 +457,20 @@ class C(object):
     return self
 
 c = C() # constructs a new C instance
-g = c.f # accessing c.f creates a method object closed over c
+g = c.f # accessing c.f creates a 
+        # method object closed over c
 g() is c # evaluates to True
 
 # We can also bind a self value manually:
 self_is_5 = C.f.__get__(5)
 self_is_5() # evaluates to 5
 }
-
-This allows us to, with very few object-based primitives, implement static
-class methods and instance methods.
+Thus, very few object-based primitives are needed to create
+static class methods and instance methods.
 
 Python has a number of other special method names that can be overridden to
-provide specialized behavior.  We implement these just as Python; we desugar
-surface expressions into calls to methods with particular names, and provide
+provide specialized behavior.  @(lambda-py) tracks Python this regard; it desugars
+surface expressions into calls to methods with particular names, and provides
 built-in implementations of those methods for arithmetic, dictionary access,
 and a number of other operations.  Some examples:
 @nested{
@@ -495,10 +485,10 @@ and a number of other operations.  Some examples:
 
 With the basics of @code{type} and object lookup in place, getting all of these
 operations right is just a matter of desugaring to the right method calls, and
-providing the right built-in versions for e.g. numbers to handle the base cases
+providing the right built-in versions. numbers to handle the base cases
 for primitive values.  This is what we do for much of our desugaring to
-@(lambda-py), and it is the straightforward, if labor-intensive, part of the
-process.
+@(lambda-py) and, though it is labor-intensive, it is also the
+straightforward part of the process.
 
 @section{Python, the Hard Parts}
 
