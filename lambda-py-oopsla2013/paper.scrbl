@@ -760,8 +760,8 @@ straightforward to translate into a lexically-scoped language.  @(lambda-py)
 has a usual @code{let} form that allows for lexical binding.  In desugaring, we
 scan the body of the function and accumulate all the variables on the left-hand
 side of assignment statements in the body.  These are let-bound at the top of
-the function to a special value, @(lp-term (undefined-val)), which evaluates to an
-exception in any context other than a @code{let}-binding context.  We use
+the function to the special @(lp-term (undefined-val)) form, which evaluates to an
+exception in any context other than a @code{let}-binding context ([REF section]}.  We use
 @code{x := e} as the expression form for variable assignment, which is not a
 binding form in the core.  So in @(lambda-py), the example above rewrites to:
 
@@ -788,9 +788,7 @@ attempt to look up the @(lp-term (undefined-val))-valued @(lp-term x) in the
 return statement will fail with an exception.  In the second application, the
 assignment in the then-branch will change the value of @(lp-term x) in the
 store to a non-@(lp-term (undefined-val)) string value, and the string
-@(lp-term "big") will be returned.  The reduction rules that handle these cases
-are shown in @figure-ref["f:skull"], along with the rule for let-binding local
-identifiers.
+@(lp-term "big") will be returned.
 
 The algorithm for desugaring scope so far is thus:
 @itemlist[
@@ -1015,7 +1013,7 @@ with Python's scope.
 @subsubsection{Desugaring classes}
 
 Desugaring classes is substantially more complicated than handling simple local
-and nonlocal cases.  Consdier the example from @figure-ref["f:classexample"],
+and nonlocal cases.  Consider the example from @figure-ref["f:classexample"],
 stripped of print statements: 
 
 @verbatim{
@@ -1169,7 +1167,7 @@ beyond what we have outlined here, even when present in class bodies.
           (fun (last-val)
             (seq
             (assign (get-field (id self local) "__next__") := (id done local))
-            (raise (app (id global StopIteration) ()))))) in
+            (raise (app (id StopIteration global) ()))))) in
         (let (end-of-gen-exn local = 
           (fun (exn-val)
             (seq
@@ -1197,9 +1195,9 @@ class %generator(object):
     def __init__(self, init):
         init(self)
 
-    def __next__(self, resume_arg):
+    def __next__(self, *args):
         if len(args) > 0:
-            return self.___resume(resume_arg)
+            return self.___resume(args[0])
         else:
             return self.___resume(None)
 
