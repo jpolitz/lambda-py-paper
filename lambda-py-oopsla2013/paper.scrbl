@@ -2,6 +2,7 @@
 
 @(require scriblib/footnote scribble/manual scriblib/figure racket/base)
 @(require
+  (only-in racket/string string-join)
   slideshow/pict
   redex
   "../redex/lambdapy-core.rkt"
@@ -11,7 +12,13 @@
   "bib.rkt"
   "figures.rkt")
 
+@;{ TODO(joe): make this smaller and use for verbatim python examples }
+@(define (pycode . stx)
+   (nested #:style 'code-inset
+       (verbatim (string-join stx ""))))
+
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
+@(define (lambda-js) (elem "λ" (subscript (larger "JS"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 @title{Python: The Full Monty@(linebreak)
   @smaller{A Tested Semantics for the Python Programming Language}}
@@ -43,14 +50,8 @@ that might be considered orthogonal.
 The Python programming language is currently widely used
 in industry, science, and education. Because of its popularity
 it now has several third-party tools, including analyzers
-that check for various potential error patterns [CITE].
-@; https://pypi.python.org/pypi/pylint
-@; https://pypi.python.org/pypi/pep8
-@; {https://pypi.python.org/pypi/pyflakes}
-@; {https://pypi.python.org/pypi/PyChecker}
-It also features interactive development environments [CITE]
-@; http://www.jetbrains.com/pycharm/, http://pydev.org/,
-@; http://wingware.com/
+that check for various potential error patterns@~cite["pylint" "pyflakes" "pep8" "pychecker"].
+It also features interactive development environments@~cite["pycharm" "pydev" "wingware"]
 that offer a variety of features such as variable-renaming
 refactorings and code completion. Unfortunately, all these tools are
 unsound: for instance, a simple eight-line program that uses no
@@ -60,10 +61,10 @@ of all these environments.
 The difficulty of reasoning about Python becomes even more pressing as
 the language is adopted in increasingly important domains. For
 instance, the US Securities and Exchange Commission has proposed using
-Python as an executable specification of financial contracts [CITE],
-@; note{https://www.sec.gov/rules/proposed/2010/33-9117.pdf}, and Python
-and it is now being used to script new network paradigms [CITE].
+Python as an executable specification of financial contracts~cite["sec-python"], and
+it is now being used to script new network paradigms~cite["pox"].
 @; cite a real paper, not a Web site
+@; Everything I've found cites the web page... it's just software
 Thus, it is vital to have a precise semantics available for analyzing
 programs and proving properties about them.
 
@@ -96,7 +97,7 @@ In sum, this paper makes the following contributions:
 @itemlist[
 
   @item{a @emph{core semantics} for Python, dubbed @(lambda-py), which
-  is defined as a reduction semantics using PLT Redex [CITE];}
+  is defined as a reduction semantics using PLT Redex@~cite["redex"];}
 
   @item{an @emph{interpreter}, dubbed @(lambda-interp), implemented in
   800LOC of Racket, that has been tested against the Redex model;}
@@ -187,7 +188,7 @@ E-List is a good example for understanding the shape of evaluation in
 ]
 In the E-List rule, we also use evaluation contexts @(lp-term E) to
 enforce an order of operations and eager calling semantics.  This is a
-standard application of Felleisen-Hieb-style small-step semantics [CITE].
+standard application of Felleisen-Hieb-style small-step semantics@~cite["felleisen:state"].
 Saliently, a new list value is populated from the list expression via the
 @(lp-term alloc) metafunction, this is allocated in the store, and the
 resulting value of the expression is a pointer @(lp-term ref_new) to
@@ -276,7 +277,7 @@ Functions in Python are objects like any other.  They are defined with the
 keyword @code{def}, which produces a callable object with a mutable set of
 fields, whose class is the built-in @(lp-term function) class.  For example a
 programmer is free to write:
-@verbatim{
+@pycode{
 
 def f():
   return 22
@@ -665,7 +666,7 @@ not work.  The straightforward CPS solution, which doesn't require
 extending the number of concepts in the language, is inexpressible in Python
 due to the mechanics of variable binding.  We'll move on to describing how we
 can express Pythonic scope in a more traditional lexical model, and
-later [CITE] we
+later [REF] we
 will return to a CPS transformation that does work for Python's generators.
 
 @section{Scope}
@@ -1327,7 +1328,7 @@ which desugars to an assignment statement @(lp-term (assign (id %tuple global) :
 this gives us an private namespace of global variables that are
 un-tamperable by Python.  Thanks to these decisions, this project
  produces far more readable desguaring output than a previous effort
- for JavaScript [CITE S5].
+ for JavaScript@~cite["politz:s5"].
 
 @subsection{Performance}
 
@@ -1465,7 +1466,7 @@ that @code{import *} should only be used at module scope.
 In general, we leave a number of excessively dynamic features, like
 @code{locals}, @code{exec} (which loads new code at runtime), and
 @code{import *}, unhandled.  Related efforts in
-semantics engineering [CITE S5] have techniques for handling these cases, doing
+semantics engineering have techniques for handling these cases@~cite["politz:s5"], doing
 so is valuable future work that is out of scope for this initial effort.
 
 @subsubsub*section{Built-in Special Fields}
@@ -1482,11 +1483,28 @@ required to extend to more types of builtins with special operations.
 
 @section{Related Work}
 
-RELATED WORK
+We are aware of only one other effort to formalize the semantics of Python, in
+Smeding's Masters thesis@;{~cite["smeding:python-semantics"] CITE}.  Smeding builds an
+executable semantics, dubbed @emph{minpy}, in literate Haskell for Python 2.5,
+which naturally lacks the scoping features that we handle.  Smeding's semantics
+is @emph{larger} than @(lambda-py): instead of defining a core and desugaring
+@emph{minpy} directly evaluates (a subset of) Python terms.  The @emph{minpy}
+semantics is also tested against a hand-written set of 134 test files [FILL we
+should make sure we can pass all these, on Joe's todo list for this week].
 
-- the swedish(?) thesis
-- arjun's \JS
+Other work on static analysis for Python lacks a clear definition of its
+semantics: the report on Salib's @emph{Starkiller}@;{~cite["salib:starkiller"] CITE},
+which performs type inference and compiles Python code to efficient C++, says
+``We thus forego mathematically intensive descriptions of the denotational
+semantics in favor of simpler step-by-step descriptions of what the [type
+inference] algorithm does,'' effectively eschewing a formal definition of
+Python's semantics.  Gorbovitski's alias analysis for Python similarly lacks
+and does not mention a formal semantics@~cite["gorbovitski:alias-analysis"].
 
+In style, @(lambda-py) and our desugaring strategy are closest to Guha's tested
+semantics for JavaScript, @(lambda-js)@~cite["guha:js-essence"].  They define a
+small-step semantics for JavaScript and test against implementations of
+JavaScript used in browsers to ensure fidelity of the semantics.
 
 @;{Acknowledgments:
 - Ben Lerner for title

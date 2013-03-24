@@ -4,10 +4,10 @@
 
 (provide generate-bib ~cite)
 
-(define-cite _~cite what-is-this-id-for? generate-bib #:style number-style)
+(define-bibtex-cite "joe.bib" ~cite what-is-this-id-for? generate-bib)
 
 (define db (bibtex-parse (open-input-file "joe.bib")))
 
-(define (~cite key)
-  (_~cite (hash-ref (bibdb-bibs db) key (λ () (error 'cite (format "No bib entry: ~a\n" key))))))
+#;(define (_~cite key)
+  (~cite (hash-ref (bibdb-bibs db) key (λ () (error 'cite (format "No bib entry: ~a\n" key))))))
 
