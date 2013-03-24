@@ -1458,13 +1458,13 @@ Python the system is more than just a programming language; it is also has an
 expansive set of built-in libraries, a FFI to compiled C code, a REPL, and
 different builds for compiling in locales around the world.  In this work, we
 don't attempt to tackle the vast library support of CPython offers, from HMAC
-libraries to HTTP and TCP support, graphics, and more.
-
-Libraries aside, there are several features of the @emph{language} that are
-interesting and difficult to model in @(lambda-py), we discuss these here.
+libraries to HTTP and TCP support, graphics, and more.  Libraries aside, there
+are several features of the @emph{language} that are interesting and difficult
+to model in @(lambda-py), we discuss these here.
 
 [FILL figure out what's going on with @code{exec}]
 
+@subsubsub*section{Dynamic Features} 
 For example, the @code{locals} built-in function
 returns a dictionary of the current variable bindings in a given scope:
 @verbatim{
@@ -1526,6 +1526,18 @@ In general, we leave a number of excessively dynamic features, like
 @code{import *}, unhandled.  Related efforts in
 semantics engineering [CITE S5] have techniques for handling these cases, doing
 so is valuable future work that is out of scope for this initial effort.
+
+@subsubsub*section{Built-in Special Fields}
+We haven't implemented all of the special fields on built-in objects.  For
+example, the @code{"__closure__"} and @code{"__globals__"} properties of
+function objects are the dual of @code{locals}, tracking the nonlocal variables
+of the function.  This requires a delicate desugaring that we do not yet
+handle.  We also do not handle the @code{"__bytes__"} property of all objects,
+which returns a representation as a list of bytes, or the @code{"__slots__"}
+representation of objects' fields that is designed to save space in object
+allocations.  Many such special-purpose features are built in to the language,
+and we do not tackle them all yet.  Further implementation and testing will be
+required to extend to more types of builtins with special operations.
 
 @subsubsection{Correspondence with Redex}
 
