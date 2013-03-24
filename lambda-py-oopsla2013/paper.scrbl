@@ -129,12 +129,7 @@ results of testing our semantics against CPython.
   @(lp-reduction '(E-LetLocal E-GetVar E-GetVarUndef))
 }
 
-
-
-For a large portion of @(lambda-py)'s object and value model, we do not find
-anything particularly surprising. For these features, describing Python in
-terms of @(lambda-py) is a labor-intensive, but straightforward, formalization
-of information available in documentation or obvious from test cases.  We
+We
 provide an overview of the object model of @(lambda-py) and Python, some of the
 basic operations on objects, and the shape of our small step semantics.  This
 introduces notation and concepts that will be used later in the document to
@@ -144,23 +139,22 @@ explain the harder parts of Python's semantics.
 
 @Figure-ref["f:exprs"] shows all the values and expressions @(lambda-py).  The
 metavariables @(lp-term v) and @(lp-term val) range over the values of the
-language.  All the values in @(lambda-py) are either objects, written as
+language.  All values in @(lambda-py) are either objects, written as
 triples in @(lp-term 〈〉), or references to entries in the store Σ, written
 @(lp-term (pointer-val ref)).
 
 Each @(lambda-py) object is written as a triple of one of the forms:
-
 @centered{
   @(lp-term (obj-val v mval ((string ref) ...)))
   @(newline)
   @(lp-term (obj-val x mval ((string ref) ...)))
 }
-
 These objects have their @emph{class} in the first position, their primitive
 content in the second, and the dictionary of string-indexed fields that they
 holds in the third.  The class value is either another @(lambda-py) value or a
 lazily-evaluated identifier pointing to an environment of built-in classes.
-The @emph{meta-val} position holds special kinds of builtin data, of which
+The primitive content, or @emph{meta-val},
+position holds special kinds of builtin data, of which
 there is one per builtin type that @(lambda-py) models: numbers, strings, the
 distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
 functions.
@@ -177,30 +171,25 @@ come into play heavily when we discuss scope [REF].
 Python programs cannot manipulate object values directly; rather, they always
 work with references to objects.  Thus, many of the operations in @(lambda-py)
 involve the heap, and few are purely functional.  As an example of what such an
-operation looks like, take constructing a list, which allocates a new reference
-in the store holding the list value, and returns a pointer to the newly-created
-reference is returned:
-
+operation looks like, take constructing a list. This takes the values
+that should populate the list, store them in the heap, and return a
+pointer to the newly-created reference:
 @centered[
   @(lp-reduction '("E-List"))
 ]
-
 E-List is a good example for understanding the shape of evaluation in
 @(lambda-py).  The general form of the reduction relation is over expressions
 @(lp-term e), global environments @(lp-term ε), and heaps @(lp-term Σ):
-
 @centered[
   @(lp-term (e ε Σ)) @(arrow->pict '-->) @(lp-term (e ε Σ))
 ]
-
-In the E-List rule, we also make use of evaluation contexts @(lp-term E) to
-enforce an order of operations and eager calling semantics.  Since this is a
-standard technique in a Felleisen-Hieb style small step semantics, we defer its
-definition to the appendix [REF] [CITE].  The relevant points for the list
-construction is that a new list is constructed and put in the store with the
-class and list of values copied from the list expression itself via the
-@(lp-term alloc) metafunction, and the value put back in the evaluation context
-is a pointer @(lp-term ref_new) to that list.
+In the E-List rule, we also use evaluation contexts @(lp-term E) to
+enforce an order of operations and eager calling semantics.  This is a
+standard application of Felleisen-Hieb-style small-step semantics [CITE].
+Saliently, a new list value is populated from the list expression via the
+@(lp-term alloc) metafunction, this is allocated in the store, and the
+resulting value of the expression is a pointer @(lp-term ref_new) to
+that new list.
 
 Similar rules for objects in general, tuples, and sets are shown in
 @figure-ref["f:steps-values"].  Lists, tuples, and sets are given their own
@@ -228,7 +217,6 @@ these are used to access the contents of a given object's @(lp-term mval).  We
 formalize these builtin primitives in a metafunction δ.  A few selected cases
 of the δ function are shown in @figure-ref["f:delta"].  This metafunction lets
 us, for example, look up values on builtin lists:
-
 @centered{
   @(lp-term (prim "list-getitem" ((obj-val %list (meta-list ((obj-val %str (meta-str "first-elt") ()))) ())
                                   (obj-val %int (meta-num 0) ()))))
@@ -236,18 +224,15 @@ us, for example, look up values on builtin lists:
   @(lp-term ==>)
   @(lp-term (obj-val %str (meta-str "first-elt") ()))
 }
-
 Since δ works over object values themselves, and not over references, we need
 a way to access the values in the store.  @(lambda-py) has the usual set of
 operators for accessing and updating mutable references, shown in
-@figure-ref["f:references"].  The real version of the program above would look
-more like:
-
+@figure-ref["f:references"].  Thus, the real @(lambda-py) program
+corresponding to the one above would be:
 @centered{
   @(lp-term (prim "list-getitem" ((fetch (list (id %list local) ((obj-val %str (meta-str "first-elt") ()))))
                                   (fetch (object (id %int local) (meta-num 0))))))
 }
-
 Similarly, we can use @(lp-term set!) and @(lp-term alloc) to update the values
 in lists, and to allocate the return values of primitive operations.  We
 desugar to patterns like the above from Python's actual surface operators for
@@ -258,11 +243,9 @@ accessing the elements of a list in expressions like @code{mylist[2]}.
 So far, the dictionary part of @(lambda-py) objects have always been empty.
 Python does, however, support arbitrary field assignments on objects.  The
 expression
-
 @centered{
   @(lp-term (assign (get-field e_obj str_f) := e_val))
 }
-
 has one of two behaviors, defined in @figure-ref["f:simple-objs"].  Both
 behaviors work over references to objects, not over objects themselves, in
 contrast to @(lp-term δ).  If @(lp-term str_f) is a string that is already a
@@ -291,17 +274,15 @@ Functions in Python are objects like any other.  They are defined with the
 keyword @code{def}, which produces a callable object with a mutable set of
 fields, whose class is the built-in @(lp-term function) class.  For example a
 programmer is free to write:
-
 @verbatim{
 
 def f():
   return 22
 
-f.x = 22
+f.x = -1
 f() # evaluates to 22
 
 }
-
 We model functions as just another kind of object value, with a type of
 @(lp-term mval) that looks like the usual functional λ: 
 
