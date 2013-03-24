@@ -12,7 +12,8 @@
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
-@title{Python: The Full Monty@(linebreak)@smaller{A Tested Semantics for Python}}
+@title{Python: The Full Monty@(linebreak)
+  @smaller{A Tested Semantics for the Python Programming Language}}
 
 @authorinfo["Joe Gibbs Politz" "Providence, RI, USA" "joe@cs.brown.edu"]
 @authorinfo["Alejandro Martinez" "La Plata, BA, Argentina" "amtriathlon@gmail.com"]
