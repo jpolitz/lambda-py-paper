@@ -1252,100 +1252,60 @@ correct points-of-use analysis for lexical variables in Python.
 
 @section{Engineering & Evaluation}
 
-Python
-3.2.3.@note{http://www.python.org/getit/releases/3.2.3/, released April 2012}
-
-There are two properties we evaluated for @(lambda-py).
-
-Property 1: @emph{desugar} is a total function:
-
-@centered{
-  ∀ p ∈ Python, ∃ @(lp-term e) ∈ @(lambda-py) such that @emph{desugar}(p) = @(lp-term e)
-}
-
-Property 2: @emph{desugar} composed with → is accurate:
-
-@centered{
-  ∀ p,v ∈ Python, if eval(p) = v
-  
-  then @emph{desugar}(p) →* @emph{desugar}(v)
-}
-
-We do not have a proof of either, since doing so would require formalizing
-Python, which is our goal here in the first place.  In order to ascertain the
-degree to which @(lambda-py) enjoys these properties, we @emph{test} our
-semantics against Python's own unit test suite to confirm that our semantics
-matches a real implementation (CPython).  We of course do not have perfect
-fidelity to real-world Python for a number of reasons; in this section we
-outline which tests we pass, which we fail, which are within reach, and which
-are out of scope for the semantics we've presented. We begin with an overview
-of the engineering work that goes into implementing and testing the semantics,
-and then discuss our results.
-
-@subsection{Engineering a Tested Semantics}
-
-We implement an efficient interpreter for @(lambda-py), dubbed
-@(lambda-interp), that we use to test our semantics.  The different
-desugarings and built-in functions we've described need to be carefully
-composed to yield terms in @(lambda-py) that can be tested against real
-Python code.
-
-@subsubsection{Desugaring Phases}
-
-We don't desugar from surface Python to @(lambda-py) terms directly; there
-are several intermediate stages:
-
+Our goal is to have @(lambda-py) exhibit two properties:
 @itemlist[
 
-  @item{Lift definitions out of classes as described section [REF]}
+  @item{Desguaring must be able to translate all Python source programs (@emph{totality}).}
 
-  @item{Perform the variable let-binding desugaring, sensitive to @code{global}
-  and @code{nonlocal}, from section [REF].  This is done second to correctly
-  handle occurrences of @code{nonlocal} and @code{global} in class methods.
-  The result of these first two steps is an intermediate language between
-  Python and the core with lexical scope, but many Pythonic surface constructs.}
-
-  @item{Desugar away classes, turn Pythonic operators into method calls, turn
-  @code{for} loops into appropriately-guarded @(lp-term while) loops in the
-  core, and perform other straightforward, compositional desugarings.}
-
-  @item{Find functions containing @code{yield} and desugar them to generators.}
+  @item{The resulting desugared program, when evaluated, must produce
+  the same value as the source would in Python (@emph{conformance}).}
 
 ]
+The second property, in particular, cannot be proven because there is
+no formal specification for what Python does. We therefore tackle both
+properties through testing. We discuss various aspects of implementing
+and testing below.
 
-These four steps yield a term in our core.  It isn't quite suitable for
-directly running, however, since we desugar to open terms with free
-identifiers.  For example, we desugar the Python program
+@subsection{Desugaring Phases}
+
+Though we have largely presented desugaring as an atomic activity, the
+paper has hinted that it proceeds in phases. Indeed, there are four:
+@itemlist[
+
+  @item{Lift definitions out of classes [REF].}
+
+  @item{Let-bind variables [REF]. This is done second to correctly
+  handle occurrences of @code{nonlocal} and @code{global} in class methods.
+  The result of these first two steps is an intermediate language between
+  Python and the core with lexical scope, but still many surface constructs.}
+
+  @item{Desugar classes, turn Python operators into method calls, turn
+  @code{for} loops into appropriately-guarded @(lp-term while) loops in the
+  core, etc.}
+
+  @item{Desguar generators (functions containing @code{yield}).}
+
+]
+These four steps yield a term in our core.  It isn't quite ready to
+run, however, because we desugar to open terms. For instance,
 @verbatim{
 print(5)
 }
-to
+desugars to
 @centered{
 @(lp-term (app (id print global) ((object (id %int global) (meta-num 5)))))
 }
 which relies on the built-in @(lp-term %int) class being defined.
 
-These built-in classes we defined separately in a combination of core-language
-ASTs built directly in Racket, and Python programs that define built-in
-libraries.  We wrap the terms resulting from desugaring in a context that
-defines binds the built-in values to the free identifiers desugaring creates,
-constructed from these built-in classes.
+@subsection{Python Libraries in Python}
 
-@subsubsection{Python Libraries in Python}
-
-We implement as many libraries as possible in Python, with one small addition:
-we define a small @emph{superset} of Python with macros that are recognized
-specially by our desugaring to transform into particular @(lambda-py) forms.
-This allows us to write implementations of libraries that more closely match
-Pythonic descriptions of them, while still maintaining the guarantee that
-everything is implementable in @(lambda-py) itself.  These libraries run before
-any user code that we test, and are responsible for setting up built-in Python
-objects and functions (e.g. the contents of
-@url{http://docs.python.org/3/library/functions.html})
-
+We implement as many libraries as possible in Python@note{We
+ could not initially use existing implementations of these in Python
+ for bootstrapping reasons: they required more of the language than we
+ supported.}
+augmented with some macros recognized by the desugaring.
 For example, the builtin class for tuples is implemented mostly in Python, but
 for getting the length of a tuple defers to the δ function:
-
 @verbatim{
 class tuple(object):
   ...
@@ -1353,88 +1313,60 @@ class tuple(object):
     return ___delta("tuple-len", self)
   ...
 }
-
-All occurrences of @code{___delta(str, e, ...)} are desugared to @(lp-term (builtin-prim (str (e ...)))) directly.  We only do this for @emph{library} files, so normal Python programs can use @code{___delta} as the valid identifier it is.
-
-One other macro that we define is quite useful.  After the class definition of
-tuples, we have the statement
+All occurrences of @code{___delta(str, e, ...)} are desugared to
+@(lp-term (builtin-prim (str (e ...)))) directly.  We only do this
+for @emph{library} files, so normal Python programs can use
+@code{___delta} as the valid identifier it is. As another example,
+after the class definition of tuples, we have the statement
 @verbatim{
 ___assign("%tuple", tuple)
 }
-which desugars to an assignment statement @(lp-term (assign (id %tuple global) := (id tuple global))).  Since 
+which desugars to an assignment statement @(lp-term (assign (id %tuple global) := (id tuple global))). Since
 %-prefixed variables aren't valid in Python,
 this gives us an private namespace of global variables that are
-un-tamperable by Python.  We use these identifiers to construct instances of
-built-in objects like lists and tuples without worrying about user code
-shadowing their definitions.
+un-tamperable by Python.  Thanks to these decisions, this project
+ produces far more readable desguaring output than a previous effort
+ for JavaScript [CITE S5].
 
-The first author has experience with defining such libraries directly in core
-code for a similar semantics engineering effort [CITE S5], and defining
-libraries as @(lambda-py) does is a significant engineering improvement for
-generating a readable tested desugaring.
+@subsection{Performance}
 
-@subsubsection{Performance}
+@(lambda-py) may be intended as a formal semantics, but composed with
+desugaring, it also yields an implementation. While the performance
+does not matter for semantic reasons (other than programs that depend
+on time or space, which would be ill-suited by this semantics anyway),
+it does greatly affect how quickly we can iterate through
+testing!
 
-With the desugaring steps above and libraries taken into account, the full
-process for running a Python program is:
-
-@itemlist[
+The full process for running a Python program in our semantics is:
+@itemlist[#:style 'ordered
   @item{Parse and desugar roughly 1 KLOC of libraries implemented in Python}
   @item{Parse and desugar the target program}
-  @item{Built up a syntax tree of several built-in libraries, coded by building the AST directly in Racket}
+  @item{Build a syntax tree of several built-in libraries, coded by building the AST directly in Racket}
   @item{Compose items 1-3 into a single @(lambda-py) expression}
   @item{Evaluate the @(lambda-py) expression}
 ]
-
-@(lambda-py) is a semantics first, and an implementation of the Python language
-second.  From a semantics perspective, the performance of @(lambda-py) is
-irrelevant:@note{For applications that don't rely on the timing behavior
-of Python.} as long as it is an accurate model of Python's behavior, the
-tool-builder can implement with respect to @(lambda-py) programs regardless of
-their runtime.
-
-However, to actually @emph{test} the semantics, we do require that the tests
-complete at some point so we can iterate the design and regression test as we
-add new features!  This required making a few engineering decisions to improve
-performance to the point where running large programs and test suites is
-possible.
-
 Parsing and desugaring for 1 takes a nontrivial amount of time (on the order of
-4 seconds on the first author's laptop).  When running a suite of tests in
-order, this parsed syntax tree is the same for each test.  Switching to memoize
-this parsing and desugaring for the duration of a test run cut the time for
-running 100 tests from around 7 minutes to around 22 seconds.  A corollary is
+4 seconds on the first author's laptop).  Because this work is
+needlessly repeated for each test, we memoized the process, which
+reduced the time to run 100 tests from roughly 7 minutes to 22 seconds.
+A corollary is
 that evaluating @(lambda-py) programs is relatively quick, but desugaring and
-loading external files is not. [FILL update these numbers based on new
-desugarings that take more time before submitting]
+loading external files is not.
 
+@subsection{Testing}
 
-@subsection{Testing Strategy and Results}
-
-In this initial effort, we test @(lambda-py) and desugaring against 2000 lines
-(151 individual tests) of Python code ported from CPython's unit test suite
-(included with the release in April
-2012)@note{http://www.python.org/getit/releases/3.2.3/}, along with some of our
-own tests.  On these tests we get the same results as CPython itself.  These
-tests cover:
-
-@itemlist[
-
-  @item{Classes and multiple inheritance}
-  @item{Scope}
-  @item{Generators}
-  @item{Operations on built-in values}
-  @item{Pythonic iteration and looping}
-  @item{Exceptions}
-  @item{Basic Modules}
-
-]
-
-We've focused our testing on particular tests that cover interesting corner
-cases.  The strategy for expanding the set of programs we can cover is
-straightforward: new features we encounter are predominantly tackled through
-desugaring, so we merely need to add more tests and update desugaring if
-necessary to handle the new forms.
+Python comes with an extensive test suite. Unfortuntely, this sute
+depends on numerous advanced features, and as such was useless as we
+were building up the semantics. We therefore went through the test
+suite files included with CPython, April 2012,@note{http://www.python.org/getit/releases/3.2.3/}
+covering the following features: classes and multiple
+inheritance; scope; generators; operators on built-in values;
+iteration and looping; exceptions; and basic modules. From these we
+selected a suite of representative tests, focusing on ones that cover
+subtle corner-cases. This resulted in a representative suite of
+151 tests (2000 LOC). To this we have since added other tests, such as
+from interesting blog posts. On all these tests @emph{we obtain the
+same results as CPython}.
 
 It would be more convincing to eventually handle all of Python's own
 @code{unittest} infrastructure to run CPython's test suite unchanged.  The
@@ -1442,9 +1374,7 @@ It would be more convincing to eventually handle all of Python's own
 reflective features on modules, and on native libraries, that we don't yet
 cover.  We leave the significant engineering work to get to this point as
 future work.  For now, we manually move the assertions to simpler if-based
-tests, which also run under CPython, to check conformance. [FILL this is
-assuming we/Junsong doesn't get the unittest wrapper working well; we can say
-something better in that case]
+tests, which also run under CPython, to check conformance.
 
 Even if we can handle all of unittest, many of CPythons tests are written in
 ``doctest'' style, meaning they are essentially a record of a REPL interaction
@@ -1452,7 +1382,17 @@ that Python's testing tools also understand.  This is especially true for the
 file that tests generators.  More engineering work would be required to run
 these tests as-is, so we manually turn them into tests that we can run.
 
-@subsubsection{Limited and Omitted Features}
+@subsubsection{Correspondence with Redex}
+
+We run our tests against @(lambda-interp), not against the Redex-defined
+reduction relation for @(lambda-py).  We can run tests on @(lambda-py), but
+performance is excruciatingly slow: it takes over 5 minutes to run individual
+tests under the Redex reduction relation. Therefore, we have been able
+to perform only limited testing for conformance. Fortunately executing
+against Redex should be parallelizable, so we hope to increase
+confidence of the Redex model as well.
+
+@section{Future Work: Growing the Semantics}
 
 Python the system is more than just a programming language; it is also has an
 expansive set of built-in libraries, a FFI to compiled C code, a REPL, and
@@ -1538,20 +1478,6 @@ representation of objects' fields that is designed to save space in object
 allocations.  Many such special-purpose features are built in to the language,
 and we do not tackle them all yet.  Further implementation and testing will be
 required to extend to more types of builtins with special operations.
-
-@subsubsection{Correspondence with Redex}
-
-We run our tests against @(lambda-interp), not against the Redex-defined
-reduction relation for @(lambda-py).  We can run tests on @(lambda-py), but
-performance is excruciatingly slow: it takes over 5 minutes to run individual
-tests under the Redex reduction relation [FILL Joe needs to do more testing of
-this to get a better sense of the timing, only a few cases have been tried].
-To ensure conformance between the interpreter and model, we define a
-translation from the AST of the core and @(lambda-py) terms, which is
-essentially a one-to-one translation, and test that the two correspond for
-smaller unit tests. [FILL Joe needs to do more testing of this, too] This gives
-us confidence that our concise, Redex-defined model is conforms to our
-interpreter, which has been tested for conformance on real Python code.
 
 @section{Related Work}
 
