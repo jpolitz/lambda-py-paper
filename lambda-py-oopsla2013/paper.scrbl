@@ -8,6 +8,7 @@
   "../redex/lambdapy-reduction.rkt"
   "../redex/lambdapy-prim.rkt"
   "typesetting.rkt"
+  "bib.rkt"
   "figures.rkt")
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
@@ -967,7 +968,7 @@ y-value
 }
 }
 
-@figure*["f:class-scope" "Interactions between class bodies and function scope"]{
+@figure["f:class-scope" "Interactions between class bodies and function scope"]{
   @class-scope
 }
 
@@ -1486,9 +1487,12 @@ RELATED WORK
 - the swedish(?) thesis
 - arjun's \JS
 
+
 @;{Acknowledgments:
 - Ben Lerner for title
 - NSF and Google for funding
 - Brown for hosting
 - redex
 }
+
+@(generate-bib)
