@@ -73,7 +73,7 @@
   (LexAssign (list (LexGlobalId '%locals 'Store)) 
 			 (LexFunc 'locals empty empty 
 					  (LexReturn 
-					   (LexDict 
+					   (some (LexDict 
 						(map (lambda (y) (LexStr (symbol->string y))) ids)
 						(map (lambda (y) (LexTryExceptElse 
 										  (LexLocalId y 'load) 
@@ -81,7 +81,7 @@
 										   (LexExcept 
 											(list (LexGlobalId 'UnboundLocalError 'Load))
 											(LexStr "this isn't actually bound right now")))
-										  (LexPass))) ids)))
+										  (LexPass))) ids))))
 					  empty (none))))
 
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
@@ -222,17 +222,16 @@
                                            (first assigns) (rest assigns))))]
                   ; The others become a CAssign.
                   [else
-                   (local [
-                     (define (target-desugar target)
-                      (type-case LexExpr target
-                        [LexDotField (obj fld) (CGetField (rec-desugar obj) fld)]
-                        [else (rec-desugar target)]))
-                     (define targets-r (map target-desugar targets))
-                     (define value-r (rec-desugar value))]
-                          (foldl (lambda (t so-far)
-                                   (CSeq so-far (CAssign t value-r)))
-                                 (CAssign (first targets-r) value-r)
-                                 (rest targets-r)))])]
+                   ;; NOTE(joe): I think this was broken before for >1 target
+                   ;; TODO(joe): Do this for >1 target, with the full tree walk on assignment
+                   ;; and assuming an iterator on the right
+                   (type-case LexExpr (first targets)
+                     [LexDotField (obj fld)
+                      (py-setfield (rec-desugar obj)
+                                   fld
+                                   (rec-desugar value))]
+                     [else (CAssign (rec-desugar (first targets)) (rec-desugar value))])])]
+                             
       [LexNum (n) (make-builtin-num n)]
       [LexSlice (lower upper step) (error 'desugar "Shouldn't desugar slice directly")]
       [LexBool (b) (if b (CTrue) (CFalse))]
@@ -344,12 +343,10 @@
                                                           (CId 'test (LocalId)))
                                                     (none)))
                                                 (CRaise (some
-                                                  (py-app (CId 'TypeError (LocalId))
-                                                        (list (make-builtin-str
-                                                               (string-append
-                                                                "argument of type '___'" 
-                                                                "is not iterable")))
-                                                        (none))))))
+                                                  (make-exception 'TypeError
+                                                                  (string-append
+                                                                   "argument of type '___'"
+                                                                   "is not iterable"))))))
                                      (none))
                               (list right-c left-c)
                               (none))]
@@ -422,7 +419,9 @@
                                  (LexFuncVarArg name args sarg body (list) opt-class)
                                  decorators)))]
 
-      [LexReturn (value) (CReturn (rec-desugar value))]
+      [LexReturn (value) (CReturn (type-case (optionof CExpr) (option-map rec-desugar value)
+                                    [some (v) v]
+                                    [none () (CNone)]))]
       
       [LexDict (keys values)
        (local [
@@ -518,6 +517,8 @@
 
       [LexDotField (value attr) (py-getfield (rec-desugar value) attr)]
       [LexExprField (value attr) (CGetAttr (rec-desugar value) (rec-desugar attr))]
+      [LexExprAssign (obj attr value)
+       (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))]
 
       [LexTryExceptElse (try excepts orelse)
                         (local [(define try-r (rec-desugar try))

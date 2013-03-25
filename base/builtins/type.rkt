@@ -27,14 +27,14 @@
     (CIf
      (CBuiltinPrim 'type-uniqbases (list (CId 'bases (LocalId))))
      (CSeq
-      (CAssign (CGetField (CId 'new-class (LocalId)) '__bases__)
-               (CId 'bases (LocalId)))
+      (set-field (CId 'new-class (LocalId)) '__bases__
+                 (CId 'bases (LocalId)))
       (CTryExceptElse
-       (CAssign (CGetField (CId 'new-class (LocalId)) '__mro__)
-                (CBuiltinPrim 'type-buildmro (list
-                                              (CTuple (CNone) ;; we may not have tuple yet
-                                                      (list (CId 'new-class (LocalId))))
-                                              (CId 'bases (LocalId)))))
+       (set-field (CId 'new-class (LocalId)) '__mro__
+                  (CBuiltinPrim 'type-buildmro (list
+                                                (CTuple (CNone) ;; we may not have tuple yet
+                                                        (list (CId 'new-class (LocalId))))
+                                                (CId 'bases (LocalId)))))
        '_ (CRaise (some (make-exception 'TypeError "duplicate base")))
        (CId 'new-class (LocalId))))
      (CRaise (some (make-exception
@@ -46,7 +46,7 @@
 (define (type-new [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr?
                     (let ([name (string->symbol (MetaStr-s mval1))])
-                      (some (VObjectClass 'type
+                      (some (VObjectClass '%type
                                           (some (MetaClass name))
                                           (hash empty)
                                           (none))))))
@@ -68,7 +68,7 @@
                     (let* ([cls-list (MetaTuple-v mval1)]
                            [bases (MetaTuple-v mval2)]
                            ;; mro tail is the c3-merge of the mro of the bases plus the list of bases
-                           [maybe-mro (c3-merge (append (map (lambda (base) (get-mro base (none) sto))
+                           [maybe-mro (c3-merge (append (map (lambda (base) (get-mro base sto))
                                                              bases)
                                                         (list bases)) empty)])
                       (if (some? maybe-mro)

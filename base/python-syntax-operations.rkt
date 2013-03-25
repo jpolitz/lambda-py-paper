@@ -102,7 +102,8 @@
                       (LexFunc name args (map recur defaults) (recur body) (map recur decorators) (none))]
               [PyFuncVarArg (name args sarg body decorators)
                             (LexFuncVarArg name args sarg (recur body) (map recur decorators) (none))]
-              [PyReturn (value) (LexReturn (recur value))]
+              [PyReturn () (LexReturn (none))]
+              [PyReturnValue (v) (LexReturn (some (recur v)))]
               [PyApp (fun args) (LexApp (recur fun) (map recur args))]
               [PyAppStarArg (fun args stararg)
                             (LexAppStarArg (recur fun) (map recur args) (recur stararg))]
@@ -203,6 +204,7 @@
                        (LexClass scope name (recur bases) (recur body))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
               [LexExprField (value attr) (LexExprField (recur value) (recur attr))]
+              [LexExprAssign (obj attr value) (LexExprAssign (recur obj) (recur attr) (recur value))]
 
                                         ; operations
               [LexBinOp (left op right) (LexBinOp (recur left) op (recur right))] 
@@ -223,7 +225,7 @@
               [LexFuncVarArg (name args sarg body decorators class)
                             (LexFuncVarArg name args sarg (recur body) (map recur decorators)
                                            (option-map recur class))]
-              [LexReturn (value) (LexReturn (recur value))]
+              [LexReturn (value) (LexReturn (option-map recur value))]
               [LexApp (fun args) (LexApp (recur fun) (map recur args))]
               [LexAppStarArg (fun args stararg)
                             (LexAppStarArg (recur fun) (map recur args) (recur stararg))]
@@ -338,7 +340,8 @@
                       (flatten (list (map recur defaults) (list (recur body))))]
               [PyFuncVarArg (name args sarg body decorators)
                             (recur body)]
-              [PyReturn (value) (recur value)]
+              [PyReturn () empty]
+              [PyReturnValue (value) (recur value)]
               [PyApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
               [PyAppStarArg (fun args stararg)
                             (flatten (list (list (recur fun))
@@ -440,6 +443,7 @@
                        (flatten (list (recur bases) (recur body)))]
               [LexDotField (value attr)  (recur value)]
               [LexExprField (value attr)  (flatten (list (recur value) (recur attr)))]
+              [LexExprAssign (obj attr value)  (flatten (list (recur obj) (recur attr) (recur value)))]
 
                                         ; operations
               [LexBinOp (left op right) (flatten (list (recur left) (recur right)))] 
@@ -461,7 +465,9 @@
                             (flatten (list (recur body) (type-case (optionof LexExpr) class
                                                           [some (v) (recur v)]
                                                           [none () empty])))]
-              [LexReturn (value) (recur value)]
+              [LexReturn (value) (type-case (optionof LexExpr) value
+                                   [none () empty]
+                                   [some (v) (recur v)])]
               [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
               [LexAppStarArg (fun args stararg)
                             (flatten (list (list (recur fun))

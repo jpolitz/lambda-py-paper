@@ -17,8 +17,8 @@ ParselTongue.
   [CFalse]
   [CNone]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
-  [CGetField (value : CExpr) (attr : symbol)] ; Only supported as target for assignment
   [CGetAttr (value : CExpr) (attr : CExpr)]
+  [CSetAttr (obj : CExpr) (attr : CExpr) (value : CExpr)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
@@ -98,6 +98,15 @@ ParselTongue.
           [define new-sto (hash-set sto l val)])
    (v*s (VPointer l) new-sto)))
 
+(define (alloc-result-list vals vpointers sto)
+  (cond
+    [(empty? vals) (v*s/list vpointers sto)]
+    [else (type-case Result (alloc-result (first vals) sto)
+            [v*s (vp s)
+             (alloc-result-list (rest vals) (cons vp vpointers) s)]
+            [else
+             (error 'alloc-result-list "alloc-result returns non v*s Result")])]))
+
 (define-type ResultList
   [v*s/list (vs : (listof Result)) (s : Store)]
   [Abnormal (ab : Result)])
@@ -170,7 +179,7 @@ ParselTongue.
         (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
 
 (define-type ActivationRecord
-  [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
+  [Frame (class : (optionof CVal)) (self : (optionof CVal))])
 
 (define-type-alias Stack (listof ActivationRecord))
 

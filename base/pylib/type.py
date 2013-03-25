@@ -1,5 +1,13 @@
+# This will be overridden by str.py
+___assign("%str", None)
+
+def __setattr__(cls, key, val):
+  ___setattr(cls, key, val)
 
 class type(object):
+  ___assign("%type", type)
+  ___setattr(type, "__setattr__", __setattr__)
+
   def __new__(self, *args):
     if ___delta("num=", args.__len__(), 1):
       first_arg = ___delta("tuple-getitem", args, 0)
@@ -33,25 +41,20 @@ class type(object):
       first_arg = ___delta("tuple-getitem", args, 0)
       return ___delta("$class", first_arg)
     obj = cls.__new__(cls, *args)
-    if isinstance(obj, cls):
-      if obj.__init__(*args):
+    if ___delta("isinstance", obj, cls):
+      if cls.__init__(obj, *args):
         raise TypeError("__init__() should return None")
     return obj
 
   def __bool__(self): return True
 
   def __getattribute__(cls, key):
-    #print("type.__getattribute__"); print(cls); print(key)
     val = ___getattr(cls, key)
-    #print(val)
     val_cls = ___delta("$class", val)
-    #print(val_cls)
     try:
       get = ___getattr(val_cls, "__get__")
-      #print(get)
     except:
       return val
     else:
       return get(val, None, cls)
 
-___assign("%type", type)

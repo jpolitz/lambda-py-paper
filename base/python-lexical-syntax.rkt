@@ -47,6 +47,7 @@
   [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : LexExpr) (body : LexExpr)]
   [LexDotField (value : LexExpr) (attr : symbol)]
   [LexExprField (value : LexExpr) (attr : LexExpr)]
+  [LexExprAssign (obj : LexExpr) (attr : LexExpr) (value : LexExpr)]
 
   ; operations
   [LexBinOp (left : LexExpr) (op : symbol) (right : LexExpr)] ;op = 'Add | 'Sub | etc
@@ -63,7 +64,7 @@
            (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
                 (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
-  [LexReturn (value : LexExpr)]
+  [LexReturn (value : (optionof LexExpr))]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]
   [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]
 

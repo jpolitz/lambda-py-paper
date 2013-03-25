@@ -19,3 +19,6 @@ cpstest:
 
 clean:
 	@`which rm` compiled/*
+
+clean-python:
+	@touch foo.pyc && touch __pycache__ && find . -iname '*.pyc' | xargs `which rm` && find . -name __pycache__ | xargs `which rm` 
