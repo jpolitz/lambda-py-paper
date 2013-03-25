@@ -61,14 +61,14 @@ of all these environments.
 The difficulty of reasoning about Python becomes even more pressing as
 the language is adopted in increasingly important domains. For
 instance, the US Securities and Exchange Commission has proposed using
-Python as an executable specification of financial contracts~cite["sec-python"], and
-it is now being used to script new network paradigms~cite["pox"].
+Python as an executable specification of financial contracts@~cite["sec-python"], and
+it is now being used to script new network paradigms@~cite["pox"].
 @; cite a real paper, not a Web site
 @; Everything I've found cites the web page... it's just software
 Thus, it is vital to have a precise semantics available for analyzing
 programs and proving properties about them.
 
-This paper presents a semantics for Python. Mindful that authors of
+This paper presents a semantics for most of Python. Mindful that authors of
 tools and of proofs prefer to contend with small languages, we divide
 the semantics into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
@@ -84,8 +84,7 @@ can then ask how this implementation compares with the traditional
 CPython implementation, which represents a form of ground truth. By
 carefully adjusting the core and desugaring, we have achieved high
 fidelity with CPython. Therefore, users can built tools atop
-@(lambda-py), confident that they are capturing the language in all
-its glory.
+@(lambda-py), confident that they are conformant with the actual language.
 
 In the course of creating this high-fidelity semantics, we have also
 identified some peculiar corners of the language, including
@@ -115,9 +114,8 @@ In sum, this paper makes the following contributions:
 Presenting the semantics in full is neither feasible, given space
 limits, nor especially enlightening. We instead focus on the parts
 that are important or interesting. We first give an overview of
-@(lambda-py)'s value and object model. We then introduce desugaring by
-showing how several interation and overloading patterns can be
-implemented atop the object model. We then discuss generators,
+@(lambda-py)'s value and object model. We then introduce desugaring
+through classes. We then discuss generators,
 classes, and their interaction with scope. Finally, we describe the
 results of testing our semantics against CPython.
 
@@ -149,7 +147,7 @@ triples in @(lp-term 〈〉), or references to entries in the store Σ, written
 Each @(lambda-py) object is written as a triple of one of the forms:
 @centered{
   @(lp-term (obj-val v mval ((string ref) ...)))
-  @(newline)
+  @(linebreak)
   @(lp-term (obj-val x mval ((string ref) ...)))
 }
 These objects have their @emph{class} in the first position, their primitive
@@ -223,7 +221,7 @@ us, for example, look up values on builtin lists:
 @centered{
   @(lp-term (prim "list-getitem" ((obj-val %list (meta-list ((obj-val %str (meta-str "first-elt") ()))) ())
                                   (obj-val %int (meta-num 0) ()))))
-  @(newline)
+  @(linebreak)
   @(lp-term ==>)
   @(lp-term (obj-val %str (meta-str "first-elt") ()))
 }
@@ -283,7 +281,7 @@ def f():
   return 22
 
 f.x = -1
-f() # evaluates to 22
+f() # ==> 22
 
 }
 We model functions as just another kind of object value, with a type of
@@ -308,7 +306,7 @@ for loading new code via modules.  We continue here by focusing on some of the
 cases in the semantics that are unique in Python, and how we model them with
 @(lambda-py).
 
-@section{Classes, Methods, and Pythonic Desugarings}
+@section{Classes, Methods, and Desugaring}
 
 Python has a featureful class system with first-class methods, implicit
 reciever binding, multiple inheritance, and more.  In this section we discuss
@@ -399,9 +397,9 @@ verbose detail in the iteration over @(lp-term (id dict local)) by using the
 This function, along with the built-in @code{type}
 class, suffices for bootstrapping the object system in @(lambda-py).
 
-@subsection{Pythonic Patterns}
+@subsection{Python Desugaring Patterns}
 
-Pythonic objects can have a number of so-called @emph{magic fields} that allow
+Python objects can have a number of so-called @emph{magic fields} that allow
 for overriding the behavior of built-in syntactic forms.  These magic fields
 can be set anywhere in an object's inheritance hierarchy, and provide a lot of
 the flexibility for which Python is well-known.
@@ -443,11 +441,11 @@ class C(object):
 c = C() # constructs a new C instance
 g = c.f # accessing c.f creates a 
         # method object closed over c
-g() is c # evaluates to True
+g() is c # ==> True
 
 # We can also bind a self value manually:
 self_is_5 = C.f.__get__(5)
-self_is_5() # evaluates to 5
+self_is_5() # ==> 5
 }
 Thus, very few object-based primitives are needed to create
 static class methods and instance methods.
@@ -497,8 +495,8 @@ def f():
     x += 1
     return x
 
-f() # evaluates to 1
-f() # evaluates to 1
+f() # ==> 1
+f() # ==> 1
 # ...
 }
 When called, this function always returns @code{1}.
@@ -517,9 +515,9 @@ def f():
     yield x
 
 gen = f()
-gen.next() # evaluates to 1
-gen.next() # evaluates to 2
-gen.next() # evaluates to 3
+gen.next() # ==> 1
+gen.next() # ==> 2
+gen.next() # ==> 3
 # ...
 }
 
@@ -603,8 +601,8 @@ def f():
   yield x
 
 g = f()
-g.next() # evaluates to 1
-g.next() # evaluates to 2
+g.next() # ==> 1
+g.next() # ==> 2
 g.next() # throws "StopIteration"
 }
 would be rewritten to something like:@note{This being a sketch, we
@@ -632,8 +630,8 @@ def f():
   return { 'next' : next }
 
 g = f()
-g.['next']() # evaluates to 1
-g.['next']() # evaluates to 2
+g.['next']() # ==> 1
+g.['next']() # ==> 2
 g.['next']() # throws "StopIteration"
 }
 We build the @code{yielder} function, which takes a value, which it returns
@@ -664,8 +662,8 @@ The lesson from this example is that the @emph{interaction} of non-traditional
 scope and control flow made a traditional translation
 not work.  The straightforward CPS solution, which doesn't require
 extending the number of concepts in the language, is inexpressible in Python
-due to the mechanics of variable binding.  We'll move on to describing how we
-can express Pythonic scope in a more traditional lexical model, and
+due to the mechanics of variable binding.  We now move on to describing how we
+can express Python's scope in a more traditional lexical model, and
 later [REF] we
 will return to a CPS transformation that does work for Python's generators.
 
@@ -697,7 +695,7 @@ def f():
   x = 'local variable'
   return x
 
-f() # evaluates to 'local variable'
+f() # ==> 'local variable'
 }
 The syntax for updating and creating a local variable are identical, so
 subsequent @code{=} statements mutate the variable created by the first.
@@ -708,7 +706,7 @@ def f():
   x = 'reassigned again'
   return x
 
-f() # evaluates to 'reassigned again'
+f() # ==> 'reassigned again'
 }
 
 Crucially, there is @emph{no syntactic difference} between a statement
@@ -724,7 +722,7 @@ def f(y):
  return x
 
 f(0) # throws an exception
-f(1) # evaluates to "big"
+f(1) # ==> "big"
 }
 
 @subsubsection{Desugaring for Local Scope}
@@ -737,8 +735,7 @@ side of assignment statements in the body.  These are let-bound at the top of
 the function to the special @(lp-term (undefined-val)) form, which evaluates to an
 exception in any context other than a @code{let}-binding context ([REF section]}.  We use
 @code{x := e} as the expression form for variable assignment, which is not a
-binding form in the core.  So in @(lambda-py), the example above rewrites to:
-
+binding form in the core.  Thus, in @(lambda-py), the example above rewrites to:
 @centered{
   @(lp-term
     (let (f global = (undefined-val)) in
@@ -756,15 +753,14 @@ binding form in the core.  So in @(lambda-py), the example above rewrites to:
       (app (id f global) ((object %float (meta-num 0))))
       (app (id f global) ((object %float (meta-num 1))))))))
 }
-
-In the first application (to 0), the assignment will never happen, and the
+In the first application (to 0) the assignment will never happen, and the
 attempt to look up the @(lp-term (undefined-val))-valued @(lp-term x) in the
 return statement will fail with an exception.  In the second application, the
 assignment in the then-branch will change the value of @(lp-term x) in the
 store to a non-@(lp-term (undefined-val)) string value, and the string
 @(lp-term "big") will be returned.
 
-The algorithm for desugaring scope so far is thus:
+The algorithm for desugaring scope is so far this:
 @itemlist[
 
   @item{For each function body:
@@ -781,7 +777,7 @@ The algorithm for desugaring scope so far is thus:
 ]
 This strategy works for simple assignments that may or may not occur within a
 function, and maintains lexical structure for the possibly-bound variables in a
-given scope.  Unfortunately, this covers only the simplest cases of Pythonic scope.
+given scope.  Unfortunately, this covers only the simplest cases of Python's scope.
 
 
 @subsection{Closing Over Variables}
@@ -794,7 +790,7 @@ def f():
     return x
   return g
 
-f()() # evaluates to 'closed-over'
+f()() # ==> 'closed-over'
 }
 However, since @code{=} defines a new local variable, one cannot close over a
 variable and mutate it with the constructs we've seen so far; @code{=} simply
@@ -807,8 +803,7 @@ def g():
     return x
   return (h(), x)
 
-g() # evaluates to
-    # ('inner x', 'not affected by h')
+g() # ==> ('inner x', 'not affected by h')
 }
 This is mirrored in our desugaring:
 each function adds a new let-binding
@@ -833,8 +828,7 @@ def g():
     return x
   return (h(), x)
 
-g() # evaluates to
-    # ('inner x', 'inner x')
+g() # ==> ('inner x', 'inner x')
 }
 The @code{nonlocal} declaration allows the inner assignment to @code{x} to
 ``see'' the outer binding from @code{g}.  This effect can span any nesting
@@ -850,8 +844,7 @@ def g():
     return h2
   return (h()(), x)
 
-g() # evaluates to
-    # ('inner x', 'inner x')
+g() # ==> ('inner x', 'inner x')
 }
 
 Thus, the presence or absence of a @code{nonlocal} declaration can change an
@@ -928,8 +921,6 @@ f()
 # referenced before assignment"
 }
 
-}
-
 @subsection{Classes and Scope}
 
 We've covered some subtleties of scope for local and nonlocal variables and
@@ -970,7 +961,7 @@ y-value
 }
 
 @figure["f:class-scope" "Interactions between class bodies and function scope"]{
-  @class-scope
+  @centered{@class-scope}
 }
 
 Consider the example in @figure-ref["f:classexample"].  Here we observe an
@@ -979,7 +970,7 @@ interesting phenomenon: in the body of @code{g}, the value of the variable
 assignment to @code{x}.  In fact, the body of @code{g} seems to "skip" the
 scope in which x is bound to 4, instead closing over the outer scope in which
 @code{x} is bound to @code{"x-value"}.  At first glance this does not appear to
-be compatible with our previous notions of Pythonic closures.  We will see,
+be compatible with our previous notions of Python's closures.  We will see,
 however, that the correct desugaring is capable of expressing the semantics of
 scope in classes within the framework we have already established for dealing
 with Python's scope.  
@@ -1129,7 +1120,9 @@ beyond what we have outlined here, even when present in class bodies.
 @figure["f:generators" "The desugaring of generators"]{
 @verbatim{def f(x ...): body-with-yield}
 
+@(linebreak)
 @emph{desugars to...}
+@(linebreak)
 
 @(lp-term
   (fun (x ...)
@@ -1162,7 +1155,9 @@ beyond what we have outlined here, even when present in class bodies.
         (assign (get-field (id self local) "___resume") := (id resumer local)))))))) in
       (app (id %generator global) ((id initializer local)))))))
 
+@(linebreak)
 @emph{where...}
+@(linebreak)
 
 @verbatim{
 class %generator(object):
@@ -1231,26 +1226,6 @@ continuation to be code that updates @code{___resume} to always raise
 continuation. Since each @code{try} block in CPS installs a new exception
 continuation, if a value is passed to the top-level exception handler it means
 that the exception was not caught, and again the expected behavior will occur.
-
-@section{Perspective}
-
-Existing editors use heuristics to figure out if variables could be bound to
-particular instances.@note{http://wingware.com/doc/edit/points-of-use}
-This makes variable naming refactorings less precise than in say, an IDE for
-Java, requiring developer intervention to specify which instances should be
-renamed.  We provide a more precise account of scope that would enable
-correct points-of-use analysis for lexical variables in Python.
-
-@itemlist[
-
-  @item{Many overloadings and implicit method calls are nice}
-
-  @item{However, there are corner cases, and they have to do with the thing stuck in programmers' face: scope}
-
-  @item{Unclear if scope behavior is a product of growing up from a dynamic language or intentional}
-
-  @item{All the values of Python, all the scope of something saner, would be a really nice thing to have}
-]
 
 @section{Engineering & Evaluation}
 
@@ -1384,132 +1359,104 @@ that Python's testing tools also understand.  This is especially true for the
 file that tests generators.  More engineering work would be required to run
 these tests as-is, so we manually turn them into tests that we can run.
 
-@subsubsection{Correspondence with Redex}
+@subsection{Correspondence with Redex}
 
 We run our tests against @(lambda-interp), not against the Redex-defined
 reduction relation for @(lambda-py).  We can run tests on @(lambda-py), but
 performance is excruciatingly slow: it takes over 5 minutes to run individual
 tests under the Redex reduction relation. Therefore, we have been able
-to perform only limited testing for conformance. Fortunately executing
+to perform only limited testing for conformance. Fortunately, executing
 against Redex should be parallelizable, so we hope to increase
-confidence of the Redex model as well.
+confidence in the Redex model as well.
 
-@section{Future Work: Growing the Semantics}
+@section{Future Work and Perspective}
 
-Python the system is more than just a programming language; it is also has an
-expansive set of built-in libraries, a FFI to compiled C code, a REPL, and
-different builds for compiling in locales around the world.  In this work, we
-don't attempt to tackle the vast library support of CPython offers, from HMAC
-libraries to HTTP and TCP support, graphics, and more.  Libraries aside, there
-are several features of the @emph{language} that are interesting and difficult
-to model in @(lambda-py), we discuss these here.
+As section [REF] points out, there are some more parts of Python we
+must reflect in the semantics before we can run Python's test
+cases in their native form. This is because Python is a large language
+with extensive libraries, a foreign-function interface, and more.
 
-[FILL figure out what's going on with @code{exec}]
+Libraries aside, there are some interesting features in Python left to
+tackle. These include special fields, such as the properties of
+function objects that compute the content of closures; properties that
+serialize; and so on.
 
-@subsubsub*section{Dynamic Features} 
-For example, the @code{locals} built-in function
+More interestingly, we are not done with scope! Consider
+@code{locals}, which
 returns a dictionary of the current variable bindings in a given scope:
 @verbatim{
 def f(x):
   y = 3
   return locals()
 
-f("x-val")
-# evaluates to {'x': 'x-val', 'y': 3}
+f("x-val") # ==> {'x': 'x-val', 'y': 3}
 }
-
-This is straightforward to desugar if @code{locals} were merely a keyword that
-expanded in local scope.  However, @code{locals} is a value.  We can change
-this program to pass @code{locals} as an argument, and it still observes the
-internal scope:
+Even if @code{locals} were a keyword, it
+would not be trivial to desugar because variables can be bound on just
+some control flow paths. (We believe we have a (complicated)
+desugaring, but have not yet verified it.) Worse, @code{locals} is a
+value!
 @verbatim{
 def f(x, g):
   y = 3
   return g()
 
 f("x-val", locals)
-# evaluates to {'x': 'x-val', 'y': 3,
-#               'g': <builtin function locals>}
+# ==> {'x': 'x-val', 'y': 3,
+#      'g': <builtin function locals>}
 }
+Thus, @emph{any} application could invoke
+@code{locals}.  We would therefore need to deploy our complex
+desugaring everywhere we cannot statically determine that a function
+is not @code{locals}, and change every application to check for it.
+Other built-in values like @code{super} and @code{dir}
+exhibit similar behavior.
 
-This means that @emph{every function call} in the program could potentially be
-an invocation of @code{locals}.  To handle this, we would need to change every
-function call into a test for the @code{locals} function, and if it were found,
-create and pass it a reification of the current scope.  We have not implemented
-this desugaring yet.  The special built-in values @code{super} and @code{dir}
-also exhibit similar dynamic behavior, and have slightly limited
-implementations, but we aren't aware of any others.
+On top of this, @code{import} can splice all identifiers
+ (@code{*}) from a module into local scope. For
+now, we handle only @code{import}s that bind the module object to a single
+identifier. Indeed, even 
+Python 3 advises that @code{import *} should only be used
+at module scope. 
 
-The @code{import} statement can affect scope in a way that is not detectable by
-our scope rewriting statically.  For example, in the following program, the
-@code{import} statement adds an unknown set of bindings into the local scope:
+Finally, we do not handle @code{exec}, Python's
+``eval''. Related efforts on handling similar operators in 
+JavaScript@~cite["politz:s5"] are sure to be helpful here.
 
-@verbatim{
-def f():
-  # this line imports all the global
-  # variables from some_module,
-  # and installs them in local scope
-  from some_module import *
-  print(locals())
-  # indeterminate dictionary
-  return x
-  # is x bound?
-}
-
-We would need to reify scope into objects or some other data structure during
-desugaring to handle this case, as well as the @code{locals} case above.  For
-now, we only handle import statements that bind the module object to a single
-identifier, as in @code{import some_module} or @code{import some_module as local_name}.
-However, this program also gives a warning when run under Python 3, advising
-that @code{import *} should only be used at module scope.
-
-In general, we leave a number of excessively dynamic features, like
-@code{locals}, @code{exec} (which loads new code at runtime), and
-@code{import *}, unhandled.  Related efforts in
-semantics engineering have techniques for handling these cases@~cite["politz:s5"], doing
-so is valuable future work that is out of scope for this initial effort.
-
-@subsubsub*section{Built-in Special Fields}
-We haven't implemented all of the special fields on built-in objects.  For
-example, the @code{"__closure__"} and @code{"__globals__"} properties of
-function objects are the dual of @code{locals}, tracking the nonlocal variables
-of the function.  This requires a delicate desugaring that we do not yet
-handle.  We also do not handle the @code{"__bytes__"} property of all objects,
-which returns a representation as a list of bytes, or the @code{"__slots__"}
-representation of objects' fields that is designed to save space in object
-allocations.  Many such special-purpose features are built in to the language,
-and we do not tackle them all yet.  Further implementation and testing will be
-required to extend to more types of builtins with special operations.
+Overall, what we have learned most from this effort is how central
+scope is to understanding Python. Many of its features are orthogonal,
+but they all run afoul on the shoals of scope. Whether this is
+intentional or an accident of the contorted history of Python's scope [CITE]
+is unclear, but also irrelevant. Those attempting to improve Python or
+create robust sub-languages of it---whether for teaching or for
+specifying asset-backed securities---would do well to put
+their emphasis on scope first, because this is the feature most likely
+to preclude sound analyses, correctness-preserving refactorings, and
+so on.
 
 @section{Related Work}
 
-We are aware of only one other effort to formalize the semantics of Python, in
-Smeding's Masters thesis@;{~cite["smeding:python-semantics"] CITE}.  Smeding builds an
-executable semantics, dubbed @emph{minpy}, in literate Haskell for Python 2.5,
-which naturally lacks the scoping features that we handle.  Smeding's semantics
-is @emph{larger} than @(lambda-py): instead of defining a core and desugaring
-@emph{minpy} directly evaluates (a subset of) Python terms.  The @emph{minpy}
-semantics is also tested against a hand-written set of 134 test files [FILL we
-should make sure we can pass all these, on Joe's todo list for this week].
+We are aware of only one other formalization for Python, Smeding's
+ unpublished and sadly unheralded master's thesis [CITE]. Smeding
+ builds an executable semantics and tests it against 134 hand-written
+ tests. The semantics is for Python 2.5, a language version without
+ the complex scope we handle.  Also, instead of defining a core, it
+ directly evaluates (a subset of) Python terms. Therefore, it offers a
+ weaker account of the language and is also likely to be less useful
+ for certain kinds of tools and for foundational work.
 
-Other work on static analysis for Python lacks a clear definition of its
-semantics: the report on Salib's @emph{Starkiller}@;{~cite["salib:starkiller"] CITE},
-which performs type inference and compiles Python code to efficient C++, says
-``We thus forego mathematically intensive descriptions of the denotational
-semantics in favor of simpler step-by-step descriptions of what the [type
-inference] algorithm does,'' effectively eschewing a formal definition of
-Python's semantics.  Gorbovitski's alias analysis for Python similarly lacks
-and does not mention a formal semantics@~cite["gorbovitski:alias-analysis"].
+There are a few projects that analyze Python code. They are either
+silent about the semantics or explicitly eschew defining one. We
+therefore do not consider these related.
 
-In style, @(lambda-py) and our desugaring strategy are closest to Guha's tested
-semantics for JavaScript, @(lambda-js)@~cite["guha:js-essence"].  They define a
-small-step semantics for JavaScript and test against implementations of
-JavaScript used in browsers to ensure fidelity of the semantics.
+Our work follows the path laid out by @(lambda-js)@~cite["guha:js-essence"]
+and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
 
 @;{Acknowledgments:
 - Ben Lerner for title
+- Arjun for saying we couldn't do it
 - NSF and Google for funding
-- Brown for hosting
+- Brown and CS for providing "free hosting" services for our course
 - redex
 }
 
