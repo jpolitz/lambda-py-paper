@@ -117,7 +117,8 @@ that are important or interesting. We first give an overview of
 @(lambda-py)'s value and object model. We then introduce desugaring
 through classes. We then discuss generators,
 classes, and their interaction with scope. Finally, we describe the
-results of testing our semantics against CPython.
+results of testing our semantics against CPython.  All of our code
+is available online at @url{https://www.github.com/brownplt/lambda-py}.
 
 @section{Warmup: A Quick Tour of @(lambda-py)}
 
@@ -198,7 +199,7 @@ expression forms because they need to evaluate all of their sub-expressions and
 have corresponding evaluation contexts.
 
 @figure["f:steps-values" (elem (lambda-py) " reduction rules for creating objects")]{
-  @(lp-reduction '("E-Object" "E-Tuple" "E-Set" "E-List"))
+  @(lp-reduction '("E-Object" "E-Tuple" "E-Set"))
 }
 
 @subsection{Accessing Built-in Values}
