@@ -472,7 +472,7 @@ for primitive values.  This is what we do for much of our desugaring to
 @(lambda-py) and, though it is labor-intensive, it is also the
 straightforward part of the process.
 
-@section{Python, the Hard Parts}
+@section{Python: the Hard Parts}
 
 Not all of Python has a semantics as straightforward as that presented so far.
 Python has a unique notion of scope, with new scope operators added in Python 3 to
