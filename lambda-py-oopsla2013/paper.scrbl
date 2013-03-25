@@ -1436,7 +1436,7 @@ so on.
 
 @section{Related Work}
 
-We are aware of only one other formalization for Python, Smeding's
+We are aware of only one other formalization for Python: Smeding's
  unpublished and sadly unheralded master's thesis [CITE]. Smeding
  builds an executable semantics and tests it against 134 hand-written
  tests. The semantics is for Python 2.5, a language version without
