@@ -1353,9 +1353,9 @@ cover.  We leave the significant engineering work to get to this point as
 future work.  For now, we manually move the assertions to simpler if-based
 tests, which also run under CPython, to check conformance.
 
-Even if we can handle all of unittest, many of CPythons tests are written in
-``doctest'' style, meaning they are essentially a record of a REPL interaction
-that Python's testing tools also understand.  This is especially true for the
+Even if we can handle all of @code{unittest}, many of CPython's tests are written in
+``doctest'' style, meaning they are essentially a record of a REPL
+interaction.  This is especially true of the
 file that tests generators.  More engineering work would be required to run
 these tests as-is, so we manually turn them into tests that we can run.
 
