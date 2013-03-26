@@ -419,14 +419,14 @@ Python allows for attributes to implement special accessing functionality via
 @emph{properties},@note{http://docs.python.org/3/library/functions.html#property}
 which can cause special functions to be called on property access.  The
 @(lp-term "__getattribute__") function of @(lp-term (id object local)) checks
-if the value of the field it accesses is a property, and if it is, calls its
-@(lp-term "__get__") method:
+if the value of the field it accesses has a special @(lp-term "__get__")
+method, and if it does, calls it:
 @centered{
 @(lp-term
   (set-attr (id object global) (object %str (meta-str "__getattribute__")) :=
     (fun (obj field)
       (let (value local = (get-attr obj field)) in
-        (if (app (id is-property? global) ((id value local)))
+        (if (builtin-prim "has-field?" ((id value local) (object %str (meta-str "__get__"))))
             (return (app (get-attr (id value local) (object %str (meta-str "__get__"))) ()))
             (return (id value local)))))))
 }
