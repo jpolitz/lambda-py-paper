@@ -20,18 +20,19 @@
                            ())])
 
 (define-metafunction λπ
-  truthy? : val -> #t or #f
-  [(truthy? (fun-val any ...)) #t]
-  [(truthy? (obj-val x (meta-num number) (any ...))) ,(not (= 0 (term number)))]
-  [(truthy? (obj-val x (meta-str string) (any ...))) ,(not (string=? "" (term string)))]
-  [(truthy? (obj-val x (meta-list (val ...)) (any ...))) ,(not (empty? (term (val ...))))]
-  [(truthy? (obj-val x (meta-tuple (val ...)) (any ...))) ,(not (empty? (term (val ...))))]
-  [(truthy? (obj-val x (meta-dict ((val_1 val_2) ...)) (any ...))) ,(not (empty? (term (val_1 ...))))]
-  [(truthy? (obj-val x (meta-set (val ...)) (any ...))) ,(not (empty? (term (val ...))))]
-  [(truthy? (obj-val x (meta-none) (any ...))) #f]
-  [(truthy? (obj-val x mval (any ...))) #t]
-  [(truthy? (obj-val x (any ...))) #t]
-  [(truthy? undefined-val) #f])
+  truthy? : val Σ -> #t or #f
+  [(truthy? (pointer-val ref) Σ) (truthy? (store-lookup Σ ref) Σ)]
+  [(truthy? (fun-val any ...) Σ) #t]
+  [(truthy? (obj-val x (meta-num number) (any ...)) Σ) ,(not (= 0 (term number)))]
+  [(truthy? (obj-val x (meta-str string) (any ...)) Σ) ,(not (string=? "" (term string)))]
+  [(truthy? (obj-val x (meta-list (val ...)) (any ...)) Σ) ,(not (empty? (term (val ...))))]
+  [(truthy? (obj-val x (meta-tuple (val ...)) (any ...)) Σ) ,(not (empty? (term (val ...))))]
+  [(truthy? (obj-val x (meta-dict ((val_1 val_2) ...)) (any ...)) Σ) ,(not (empty? (term (val_1 ...))))]
+  [(truthy? (obj-val x (meta-set (val ...)) (any ...)) Σ) ,(not (empty? (term (val ...))))]
+  [(truthy? (obj-val x (meta-none) (any ...)) Σ) #f]
+  [(truthy? (obj-val x mval (any ...)) Σ) #t]
+  [(truthy? (obj-val x (any ...)) Σ) #t]
+  [(truthy? undefined-val Σ) #f])
 
 (define-metafunction λπ
   δ : op val ... ε Σ -> val
@@ -50,7 +51,7 @@
   [(δ "num+" (obj-val any_cls (meta-num number_1) any_1) (obj-val any_cls2 (meta-num number_2) any_2) ε Σ)
    (obj-val any_cls (meta-num ,(+ (term number_1) (term number_2))) ())]
   [(δ "not" val ε Σ)
-   ,(if (term (truthy? val)) (term vfalse) (term vtrue))]
+   ,(if (term (truthy? val Σ)) (term vfalse) (term vtrue))]
   [(δ "print" val ε Σ)
    ,(begin (display (term val)) (display "\n") (term vnone))] ;; not sure how to do print for now
   #;[(δ "callable" (fun-val any ...) ε Σ)
@@ -66,8 +67,8 @@
    ,(if (eq? (term val_1) (term val_2)) (term vtrue) (term vfalse))] ;; current interp does this
   [(δ "isnot" val_1 val_2 ε Σ)
    ,(if (eq? (term val_1) (term val_2)) (term vfalse) (term vtrue))]
-  [(δ "isinstance" val_1 (obj-val x (meta-class x_class) any) ε Σ)
-   ,(if (term (object-is? val_1 x_class ε Σ)) (term vtrue) (term vfalse))]
+  [(δ "isinstance" val_1 val_2 ε Σ)
+   (is-instance val_1 val_2 Σ)]
   ;; numbers, no type-checking yet
   [(δ "num-" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) ε Σ)
    ,(make-num (- (term number_1) (term number_2)))]
@@ -156,7 +157,7 @@
   [(δ "bool-init" (obj-val x (meta-tuple ()) any) ε Σ)
    vfalse]
   [(δ "bool-init" (obj-val x (meta-tuple (val_1 val ...)) any) ε Σ)
-   ,(if (term (truthy? val_1)) (term vtrue) (term vfalse))]
+   ,(if (term (truthy? val_1 Σ)) (term vtrue) (term vfalse))]
   ;; list
   [(δ "list+" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-list (val_2 ...)) any_2) ε Σ)
    (obj-val list (meta-list (val_1 ... val_2 ...)) ())]
@@ -171,6 +172,15 @@
    vfalse]
   [(δ "list-setitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 ε Σ)
    (obj-val list (meta-list ,(list-replace (term number_2) (term val_3) (term (val_1 ...)))) ())]
+
+  [(δ "Is" (pointer-val ref) (pointer-val ref) ε Σ) vtrue]
+  [(δ "Is" (pointer-val ref_1) (pointer-val ref_2) ε Σ)
+   vtrue
+   (side-condition (equal? (term (store-lookup Σ ref_1))
+                           (term (store-lookup Σ ref_2))))]
+  [(δ "Is" val_1 val_2 ε Σ) vfalse]
+    
+
   [(δ "type-new" (obj-val any_cls (meta-str string) any_dict) ε Σ)
    (obj-val %type (meta-class ,(string->symbol (term string))) ())]
   [(δ "type-uniqbases" (obj-val any_cls (meta-tuple ((pointer-val ref) ...)) any_dict) ε Σ)
@@ -194,15 +204,19 @@
   [(store-lookup ((ref_1 v+undef_1) ... (ref val) (ref_n v+undef_n) ...) ref)
    val])
 
-(define-judgment-form λπ
-  #:mode (store-lookup/j I I O)
-  #:contract (store-lookup/j Σ ref val)
-  [(store-lookup/j
-    ((ref_1 v+undef_1) ... (ref val) (ref_n v+undef_n) ...) ref val)])
 
 (define-metafunction λπ
   fetch-pointer : val Σ -> val
   [(fetch-pointer (pointer-val ref) Σ) (store-lookup Σ ref)])
+
+(define-metafunction λπ
+  is-instance : val val Σ -> val
+  [(is-instance val_base val_super Σ)
+   vtrue
+   (where (val_mro1 ... val_super val_mron ...)
+          (get-mro val_base Σ))]
+  [(is-instance val_base val_super Σ)
+   vfalse])
 
 (define-metafunction λπ
   get-mro : val Σ -> (val ...)
@@ -236,19 +250,6 @@
    (obj-val %tuple (meta-tuple (val_1 ... val_cls ...)) ())
    (where (val_cls ...)
           ,(merge (term (get-base-mros (val_2 ...) Σ)) (term (val_2 ...))))])
-
-(define-metafunction λπ
-  object-is? : val x ε Σ -> #t or #f
-  [(object-is? (obj-val no-super any ...) x ε Σ) #f]
-  [(object-is? (obj-val x any ...) x ε Σ) #t]
-  [(object-is? (obj-val x any ...)
-               x_class
-               (name env (((x_1 ref_x1) ...) ... ((x_2 ref_x2) ... (x ref) (x_3 ref_x3) ...) ε ...))
-               (name store ((ref_4 val_4) ... (ref val) (ref_5 val_5) ...)))
-   (object-is? val x_class env store)
-   (side-condition (not (member (term x) (append* (term ((x_1 ...) ...))))))
-   (side-condition (not (member (term x) (term (x_2 ... x_3 ...)))))
-   (side-condition (not (member (term ref) (term (ref_4 ... ref_5 ...)))))])
 
 (define (make-num n)
   (term (obj-val ,(if (exact? n) (term int) (term float))

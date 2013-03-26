@@ -24,6 +24,8 @@
           "../base/python-lib.rkt"
           "core-to-redex.rkt"))
 
+(define lp-traces (lambda (t) (traces λπ-red t)))
+
 (define (core-str str)
   (CObject (CId '%str (GlobalId)) (some (MetaStr str))))
 
@@ -32,6 +34,9 @@
 
 (define (redex-strv str)
   (term (obj-val %str (meta-str ,str) ())))
+
+(define (python->redex str)
+  (core->redex (get-core-syntax (open-input-string str))))
 
 (set-pypath "/home/joe/src/Python-3.2.3/python")
 

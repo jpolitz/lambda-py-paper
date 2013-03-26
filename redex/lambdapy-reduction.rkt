@@ -17,7 +17,9 @@
    (==> true vtrue "true")
    (==> false vfalse "false")
    (--> ((in-hole E (tryexcept (in-hole T (raise val)) x e_c e_e)) ε Σ)
-        ((in-hole T (seq (subst-one x val e_c) e_e)) ε Σ)) ;;TODO(joe): allocation of var, else semantics
+        ((in-hole E (subst-one x ref e_c)) ε Σ_1)
+        (where (Σ_1 ref) (extend-store Σ val)) ;;TODO(joe): else semantics
+        "E-Catch")
    (--> ((in-hole E (list val_c (val ...))) ε Σ)
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-List"
@@ -56,13 +58,13 @@
    (--> ((in-hole E (builtin-prim op (val ...))) ε Σ)
         ((in-hole E (δ op val ... ε Σ)) ε Σ)
         "builtin-prim")
-   (==> (if val e_1 e_2)
-        e_1
-        (side-condition (term (truthy? val)))
+   (--> ((in-hole E (if val e_1 e_2)) ε Σ)
+        ((in-hole E e_1) ε Σ)
+        (side-condition (term (truthy? val Σ)))
         "if-true")
-   (==> (if val e_1 e_2)
-        e_2
-        (side-condition (not (term (truthy? val))))
+   (--> ((in-hole E (if val e_1 e_2)) ε Σ)
+        ((in-hole E e_2) ε Σ)
+        (side-condition (not (term (truthy? val Σ))))
         "if-false")
    (==> (seq val e) e "E-Seq")
    ;; NOTE(yao): this may be unnecessary, since context T deals with it
@@ -80,24 +82,26 @@
 	(exception-r val)
 	"seq-exception")|#
    (==> (while e_1 e_2 e_3)
-        ;(loop (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3))
-        (if e_1 (loop (seq e_2 (while e_1 e_2 e_3))) e_3)
-        "while")
-   (==> (loop val)
-        vnone
-        "E-LoopPop")
-   (==> (loop (in-hole H break))
-        vnone
-        "E-LoopBreak")
-   (==> (frame (in-hole R (return val)))
-        val
-        "return")
-   (==> (frame val)
-        val
-        "E-FramePop")
-   (--> ((in-hole R (return val)) ε Σ)
-        ((err (sym "toplevel-return")) ε Σ)
-        "E-ReturnTop")
+        (if e_1 (loop e_2 (while e_1 e_2 e_3)) e_3)
+        "E-While")
+   (==> (loop val e) e "E-LoopNext")
+   (==> (loop (in-hole H continue) e) e "E-LoopContinue")
+   (==> (loop (in-hole H break) e) vnone "E-LoopBreak")
+
+   (==> (frame (in-hole R (return val))) val "E-Return")
+   (==> (frame val) val "E-FramePop")
+   (--> ((in-hole R (return e)) ε Σ) ((err (sym "ill-formed-return")) ε Σ)
+        "E-ReturnBad")
+
+   (==> (tryfinally (in-hole R (return val)) e) (seq e (return val))
+        "E-FinallyReturn")
+   (==> (tryfinally (in-hole T (raise val)) e) (seq e (raise val))
+        "E-FinallyRaise")
+   (==> (tryfinally (in-hole H break) e) (seq e break)
+        "E-FinallyBreak")
+   (==> (tryfinally (in-hole H continue) e) (seq e continue)
+        "E-FinallyContinue")
+
    (==> (tryexcept val x e_catch e_else)
         e_else
         "Try-Done")

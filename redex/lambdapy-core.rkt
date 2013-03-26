@@ -53,7 +53,7 @@
      (frame e) ;; frame is application "residue" for return
      (seq e e)
      (class x)
-     (while e e e) (loop e) ;; loop is context "residue" for break & continue
+     (while e e e) (loop e e) ;; loop is context "residue" for break & continue
      (return e)
      (builtin-prim op (e ...))
      (fun (x ...) opt-var e opt-var)
@@ -64,6 +64,7 @@
      (raise) (raise e)
      undefined
      break
+     continue
      (module e e)
      (construct-module e)
      (err val)
@@ -96,7 +97,7 @@
      (return E)
      (tryexcept E x e e)
      (tryfinally E e)
-     (loop E)
+     (loop E e)
      (frame E)
      (app E (e ...))
      (app val Es)
@@ -130,7 +131,7 @@
      (get-attr val F)
      (builtin-prim op Fs)
      (raise F)
-     (loop F)
+     (loop F e)
      (frame F)
      (app F (e ...))
      (app val Fs)
@@ -164,7 +165,7 @@
      (get-attr val T)
      (builtin-prim op Ts)
      (raise T)
-     (loop T)
+     (loop T e)
      (frame T)
      (app T (e ...))
      (app val Ts)
@@ -200,7 +201,7 @@
      (raise H)
      (tryexcept H x e e)
      ;; (tryfinally H e) Don't go into tryfinallys to find break/continue
-     (loop H) ;; 
+     (loop H e) ;; 
      ;; (frame H) ;; Don't go into nested function calls to find breaks
      (app H (e ...))
      (app val Hs)
@@ -234,7 +235,7 @@
      (get-attr val R)
      (builtin-prim op Rs)
      (raise R)
-     (loop R) ;; DO go into active loops to find returns
+     (loop R e) ;; DO go into active loops to find returns
      ;; (frame R) ;; Don't go into other functions to find returns
      (tryexcept R x e e) ;; DO go into try/catches to find returns
      ;; (tryfinally R e) DON'T go into tryfinallys to find returns
