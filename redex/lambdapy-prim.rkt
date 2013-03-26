@@ -173,6 +173,12 @@
   [(δ "list-setitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 ε Σ)
    (obj-val list (meta-list ,(list-replace (term number_2) (term val_3) (term (val_1 ...)))) ())]
 
+  [(δ "tuple-getitem" (obj-val any_c1 (meta-tuple (val_0 ... val_1 val_2 ...)) any_1) (obj-val any_c2 (meta-num number_2) any_2) ε Σ)
+   val_1
+   (side-condition (equal? (length (term (val_0 ...))) (term number_2)))]
+  [(δ "tuple-getitem" (obj-val any_c1 (meta-tuple (val_1 ...)) any_1) (obj-val any_c2 (meta-num number_2) any_2) ε Σ)
+   (obj-val %none (meta-none) ())]
+
   [(δ "Is" (pointer-val ref) (pointer-val ref) ε Σ) vtrue]
   [(δ "Is" (pointer-val ref_1) (pointer-val ref_2) ε Σ)
    vtrue
