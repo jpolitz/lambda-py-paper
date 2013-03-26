@@ -20,6 +20,8 @@
    (pointer-val ref)
    (sym string))
   (v+undef v (undefined-val))
+  (e+undef e (undefined-val))
+  
 
   ;; primitive operators
   (op string)
@@ -39,14 +41,14 @@
         (no-meta))
 
   (opt-var (x) (no-var))
-  
+
   ;; types of expressions
   (e true false none ref (id x t)
      (fetch e) (set! e e) (alloc e)
      (assign e := e)
      (get-attr e e) (set-attr e e := e)
      (if e e e)
-     (let (x t = e) in e)
+     (let (x t = e+undef) in e)
      (app e (e ...))
      (app e (e ...) e)
      (seq e e)
@@ -65,7 +67,7 @@
      (module e e)
      (construct-module e)
      (err val)
-     v+undef)
+     v)
   
   ;; evaluation context
   (E hole
