@@ -40,10 +40,10 @@
     [CNone () (term none)]
     [CObject (class mval)
      (term (object ,(core->redex class) ,(mval->redex/opt mval)))]
-    [CGetField (value attr)
-     (term (get-field ,(core->redex value) ,(symbol->string attr)))]
     [CGetAttr (value attr)
      (term (get-attr ,(core->redex value) ,(core->redex attr)))]
+    [CSetAttr (obj attr value)
+     (term (set-attr ,(core->redex obj) ,(core->redex attr) ,(core->redex value)))]
     [CId (x type)
      (term (id ,x ,(idtype->redex type)))]
     [CSeq (e1 e2) (term (seq ,(core->redex e1) ,(core->redex e2)))]

@@ -44,7 +44,7 @@
   (e true false none ref (id x t)
      (fetch e) (set! e e) (alloc e)
      (assign e := e)
-     (get-field e string) (get-attr e e)
+     (get-attr e e) (set-field e e e)
      (if e e e)
      (let (x t = e) in e)
      (app e (e ...))

@@ -16,6 +16,13 @@
          "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
+
+(define (core-str str)
+  (CObject (CId '%str (GlobalId)) (some (MetaStr str))))
+
+(define (redex-str str)
+  (term (alloc (obj-val %str (meta-str ,str) ()))))
+
 (require (only-in plai-typed/untyped some none))
 
 (set-pypath "/home/joe/src/Python-3.2.3/python")
@@ -37,14 +44,19 @@
 (define-syntax (full-expect stx)
   (syntax-case stx ()
       ((_ (e ε Σ) pat)
-       #'(test-->>∃ #:steps 1000000
-                    λπ-red (term (e ε Σ))
-                    (λ (p)
-                      (if (not
-                              (and
-                                (redex-match? λπ pat p)))
-                          (begin #;(display "Found:\n") #;(pretty-write p) #f)
-                          #t))))))
+       #'(begin
+           (define last-term #f)
+           (define success #f)
+           (test-->>∃ #:steps 1000000
+                      λπ-red (term (e ε Σ))
+                      (λ (p)
+                        (if (not
+                             (and
+                              (redex-match? λπ pat p)))
+                            (begin (set! last-term p) #f)
+                            (begin (set! success #t) #t))))
+           (when (not success)
+             (display "Last term:\n") (pretty-write last-term))))))
 
 (full-expect
  ((let (x local = (undefined-val)) in
@@ -140,8 +152,17 @@
  ((obj-val %str (meta-str "just-var-lookup") ())  ((str 1)) ((1 (obj-val %str (meta-str "just-var-lookup") ())))))
 
 (full-expect
- ((get-field (object (id %str global) (meta-str "foo"))
-             "inherited")
+ (,(redex-str "test-string")
+  {(%str 1)}
+  {(1 vnone)})
+ ((pointer-val 2)
+  {(%str 1)}
+  {(1 (obj-val %none (meta-none) ()))
+   (2 (obj-val %str (meta-str "test-string") ()))}))
+
+(full-expect
+ ((get-attr (object (id %str global) (meta-str "foo"))
+            ,(redex-str "inherited"))
   {(%str 5)}
   {(4 (obj-val %type (meta-class %str) (("__mro__" 9) ("inherited" 6))))
    (5 (pointer-val 4))
@@ -153,8 +174,8 @@
   ε Σ))
 
 (full-expect
- ((get-field (object (id %str global) (meta-str "foo"))
-             "shadowed")
+ ((get-attr (object (id %str global) (meta-str "shadowed-test"))
+            ,(redex-str "shadowed"))
   {(%str 5)}
   {(4 (obj-val type (meta-class %str) (("__mro__" 9) ("shadowed" 6))))
    (5 (pointer-val 4))
@@ -167,8 +188,8 @@
   ε Σ))
 
 (full-expect
- ((get-field (object (id %str global) (meta-str "foo"))
-             "inherited")
+ ((get-attr (object (id %str global) (meta-str "fetch-inherited"))
+            ,(redex-str "inherited"))
   {(%str 5)}
   {(4 (obj-val type (meta-class %str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
@@ -191,13 +212,13 @@
    (12 (obj-val %function (meta-closure (λ (self) (no-var) none (no-var))) ()))}))
 
 (full-expect
- ((get-field (object (id %str global) (meta-str "foo"))
-             "inherited")
+ ((get-attr (object (id %str global) (meta-str "function-lookup"))
+            ,(redex-str "inherited"))
   {(%str 5)}
   ,inherit-Σ)
- ((pointer-val ref_meth)
+ ((pointer-val ref_func)
   ε ((ref val) ...
-     (ref_meth (obj-val method (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+     (ref_func (obj-val %function (meta-closure (λ (self) (no-var) none (no-var))) ()))
      (ref_rest val_rest) ...)))
 
 
@@ -218,11 +239,11 @@
   (pointer-val ref))
 
 (full-expect
- (,(core->redex (CGetField (CObject (CId '%str (GlobalId)) (some (MetaStr "foo"))) 'inherited))
+ (,(core->redex (CGetAttr (CObject (CId '%str (GlobalId)) (some (MetaStr "get-function"))) (core-str "inherited")))
   {(%str 5)}
   ,inherit-Σ)
- ((pointer-val ref_meth)
-  ε ((ref val) ... (ref_meth (obj-val any_cls (no-meta) (("__self__" ref_s) ("__func__" ref_f))))
+ ((pointer-val ref_func)
+  ε ((ref val) ... (ref_func (obj-val %function (meta-closure (λ (self) (no-var) none (no-var))) ()))
       (ref_rest val_rest) ...)))
 
 (expect-raw
@@ -310,8 +331,8 @@ f('a-str')
 (full-expect
  (,(core->redex (CLet 'x (LocalId) (CObject (CNone) (some (MetaStr "foo")))
                       (CSeq
-                       (CAssign (CGetField (CId 'x (LocalId)) 'updated) (CObject (CNone) (some (MetaStr "val"))))
-                       (CGetField (CId 'x (LocalId)) 'updated))))
+                       (CAssign (CGetAttr (CId 'x (LocalId)) (core-str "updated")) (CObject (CNone) (some (MetaStr "val"))))
+                       (CGetAttr (CId 'x (LocalId)) (core-str "updated")))))
   () ())
  ((pointer-val ref)
   ε
@@ -321,7 +342,7 @@ f('a-str')
 
 
 
-(full-expect
+#;(full-expect
  (,(core->redex (cascade-lets lib-function-dummies (CTrue)))
   () ())
  ((obj-val %bool (meta-num 1) ()) ε Σ))
