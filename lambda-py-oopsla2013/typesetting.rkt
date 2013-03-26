@@ -230,7 +230,7 @@
     ['meta-none metanone-rewriter]
 
     ['id id-rewriter]
-    ['get-field getfield-rewriter]
+    ['get-attr getfield-rewriter]
     ['assign assign-rewriter]
     ['app app-rewriter]
     ['object object-rewriter]
