@@ -303,10 +303,11 @@ def f(x):
   return x
 f('a-str')
 ")))
-  {(%str 1)}
-  {(1 vnone)})
+  {(%str 1) (%locals 2)}
+  {(1 vnone)
+   (2 vnone)})
  ((pointer-val ref_str)
-  {(%str 1) (f ref_f)}
+  {(%str 1) (%locals 2) (f ref_f)}
   {(ref_1 val_1) ...
    (ref_str (obj-val any_cls (meta-str "a-str") ()))
    (ref_n val_n) ...}))
@@ -331,13 +332,27 @@ f('a-str')
 (full-expect
  (,(core->redex (CLet 'x (LocalId) (CObject (CNone) (some (MetaStr "foo")))
                       (CSeq
-                       (CAssign (CGetAttr (CId 'x (LocalId)) (core-str "updated")) (CObject (CNone) (some (MetaStr "val"))))
+                       (CSetAttr (CId 'x (LocalId)) (core-str "updated") (CObject (CNone) (some (MetaStr "val"))))
                        (CGetAttr (CId 'x (LocalId)) (core-str "updated")))))
-  () ())
+  ({%str 1}) ({1 vnone}))
  ((pointer-val ref)
   ε
   ((ref_1 val_1) ...
    (ref (obj-val any_cls (meta-str "val") ()))
+   (ref_n val_n) ...)))
+
+(full-expect
+ (,(core->redex (CLet 'x (LocalId) (CObject (CNone) (some (MetaStr "foo")))
+                      (CSeq
+                       (CSetAttr (CId 'x (LocalId)) (core-str "updated") (CObject (CNone) (some (MetaStr "val"))))
+                       (CSeq
+                       (CSetAttr (CId 'x (LocalId)) (core-str "updated") (CObject (CNone) (some (MetaStr "val-2"))))
+                       (CGetAttr (CId 'x (LocalId)) (core-str "updated"))))))
+  ({%str 1}) ({1 vnone}))
+ ((pointer-val ref)
+  ε
+  ((ref_1 val_1) ...
+   (ref (obj-val any_cls (meta-str "val-2") ()))
    (ref_n val_n) ...)))
 
 

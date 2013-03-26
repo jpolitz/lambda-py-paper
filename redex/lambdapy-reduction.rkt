@@ -183,7 +183,7 @@
         (where (obj-val x_cls mval ((string_1 ref_2) ...))
                (store-lookup Σ ref_obj))
         (where (Σ_result val_result)
-          (class-lookup (pointer-val ref_obj) (store-lookup Σ (lookup x_cls ε)) string Σ))
+          (class-lookup (pointer-val ref_obj) (store-lookup Σ (env-lookup ε x_cls)) string Σ))
         (side-condition (not (member (term string) (term (string_1 ...)))))
         "E-GetAttr-Class/Lazy")
    (--> ((in-hole E (assign (id x global) := val)) (name ε ((x_2 ref_2) ... (x ref) (x_3 ref_3) ...)) Σ)
@@ -196,17 +196,18 @@
    (--> ((in-hole E (assign ref := val)) ε Σ)
         ((in-hole E val) ε (override-store Σ ref val))
         "E-AssignLocal")
-   (--> ((in-hole E (assign (get-field (pointer-val ref_obj)  string_1) := val_1)) ε Σ)
+   (--> ((in-hole E (set-attr (pointer-val ref_obj) (pointer-val ref_str) := val_1)) ε Σ)
         ((in-hole E val_1) ε (override-store Σ ref_1 val_1))
-        (where (obj-val x mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...))
+        (where (obj-val any_cls1 mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...))
                (store-lookup Σ ref_obj))
-        (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
+        (where (obj-val any_cls2 (meta-str string_1) any_dict) (store-lookup Σ ref_str))
         "E-AssignUpdate")
-   (--> ((in-hole E (assign (get-field (pointer-val ref_obj) string_1) := val_1)) ε Σ)
+   (--> ((in-hole E (set-attr (pointer-val ref_obj) (pointer-val ref_str) := val_1)) ε Σ)
         ((in-hole E val_1) ε Σ_2)
-        (where (obj-val any_cls mval ((string ref) ... )) (store-lookup Σ ref_obj))
+        (where (obj-val any_cls1 mval ((string ref) ... )) (store-lookup Σ ref_obj))
         (where (Σ_1 ref_new) (extend-store Σ val_1))
-        (where Σ_2 (override-store Σ_1 ref_obj (obj-val any_cls mval ((string_1 ref_new) (string ref) ...))))
+        (where (obj-val any_cls2 (meta-str string_1) any_dict) (store-lookup Σ ref_str))
+        (where Σ_2 (override-store Σ_1 ref_obj (obj-val any_cls1 mval ((string_1 ref_new) (string ref) ...))))
         (side-condition (not (member (term string_1) (term (string ...)))))
         "E-AssignAdd")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ..._1))) ε Σ)
@@ -231,6 +232,10 @@
 (define-metafunction λπ
   extend-env : ε x ref -> ε
   [(extend-env ((x_2 ref_2) ...) x_1 ref_1) ((x_2 ref_2) ... (x_1 ref_1))])
+
+(define-metafunction λπ
+  env-lookup : ε x -> ref
+  [(env-lookup ((x_1 ref_1) ... (x ref) (x_n ref_n) ...) x) ref])
 
 (define-metafunction λπ
   override-store : Σ ref val -> Σ
@@ -357,10 +362,10 @@
   [(subst-one x any (alloc e)) (alloc (subst-one x any e))]
   [(subst-one x any (object e mval))
    (object (subst-one x any e) (subst-mval x any mval))]
-  [(subst-one x any (get-field e string))
-   (get-field (subst-one x any e) string)]
   [(subst-one x any (get-attr e_1 e_2))
    (get-attr (subst-one x any e_1) (subst-one x any e_2))]
+  [(subst-one x any (set-attr e_1 e_2 := e_3))
+   (set-attr (subst-one x any e_1) (subst-one x any e_2) := (subst-one x any e_3))]
   [(subst-one x any (seq e_1 e_2))
    (seq (subst-one x any e_1) (subst-one x any e_2))]
   [(subst-one x any (assign e_1 := e_2))
