@@ -30,6 +30,9 @@
 (define (redex-str str)
   (term (alloc (obj-val %str (meta-str ,str) ()))))
 
+(define (redex-strv str)
+  (term (obj-val %str (meta-str ,str) ())))
+
 (set-pypath "/home/joe/src/Python-3.2.3/python")
 
 (define-syntax (expect stx)

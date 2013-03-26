@@ -49,11 +49,11 @@
      (get-attr e e) (set-attr e e := e)
      (if e e e)
      (let (x t = e+undef) in e)
-     (app e (e ...))
-     (app e (e ...) e)
+     (app e (e ...)) (app e (e ...) e)
+     (frame e) ;; frame is application "residue" for return
      (seq e e)
      (class x)
-     (while e e e) (loop e)
+     (while e e e) (loop e) ;; loop is context "residue" for break & continue
      (return e)
      (builtin-prim op (e ...))
      (fun (x ...) opt-var e opt-var)
@@ -84,27 +84,28 @@
      (if E e e)
      (let (x t = E) in e)
      (list E (e ...))
-     (list val E)
+     (list val Es)
      (tuple E (e ...))
-     (tuple val E)
+     (tuple val Es)
      (set E (e ...))
-     (set val E)
+     (set val Es)
      (get-attr E e)
      (get-attr val E)
-     (builtin-prim op E)
+     (builtin-prim op Es)
      (raise E)
      (return E)
      (tryexcept E x e e)
      (tryfinally E e)
      (loop E)
+     (frame E)
      (app E (e ...))
-     (app val E)
+     (app val Es)
      (app E (e ...) e)
-     (app val E e)
+     (app val Es e)
      (app val (val ...) E)
-     (val ... E e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
+  (Es (val ... E e ...))
   
   ;; context in a try/finally block
   (F hole
@@ -120,24 +121,26 @@
      (if F e e)
      (let (x t = F) in e)
      (list F e)
-     (list val F)
+     (list val Fs)
      (tuple F e)
-     (tuple val F)
+     (tuple val Fs)
      (set F e)
-     (set val F)
+     (set val Fs)
      (get-attr F e)
      (get-attr val F)
-     (builtin-prim op F)
+     (builtin-prim op Fs)
      (raise F)
      (loop F)
+     (frame F)
      (app F (e ...))
-     (app val F)
+     (app val Fs)
      (app F (e ...) e)
-     (app val F e)
+     (app val Fs e)
      (app val (val ...) F)
      (tryexcept F x e e)
-     (val ... F e ...) ;; for list, tuple, app, etc.
      )
+  (Fs (val ... F e ...))
+
   ;; context in a try block
   (T hole
      (fetch T)
@@ -152,24 +155,25 @@
      (if T e e)
      (let (x t = T) in e)
      (list T e)
-     (list val T)
+     (list val Ts)
      (tuple T e)
-     (tuple val T)
+     (tuple val Ts)
      (set T e)
-     (set val T)
+     (set val Ts)
      (get-attr T e)
      (get-attr val T)
-     (builtin-prim op T)
+     (builtin-prim op Ts)
      (raise T)
      (loop T)
+     (frame T)
      (app T (e ...))
-     (app val T)
+     (app val Ts)
      (app T (e ...) e)
-     (app val T e)
+     (app val Ts e)
      (app val (val ...) T)
-     (val ... T e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
+  (Ts (val ... T e ...))
   
   ;; context for while body
   (H hole
@@ -185,25 +189,27 @@
      (if H e e)
      (let (x t = H) in e)
      (list H e)
-     (list val H)
+     (list val Hs)
      (tuple H e)
-     (tuple val H)
+     (tuple val Hs)
      (set H e)
-     (set val H)
+     (set val Hs)
      (get-attr H e)
      (get-attr val H)
-     (builtin-prim op H)
+     (builtin-prim op Hs)
      (raise H)
      (tryexcept H x e e)
-     (tryfinally H e)
+     ;; (tryfinally H e) Don't go into tryfinallys to find break/continue
+     (loop H) ;; 
+     ;; (frame H) ;; Don't go into nested function calls to find breaks
      (app H (e ...))
-     (app val H)
+     (app val Hs)
      (app H (e ...) e)
-     (app val H e)
+     (app val Hs e)
      (app val (val ...) H)
-     (val ... H e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
+  (Hs (val ... H e ...))
   
   ;; contexts for returning
   (R hole
@@ -219,26 +225,27 @@
      (if R e e)
      (let (x t = R) in e)
      (list R e)
-     (list val R)
+     (list val Rs)
      (tuple R e)
-     (tuple val R)
+     (tuple val Rs)
      (set R e)
-     (set val R)
+     (set val Rs)
      (get-attr R e)
      (get-attr val R)
-     (builtin-prim op R)
+     (builtin-prim op Rs)
      (raise R)
      (loop R) ;; DO go into active loops to find returns
+     ;; (frame R) ;; Don't go into other functions to find returns
      (tryexcept R x e e) ;; DO go into try/catches to find returns
      ;; (tryfinally R e) DON'T go into tryfinallys to find returns
      (app R (e ...))
-     (app val R)
+     (app val Rs)
      (app R (e ...) e)
-     (app val R e)
+     (app val Rs e)
      (app val (val ...) R)
-     (val ... R e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
+  (Rs (val ... R e ...))
 
   ;; identifiers, as per
   ;; http://docs.python.org/3.2/reference/lexical_analysis.html#keywords

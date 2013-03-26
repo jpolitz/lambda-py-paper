@@ -85,13 +85,19 @@
         "while")
    (==> (loop val)
         vnone
-        "loop")
+        "E-LoopPop")
    (==> (loop (in-hole H break))
         vnone
-        "loop-break")
-   (==> (in-hole R (return val))
+        "E-LoopBreak")
+   (==> (frame (in-hole R (return val)))
         val
         "return")
+   (==> (frame val)
+        val
+        "E-FramePop")
+   (--> ((in-hole R (return val)) ε Σ)
+        ((err (sym "toplevel-return")) ε Σ)
+        "E-ReturnTop")
    (==> (tryexcept val x e_catch e_else)
         e_else
         "Try-Done")
@@ -211,7 +217,7 @@
         (side-condition (not (member (term string_1) (term (string ...)))))
         "E-AssignAdd")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ..._1))) ε Σ)
-        ((in-hole E (subst (x ...) (ref_arg ...) e)) ε Σ_1)
+        ((in-hole E (frame (subst (x ...) (ref_arg ...) e))) ε Σ_1)
         (where (obj-val any_c (meta-closure (λ (x ..._1) (no-var) e opt-var)) any_dict)
                (store-lookup Σ ref_fun))
         (where (Σ_1 (ref_arg ...))
