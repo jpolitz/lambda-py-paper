@@ -127,11 +127,17 @@
     [(list _ _ obj fld _)
      (list "" obj "[" fld "]")]))
 
+(define (setfield-rewriter lws)
+  (match lws
+    [(list _ _ obj fld colon val _)
+     (list "" obj "[" fld colon val "]")]
+    [else (error 'list (format "SetField fell through: ~a" (map lw-e lws)))]))
+
 (define (assign-rewriter lws)
   (match lws
     [(list _ _ target colon val _)
      (list "" target colon val)]
-    [else (error 'list (format "Let binder fell through: ~a" (map lw-e lws)))]))
+    [else (error 'list (format "Assign fell through: ~a" (map lw-e lws)))]))
 
 (define (app-rewriter lws)
   (match lws
@@ -231,6 +237,7 @@
 
     ['id id-rewriter]
     ['get-attr getfield-rewriter]
+    ['set-attr setfield-rewriter]
     ['assign assign-rewriter]
     ['app app-rewriter]
     ['object object-rewriter]

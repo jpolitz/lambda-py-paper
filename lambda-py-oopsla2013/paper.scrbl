@@ -246,11 +246,11 @@ So far, the dictionary part of @(lambda-py) objects have always been empty.
 Python does, however, support arbitrary field assignments on objects.  The
 expression
 @centered{
-  @(lp-term (assign (get-field e_obj str_f) := e_val))
+  @(lp-term (set-attr e_obj e_str := e_val))
 }
 has one of two behaviors, defined in @figure-ref["f:simple-objs"].  Both
 behaviors work over references to objects, not over objects themselves, in
-contrast to @(lp-term δ).  If @(lp-term str_f) is a string that is already a
+contrast to @(lp-term δ).  If @(lp-term e_str) is a string object that is already a
 member of @(lp-term e_obj), that field is imperatively updated with @(lp-term
 e_val).  If the string is not present, then a new field is added to the object,
 with a newly-allocated store position, and the object's location in the heap is
@@ -318,8 +318,8 @@ we chose to eliminate by desugaring.
 
 In the last section, we touched on field lookup in an object's local
 dictionary, and didn't discuss the purpose of the class position at all.
-When an object lookup @(lp-term (get-field (obj-val val_c mval d) str))
-doesn't find @(lp-term str) in the local dictionary @(lp-term d), it defers
+When an object lookup @(lp-term (get-attr (obj-val val_c mval d) e_str))
+doesn't find @(lp-term e_str) in the local dictionary @(lp-term d), it defers
 to a lookup algorithm on the class value @(lp-term val_c).  More
 specifically, it uses the @(lp-term "__mro__") (short for @emph{method
 resolution order}) field of the class to
@@ -388,11 +388,11 @@ verbose detail in the iteration over @(lp-term (id dict local)) by using the
       (fun (classname bases dict)
         (let (newcls local = (alloc (obj-val %type (meta-class classname) ()))) in
           (seq
-          (assign (get-field (id newcls local) "__mro__") :=
-            (builtin-prim "type-buildmro" (cls bases)))
+          (set-attr (id newcls local) (object %str (meta-str "__mro__")) :=
+            (builtin-prim "type-buildmro" (newcls bases)))
           (seq
-          (for (key elt) in (app (get-field (id dict local) "__items__") ())
-            (assign (get-field (id newcls local) (id key local)) := (id elt local)))
+          (for (key elt) in (app (get-attr (id dict local) (object %str (meta-str "__items__"))) ())
+            (set-attr (id newcls local) (id key local) := (id elt local)))
           (return (id newcls local))))))))
 }
 This function, along with the built-in @code{type}
@@ -410,7 +410,7 @@ translated to the rules in @(lambda-py).  Even the execution of @code{o.x}
 depends heavily on its inheritance hierarchy.  This
 program desugars to:
 @centered{
-@(lp-term (app (get-field (id o local) "__getattribute__") ((id o local) (obj-val %str (meta-str "x") ()))))
+@(lp-term (app (get-attr (id o local) (object %str (meta-str "__getattribute__"))) ((id o local) (object %str (meta-str "x")))))
 }
 For objects that don't override the @(lp-term "__getattribute__") field, the
 built-in object class's implementation does more than simply look up the
@@ -423,11 +423,11 @@ if the value of the field it accesses is a property, and if it is, calls its
 @(lp-term "__get__") method:
 @centered{
 @(lp-term
-  (assign (get-field object "__getattribute__") :=
+  (set-attr (id object global) (object %str (meta-str "__getattribute__")) :=
     (fun (obj field)
       (let (value local = (get-attr obj field)) in
         (if (app (id is-property? global) ((id value local)))
-            (return (app (get-field (id value local) "__get__") ()))
+            (return (app (get-attr (id value local) (object %str (meta-str "__get__"))) ()))
             (return (id value local)))))))
 }
 
@@ -458,11 +458,11 @@ built-in implementations of those methods for arithmetic, dictionary access,
 and a number of other operations.  Some examples:
 @nested{
 
-@code{o[x]} @emph{ desugars to... } @(lp-term (app (get-field (id o local) "__getitem__") ()))
+@code{o[x]} @emph{ desugars to... } @(lp-term (app (get-attr (id o local) (object %str (meta-str "__getitem__"))) ()))
 
-@code{x + y} @emph{ desugars to... } @(lp-term (app (get-field (id o local) "__add__") ((id y local))))
+@code{x + y} @emph{ desugars to... } @(lp-term (app (get-attr (id x local) (object %str (meta-str "__add__"))) ((id y local))))
 
-@code{f(x)} @emph{ desugars to... } @(lp-term (app (get-field (id f local) "__call__") ((id x local))))
+@code{f(x)} @emph{ desugars to... } @(lp-term (app (get-attr (id f local) (object %str (meta-str "__call__"))) ((id x local))))
 
 }
 
@@ -1054,9 +1054,9 @@ to the class object itself, the function would desugar to the following:
             (seq
             (assign (id c local) := (class "c"))
             (seq
-            (assign (get-field (id c local) "x") := (obj-val %int (meta-num 4) ()))
+            (set-attr (id c local) (object %str (meta-str "x")) := (object %int (meta-num 4)))
             (seq
-            (assign (get-field (id c local) "g") := (id extracted-g local))
+            (set-attr (id c local) (object %str (meta-str "g")) := (id extracted-g local))
             (return (id c local))))))))))))
 }
 
@@ -1101,11 +1101,11 @@ assignment to the variable itself:
               (let (g local = (undefined-val)) in
               (let (x local = (undefined-val)) in
                 (seq
-                (assign (get-field (id c local) "x") := (obj-val %int (meta-num 4) ()))
+                (set-attr (id c local) (object %str (meta-str "x")) := (object %int (meta-num 4)))
                 (seq
-                (assign (id x local) := (obj-val %int (meta-num 4) ()))
+                (assign (id x local) := (object %int (meta-num 4)))
                 (seq
-                (assign (get-field (id c local) "g") := (id extracted-g local))
+                (set-attr (id c local) (object %str (meta-str "g")) := (id extracted-g local))
                 (assign (id g local) := (id extracted-g local)))))))
             (return (id c local)))))))))))
 }
@@ -1134,12 +1134,12 @@ beyond what we have outlined here, even when present in class bodies.
         (let (end-of-gen-normal local = 
           (fun (last-val)
             (seq
-            (assign (get-field (id self local) "__next__") := (id done local))
+            (set-attr (id self local) (object %str (meta-str "__next__")) := (id done local))
             (raise (app (id StopIteration global) ()))))) in
         (let (end-of-gen-exn local = 
           (fun (exn-val)
             (seq
-            (assign (get-field (id self local) "__next__") := (id done local))
+            (set-attr (id self local) (object %str (meta-str "__next__")) := (id done local))
             (raise exn-val)))) in
         (let (unexpected-case local =
           (fun (v)
@@ -1153,7 +1153,7 @@ beyond what we have outlined here, even when present in class bodies.
                     (id end-of-gen-exn local)
                     (id unexpected-case local)
                     (id unexpected-case local)))))) in
-        (assign (get-field (id self local) "___resume") := (id resumer local)))))))) in
+        (set-attr (id self local) (object %str (meta-str "___resume")) := (id resumer local)))))))) in
       (app (id %generator global) ((id initializer local)))))))
 
 @(linebreak)
