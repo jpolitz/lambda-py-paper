@@ -1167,21 +1167,22 @@ beyond what we have outlined here, even when present in class bodies.
 @(linebreak)
 
 @verbatim{
-class %generator(object):
+class generator(object):
     def __init__(self, init):
         init(self)
 
-    def __next__(self, *args):
-        if len(args) > 0:
-            return self.___resume(args[0])
-        else:
-            return self.___resume(None)
+    def __next__(self):
+        return self.___resume(None)
+
+    def send(self, arg):
+        return self.___resume(arg)
 
     def __iter__(self):
         return self
         
     def __list__(self):
         return [x for x in self]
+
 }
 }
 
