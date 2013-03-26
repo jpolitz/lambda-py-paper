@@ -124,10 +124,10 @@ is available online at @url{https://www.github.com/brownplt/lambda-py}.
 
 @figure["f:exprs" (elem (lambda-py) " expressions")]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(e t v v+undef opt-var mval Σ ref))))
+    (lambda () (render-language λπ #:nts '(e t v e+undef v+undef opt-var mval Σ ref))))
 }
 
-@figure*["f:skull" "Handling undefined identifiers"]{
+@figure*["f:skull" "Let-binding identifiers, and looking up references"]{
   @(lp-reduction '(E-LetLocal E-GetVar E-GetVarUndef))
 }
 
@@ -162,13 +162,17 @@ distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
 functions.
 
 The distinguished @(lp-term (undefined-val)) form represents values on the heap
-that are uninitialized, and whose lookup should raise an exception.
+that are uninitialized, and whose lookup should raise an exception.  Within
+expressions, this form can @emph{only} appear in @(lp-term let)-bindings
+whose binding position can contain both expressions and @(lp-term
+(undefined-val)).  The evaluation of @(lp-term (undefined-val)) in a @(lp-term
+let)-binding 
+allocates it on the heap.  Thereafter, it is an error to look up a
+store location containing @(lp-term (undefined-val)); that location must have a
+value @(lp-term val) assigned into it for lookup to succeed.
 @Figure-ref["f:skull"] shows the behavior of lookup in heaps Σ for values and
-for @(lp-term (undefined-val)).  The @(lp-term let) form is the only expression
-that handles @(lp-term (undefined-val)), allocating a location for it in the
-store.  An assignment must be performed to change the store to a value at that
-location before a lookup will succeed.  This notion of undefined locations will
-come into play heavily when we discuss scope [REF].
+for @(lp-term (undefined-val)).  This notion of undefined locations will
+come into play when we discuss scope [REF].
 
 Python programs cannot manipulate object values directly; rather, they always
 work with references to objects.  Thus, many of the operations in @(lambda-py)
@@ -1063,6 +1067,9 @@ to the class object itself, the function would desugar to the following:
 This achieves our desired semantics: the bodies of functions defined in the
 class @code{C} will close over the @code{x} and @code{y} from the function
 definition, and the statements written in c-scope can still see those bindings.
+We note that scope desugaring yields terms in an intermediate language with a
+@(lp-term class) keyword.  In a later desugaring step, we remove the class
+keyword as we describe in [REF].
 
 @subsubsection{Instance Variables}
 
