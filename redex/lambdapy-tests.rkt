@@ -10,6 +10,8 @@
  "lambdapy-func-tests.rkt"
  "lambdapy-core-tests.rkt"
  "lambdapy-obj-tests.rkt"
+ "lambdapy-context-test.rkt"
+ "lambdapy-test-skull.rkt"
  )
 
 (test-results)

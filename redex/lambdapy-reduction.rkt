@@ -12,10 +12,9 @@
   (reduction-relation
    λπ
    #:domain p
-   (==> none vnone "none")
-   (==> undefined (undefined-val) "undefined")
-   (==> true vtrue "true")
-   (==> false vfalse "false")
+   (==> none vnone "E-None")
+   (==> true vtrue "E-True")
+   (==> false vfalse "E-False")
    (--> ((in-hole E (list val_c (val ...))) ε Σ)
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-List"
