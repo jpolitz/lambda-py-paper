@@ -16,10 +16,6 @@
    (==> undefined (undefined-val) "undefined")
    (==> true vtrue "true")
    (==> false vfalse "false")
-   (--> ((in-hole E (tryexcept (in-hole T (raise val)) x e_c e_e)) ε Σ)
-        ((in-hole E (subst-one x ref e_c)) ε Σ_1)
-        (where (Σ_1 ref) (extend-store Σ val)) ;;TODO(joe): else semantics
-        "E-Catch")
    (--> ((in-hole E (list val_c (val ...))) ε Σ)
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-List"
@@ -57,41 +53,31 @@
         "E-Object")
    (--> ((in-hole E (builtin-prim op (val ...))) ε Σ)
         ((in-hole E (δ op val ... ε Σ)) ε Σ)
-        "builtin-prim")
+        "E-BuiltinPrim")
    (--> ((in-hole E (if val e_1 e_2)) ε Σ)
         ((in-hole E e_1) ε Σ)
         (side-condition (term (truthy? val Σ)))
-        "if-true")
+        "E-IfTrue")
    (--> ((in-hole E (if val e_1 e_2)) ε Σ)
         ((in-hole E e_2) ε Σ)
         (side-condition (not (term (truthy? val Σ))))
-        "if-false")
+        "E-IfFalse")
    (==> (seq val e) e "E-Seq")
-   ;; NOTE(yao): this may be unnecessary, since context T deals with it
-   ;; I wrote it and then deleted.
-   ;; same thing for "seq-return" etc., if we use context to do it
-   #|
-   (==> (if (exception-r val) e_1 e_2)
-	(exception-r val)
-	"if-exception")|#
-   #|
-   (==> (seq break-r e)
-	break-r
-	"seq-break")
-   (==> (seq (exception-r val) e)
-	(exception-r val)
-	"seq-exception")|#
+   (--> ((in-hole T (raise val)) ε Σ)
+        ((err val) ε Σ)
+        "exc-uncaught")
+   (--> ((in-hole R (return e)) ε Σ) ((err (sym "ill-formed-return")) ε Σ)
+        "E-ReturnBad")
    (==> (while e_1 e_2 e_3)
         (if e_1 (loop e_2 (while e_1 e_2 e_3)) e_3)
         "E-While")
+
    (==> (loop val e) e "E-LoopNext")
    (==> (loop (in-hole H continue) e) e "E-LoopContinue")
    (==> (loop (in-hole H break) e) vnone "E-LoopBreak")
 
    (==> (frame (in-hole R (return val))) val "E-Return")
    (==> (frame val) val "E-FramePop")
-   (--> ((in-hole R (return e)) ε Σ) ((err (sym "ill-formed-return")) ε Σ)
-        "E-ReturnBad")
 
    (==> (tryfinally (in-hole R (return val)) e) (seq e (return val))
         "E-FinallyReturn")
@@ -104,52 +90,14 @@
 
    (==> (tryexcept val x e_catch e_else)
         e_else
-        "Try-Done")
+        "E-TryDone")
    (==> (tryexcept (in-hole T (raise val)) x e_catch e_else)
         (let (x local = val) in e_catch)
-        "Try-Catch")
-   (==> (try (in-hole T (raise val)) ((except () e) e_exc ...) e_else e_finally)
-        (try e () vnone e_finally)
-        "try-exc-notype")
-   (==> (try (in-hole T (raise val)) ((except () (x) e) e_exc ...) e_else e_finally)
-        (try (let (x local = val) in e) () vnone e_finally)
-        "try-exc-notype-named")
-   (==> (try (in-hole T (raise val)) ((except (e_type1 e_type ...) e) e_exc ...) e_else e_finally)
-        (try (if (builtin-prim "isinstance" (val e_type1)) ;; in principle "isinstance" should handle tuple (tuple (e_type1 e_type ...))
-                 e
-                 (try (in-hole T (exception-r val)) (e_exc ...) e_else vnone))
-             () vnone e_finally)
-        "try-exc-type")
-   (==> (try (in-hole T (raise val)) ((except (e_type1 e_type ...) (x) e) e_exc ...) e_else e_finally)
-        (try (if (builtin-prim "isinstance" (val e_type1)) ;; in principle "isinstance" should handle tuple (tuple (e_type1 e_type ...))
-                 (let (x local = val) in e)
-                 (try (in-hole T (raise val)) (e_exc ...) e_else vnone))
-             () vnone e_finally)
-        "try-exc-type-named")
-   (==> (try (in-hole T r) (e_exc ...) e_else e_finally)
-        (seq e_finally r)
-        (side-condition (not (val? (term r))))
-        (side-condition (not (redex-match? λπ (raise any) (term r))))
-        "try-nonval")
-   ;; NOTE(dbp): I don't think this is the correct behavior - uncaught exceptions
-   ;; should percolate up as (exception-r val) results, NOT cause racket errors.
-   ;;    agreed. (exception-r val) should be the reduction result. -yao
-   (--> ((in-hole T (raise val)) ε Σ)
-        ((err val) ε Σ)
-        "exc-uncaught")
+        "E-TryCatch")
+
    (==> (module val e)
         e
-        "module")
-   #|
-   (--> ((in-hole E (let (x_1 val) e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E (subst (x_1) (x_new) e))
-         ((extend-env ε_1 x_new ref_new) ε ...)
-         (override-store Σ ref_new val))
-        (fresh x_new)
-        (where ref_new ,(new-loc))
-        "let")|#
+        "E-Module")
    (--> ((in-hole E (let (x global = v+undef) in e)) ε Σ)
         ((in-hole E e) (extend-env ε x ref) Σ_1)
         (where (Σ_1 ref) (extend-store Σ v+undef))
@@ -158,10 +106,6 @@
         ((in-hole E (subst-one x ref e)) ε Σ_1)
         (where (Σ_1 ref) (extend-store Σ v+undef))
         "E-LetLocal")
-   #|
-   (==> (let (x_1 (exception-r val)) e_1)
-        (exception-r val)
-        "let-exc")|#
    (--> ((in-hole E (id x global))
          (name ε ((x_1 ref_1) ... (x ref) (x_2 ref_2) ...)) Σ)
         ((in-hole E (store-lookup Σ ref)) ε Σ)
