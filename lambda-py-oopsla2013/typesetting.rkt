@@ -105,18 +105,21 @@
   (match lws [(list _ _ t _) (list "" t "")]))
 (define (metalist-rewriter lws)
   (match lws
-    [(list _ _ l _) (list-literal-rewriter l)]))
-(define (metadict-rewriter lws)
-  (match lws
-    [(list _ _ d _)
-     (append (rewrite-dict-tuple d))]))
+    [(list _ _ l _) (cons "" (list-literal-rewriter l))]))
 (define (metaset-rewriter lws)
   (match lws
     [(list _ _ s _)
      (match (lw-e s)
       [(list _ elt dots _)
        (list "" "{" elt dots "}")])]))
-(define (metanone-rewriter _) (list "None"))
+(define (metanone-rewriter lws)
+  (match lws
+    [(list _ none _) (list none)]))
+
+(define (if-rewriter lws)
+  (match lws
+    [(list _ ifsym e1 e2 e3 _)
+     (list ifsym e1 e2 e3)]))
 
 (define (id-rewriter lws)
   (match lws
@@ -153,6 +156,16 @@
      (append (list list-word "〈" cls ",")
              (list-literal-rewriter lst)
              (list "〉"))]))
+(define (tuple-rewriter lws)
+  (match lws
+    [(list _ tuple-word cls lst _)
+     (append (list tuple-word "〈" cls "," lst "〉"))]))
+
+(define (set-rewriter lws)
+  (match lws
+    [(list _ set-word cls lst _)
+     (append (list set-word "〈" cls "," lst "〉"))]))
+
 
 (define (object-rewriter lws)
   (match lws
@@ -244,7 +257,6 @@
     ['meta-tuple metatuple-rewriter]
     ['meta-list metalist-rewriter]
     ['meta-set metaset-rewriter]
-    ['meta-dict metadict-rewriter]
     ['meta-closure metafun-rewriter]
     ['meta-none metanone-rewriter]
 
@@ -255,10 +267,13 @@
     ['app app-rewriter]
     ['object object-rewriter]
     ['list list-rewriter]
+    ['tuple tuple-rewriter]
+    ['set set-rewriter]
    ; ['module module-rewriter]
     ['seq seq-rewriter]
     ['let let-rewriter]
     ['fun fun-rewriter]
+    ['if if-rewriter]
 
     ['override-store override-rewriter]
     ['extend-store extend-rewriter]

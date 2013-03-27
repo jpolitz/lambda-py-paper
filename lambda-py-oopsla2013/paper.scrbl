@@ -265,7 +265,7 @@ for the provided name and returns the appropriate value, shown in E-GetField in
 rather than objects directly.
 
 @figure*["f:simple-objs" @elem{Simple field access and update in @(lambda-py)}]{
-  @(lp-reduction '("E-AssignUpdate" "E-AssignAdd" "E-GetField"))
+  @(lp-reduction '("E-SetFieldUpdate" "E-SetFieldAdd" "E-GetField"))
 }
 
 @subsection{First-class Functions}
@@ -1289,7 +1289,7 @@ class tuple(object):
   ...
 }
 All occurrences of @code{___delta(str, e, ...)} are desugared to
-@(lp-term (builtin-prim (str (e ...)))) directly.  We only do this
+@(lp-term (builtin-prim str (e ...))) directly.  We only do this
 for @emph{library} files, so normal Python programs can use
 @code{___delta} as the valid identifier it is. As another example,
 after the class definition of tuples, we have the statement
@@ -1508,5 +1508,69 @@ loop) form that serves as the marker for where internal @(lp-term break) and
 @(lp-term H) does @emph{not} descend into nested @(lp-term loop) forms; it
 would be incorrect for a @(lp-term break) in a nested loop to @(lp-term break)
 the outer loop.
+
+@subsection{Mutation}
+
+@figure*["f:mutation" "Various operations on mutable variables and values"]{
+  @(lp-reduction '(E-App E-LetLocal E-LetGlobal E-GetVar E-GetVar E-AssignLocal E-AssignGlobal
+                   E-Alloc E-Fetch E-Set! E-SetFieldAdd E-SetFieldUpdate))
+}
+
+There are @emph{three} separate mutability operators in @(lambda-py), @(lp-term (set! e e)), which mutates the value stored in a reference value, @(lp-term (assign e := e)), which mutates variables, and @(lp-term (set-field e e e)), which updates and adds fields to objects.
+
+@Figure-ref["f:mutation"] shows the several operators that allocate and
+manipulate references in different ways.  We briefly categorize the purpose for
+each type of mutation here:
+
+@itemlist[
+
+  @item{We use @(lp-term (set! e e)), @(lp-term (fetch e)) and @(lp-term (alloc e))
+  to handle the update and creation of objects via the δ function, which
+  reads but does not modify the store.  Thus, even the lowly @(lp-term +)
+  operation needs to have its result re-allocated, since programmers only see
+  references to numbers, not object values themselves.  We leave the pieces of
+  object values immutable and use this general strategy for updating them,
+  rather than defining separate mutability for each type (e.g. lists).}
+
+  @item{We use @(lp-term (assign e := e)) for assignment to both local and
+  global variables.  We discuss global variables more in the next section.
+  Local variables are handled at binding time by allocating references and
+  substituting the new references wherever the variable appears.  Local
+  variable accesses and assignments thus work over references directly, since
+  the variables have been substituted away by the time the actual assignment or
+  access is reached.  Note also that E-AssignLocal can override potential
+  @(lp-term (undefined-val)) store entries.}
+
+  @item{We use @(lp-term (set-field e e e)) to update and add fields to
+  objects' dictionaries.  We leave the fields of objects' dictionaries as
+  references and not values to leave open possibilities for sharing references
+  between object fields and variables.  We maintain a strict separation in our
+  current semantics, but certain dynamic patterns, like module loading and
+  exec, may require that we do so for certain extensions in the future.}
+
+]
+
+@subsection{Global Scope}
+
+While local variables are handled directly via substitution, we handle global
+scope with an explicit environment @(lp-term ε) that follows the computation.
+We do this for two main reasons.  First, because global scope in Python is
+truly dynamic in ways that local scope is not (@code{exec} can modify global
+scope in ways it cannot touch local scope), and we want to be open to those
+possibilities in the future.  Second, and more implementation-specific, we use
+global scope to bootstrap some mutual dependencies in the object system, and
+allow ourselves a touch of dynamism in the semantics.
+
+For example, when computing booleans, @(lambda-py) needs to yield numbers from
+the δ function that are real booleans (e.g. have the built-in @(lp-term (id %bool global))
+object as their class).  However, we need booleans to set up if-tests while we
+are bootstrapping the creation of the boolean class itself!  To handle this, we
+allow global identifiers to appear in the class position of objects.  If we
+look for the class of an object (via E-GetFieldClass, for instance), and the
+class position is an identifier, we look it up in the global environment.  We only
+use identifiers with special %-prefixed names that aren't visible to Python in
+this way.  It may be possible to remove this touch of dynamic scope from our
+semantics, but we haven't yet found the desugaring strategy that lets us do so.
+
 
 

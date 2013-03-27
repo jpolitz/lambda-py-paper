@@ -52,7 +52,6 @@
      (app e (e ...)) (app e (e ...) e)
      (frame e) ;; frame is application "residue" for return
      (seq e e)
-     (class x)
      (while e e e) (loop e e) ;; loop is context "residue" for break & continue
      (return e)
      (builtin-prim op (e ...))
@@ -115,8 +114,10 @@
      (app T (e ...)) (app val Ts)
      (app T (e ...) e) (app val Ts e)
      (app val (val ...) T)
-     ;; todo - may need more
      )
+  ;; Cases left out:
+  ;; (tryfinally H e) ;; Don't go into try/finallys to find raises
+  ;; (tryexcept T x e e) ;; Don't catch other try-blocks errors
   (Ts (val ... T e ...))
   
   ;; context for while body
@@ -136,14 +137,14 @@
      (builtin-prim op Hs)
      (raise H)
      (tryexcept H x e e) ;; DO go into try/catch to find break/continue
-     ;; (tryfinally H e) Don't go into try/finallys to find break/continue
-     (loop H e) ;;  DO go into loops to find break/continue
-     ;; (frame H) ;; Don't go into nested function calls to find breaks
      (app H (e ...)) (app val Hs)
      (app H (e ...) e) (app val Hs e)
      (app val (val ...) H)
-     ;; todo - may need more
      )
+  ;; Cases left out:
+  ;; (tryfinally H e) ;; Don't go into try/finallys to find break/continue
+  ;; (loop H e) ;;  Don't go into other loops to find break/continue
+  ;; (frame H) ;; Don't go into nested function calls to find breaks
   (Hs (val ... H e ...))
   
   ;; contexts for returning
@@ -163,14 +164,15 @@
      (builtin-prim op Rs)
      (raise R)
      (loop R e) ;; DO go into active loops to find returns
-     ;; (frame R) ;; Don't go into other functions to find returns
      (tryexcept R x e e) ;; DO go into try/catches to find returns
-     ;; (tryfinally R e) DON'T go into try/finallys to find returns
      (app R (e ...)) (app val Rs)
      (app R (e ...) e) (app val Rs e)
      (app val (val ...) R)
      ;; todo - may need more
      )
+  ;; Cases left out:
+  ;; (frame R) ;; Don't go into other functions to find returns
+  ;; (tryfinally R e) DON'T go into try/finallys to find returns
   (Rs (val ... R e ...))
 
   ;; identifiers, as per
