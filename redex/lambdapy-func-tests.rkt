@@ -2,7 +2,7 @@
 (require "lambdapy-test-util.rkt")
 
 (full-expect
- (,(core->redex (CApp (CFunc '(x) (none) (CReturn (CId 'x (LocalId))) (none))
+ (,(core->redex (CApp (CFunc '(identity) (none) (CReturn (CId 'identity (LocalId))) (none))
                       (list (CObject (CId '%str (GlobalId))
                                      (some (MetaStr "identity function"))))
                       (none)))
@@ -64,6 +64,51 @@
        ((object vnone (meta-str "get-this-one"))
         (object vnone (meta-str "not-this-one"))))
   () ())
+ ((pointer-val ref_arg)
+  ε
+  ((ref_1 val_1) ...
+   (ref_arg (obj-val any_cls (meta-str "get-this-one") any_dict))
+   (ref_n val_n) ...)))
+
+(full-expect
+ ((app (fun (x) (args)
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
+            (no-var))
+       ()
+       (tuple (id %tuple global)
+              ((object vnone (meta-str "not-this-one"))
+               (object vnone (meta-str "get-this-one")))))
+  {(%tuple 4)} {(4 vnone)})
+ ((pointer-val ref_arg)
+  ε
+  ((ref_1 val_1) ...
+   (ref_arg (obj-val any_cls (meta-str "get-this-one") any_dict))
+   (ref_n val_n) ...)))
+
+(full-expect
+ ((app (fun (x) (no-var)
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
+            (no-var))
+       ()
+       (tuple (id %tuple global)
+              ((object vnone (meta-str "not-this-one"))
+               (object vnone (meta-str "get-this-one")))))
+  {(%tuple 4)} {(4 vnone)})
+ ((err (obj-val any_cls (meta-str "arity-mismatch") any_dict))
+  ε
+  ((ref_1 val_1) ...
+   (ref_arg (obj-val any_cls (meta-str "get-this-one") any_dict))
+   (ref_n val_n) ...)))
+
+(full-expect
+ ((app (fun (x to-fetch) (no-var)
+            (return (id to-fetch local))
+            (no-var))
+       ()
+       (tuple (id %tuple global)
+              ((object vnone (meta-str "not-this-one"))
+               (object vnone (meta-str "get-this-one")))))
+  {(%tuple 4)} {(4 vnone)})
  ((pointer-val ref_arg)
   ε
   ((ref_1 val_1) ...

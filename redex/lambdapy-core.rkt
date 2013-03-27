@@ -43,7 +43,7 @@
      (if e e e) (seq e e)
      (let (x t = e+undef) in e)
      (id x t) (assign e := e)
-     (app e (e ...)) (app e (e ...) e) (frame e) ;; frame is application "residue" for return (return e)
+     (app e (e ...)) (app e (e ...) e) (frame e) (return e)
      (while e e e) (loop e e) break continue
      (builtin-prim op (e ...))
      (fun (x ...) opt-var e opt-var)
