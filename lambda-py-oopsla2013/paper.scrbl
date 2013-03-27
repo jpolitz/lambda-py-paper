@@ -12,8 +12,10 @@
   "bib.rkt")
 
 @(define (pycode . stx)
-   (nested #:style 'code-inset
-       (verbatim (string-join stx ""))))
+ (nested #:style 'code-inset
+     (verbatim (string-join stx ""))))
+@(define (pyinline . stx)
+  (tt (string-join stx "")))
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
 @(define (lambda-js) (elem "λ" (subscript "JS")))
@@ -241,7 +243,7 @@ corresponding to the one above would be:
 Similarly, we can use @(lp-term set!) and @(lp-term alloc) to update the values
 in lists, and to allocate the return values of primitive operations.  We
 desugar to patterns like the above from Python's actual surface operators for
-accessing the elements of a list in expressions like @code{mylist[2]}.
+accessing the elements of a list in expressions like @pyinline{mylist[2]}.
 
 @subsection{Updating and Accessing Fields}
 
@@ -275,7 +277,7 @@ rather than objects directly.
 }
 
 Functions in Python are objects like any other.  They are defined with the
-keyword @code{def}, which produces a callable object with a mutable set of
+keyword @pyinline{def}, which produces a callable object with a mutable set of
 fields, whose class is the built-in @(lp-term function) class.  For example a
 programmer is free to write:
 @pycode{
@@ -359,10 +361,10 @@ constructs to build up the inheritance hierarchy the instances eventually use.
 
 @subsection[#:tag "s:desugaring-classes"]{Desugaring Classes}
 
-Most Python programmers use the special @code{class} form to create classes in
-Python.  However, @code{class} is merely syntactic sugar for a use of the
+Most Python programmers use the special @pyinline{class} form to create classes in
+Python.  However, @pyinline{class} is merely syntactic sugar for a use of the
 builtin Python function
-@code{type}.@note{http://docs.python.org/3/library/functions.html#type} The
+@pyinline{type}.@note{http://docs.python.org/3/library/functions.html#type} The
 documentation states explicitly that the two following forms [sic] produce
 @emph{identical} type objects:
 @pycode{
@@ -372,10 +374,10 @@ class X:
 X = type('X', (object,), dict(a=1))
 }
 This means that to implement classes, we merely need to understand the built-in
-function @code{type}, and how it creates new classes on the fly.  Then it is a
+function @pyinline{type}, and how it creates new classes on the fly.  Then it is a
 simple matter to desugar class forms to this function call.
 
-The implementation of @code{type} creates a new object value for the class,
+The implementation of @pyinline{type} creates a new object value for the class,
 allocates it, sets the @(lp-term "__mro__") field to be the computed
 inheritance graph,@note{This uses an algorithm that is implementable in
 pure Python: http://www.python.org/download/releases/2.3/mro/.} and sets the
@@ -395,7 +397,7 @@ verbose detail in the iteration over @(lp-term (id dict local)) by using the
             (set-attr (id newcls local) (id key local) := (id elt local)))
           (return (id newcls local))))))))
 }
-This function, along with the built-in @code{type}
+This function, along with the built-in @pyinline{type}
 class, suffices for bootstrapping the object system in @(lambda-py).
 
 @subsection{Python Desugaring Patterns}
@@ -406,7 +408,7 @@ can be set anywhere in an object's inheritance hierarchy, and provide a lot of
 the flexibility for which Python is well-known.
 
 For example, the field accesses that Python programmers write are not directly
-translated to the rules in @(lambda-py).  Even the execution of @code{o.x}
+translated to the rules in @(lambda-py).  Even the execution of @pyinline{o.x}
 depends heavily on its inheritance hierarchy.  This
 program desugars to:
 @centered{
@@ -458,15 +460,15 @@ built-in implementations of those methods for arithmetic, dictionary access,
 and a number of other operations.  Some examples:
 @nested{
 
-@code{o[x]} @emph{ desugars to... } @(lp-term (app (get-attr (id o local) (object %str (meta-str "__getitem__"))) ()))
+@pyinline{o[x]} @emph{ desugars to... } @(lp-term (app (get-attr (id o local) (object %str (meta-str "__getitem__"))) ()))
 
-@code{x + y} @emph{ desugars to... } @(lp-term (app (get-attr (id x local) (object %str (meta-str "__add__"))) ((id y local))))
+@pyinline{x + y} @emph{ desugars to... } @(lp-term (app (get-attr (id x local) (object %str (meta-str "__add__"))) ((id y local))))
 
-@code{f(x)} @emph{ desugars to... } @(lp-term (app (get-attr (id f local) (object %str (meta-str "__call__"))) ((id x local))))
+@pyinline{f(x)} @emph{ desugars to... } @(lp-term (app (get-attr (id f local) (object %str (meta-str "__call__"))) ((id x local))))
 
 }
 
-With the basics of @code{type} and object lookup in place, getting all of these
+With the basics of @pyinline{type} and object lookup in place, getting all of these
 operations right is just a matter of desugaring to the right method calls, and
 providing the right built-in versions. numbers to handle the base cases
 for primitive values.  This is what we do for much of our desugaring to
@@ -483,9 +485,9 @@ control flow constructs, notably generators. We now begin examining these in det
 @subsection{Generators}
 
 Python has a built-in notion of @emph{generators}, which provide a control-flow
-construct, @code{yield}, that can implement lazy or generative sequences and
+construct, @pyinline{yield}, that can implement lazy or generative sequences and
 coroutines.  The programmer interface for creating a generator in Python is
-straightforward: any function definition that uses the @code{yield} keyword in
+straightforward: any function definition that uses the @pyinline{yield} keyword in
 its body is automatically converted into an object with a generator
 interface.  To illustrate the easy transition from function to generator,
 consider this simple program:
@@ -500,13 +502,13 @@ f() # ==> 1
 f() # ==> 1
 # ...
 }
-When called, this function always returns @code{1}.
+When called, this function always returns @pyinline{1}.
 
-Changing @code{return} to @code{yield}
-turns this into a generator. As a result, applying @code{f()} no longer
+Changing @pyinline{return} to @pyinline{yield}
+turns this into a generator. As a result, applying @pyinline{f()} no longer
 immediately evaluates the body of the function; instead, it creates an 
-object whose @code{next} method evaluates the body until the next
-@code{yield} statement, stores its state for later resumption, and
+object whose @pyinline{next} method evaluates the body until the next
+@pyinline{yield} statement, stores its state for later resumption, and
 returns the yielded value:
 @pycode{
 def f():
@@ -533,11 +535,11 @@ def f():
     x += 1
     do_yield(x)
 }
-Invoking @code{f()} results in an @emph{infinite loop}. That is because
-Python strictly converts only the innermost function with a @code{yield}
-into a generator, so only @code{do_yield} is a generator. Thus, the
-generator stores only the execution context of @code{do_yield}, not of
-@code{f}.
+Invoking @pyinline{f()} results in an @emph{infinite loop}. That is because
+Python strictly converts only the innermost function with a @pyinline{yield}
+into a generator, so only @pyinline{do_yield} is a generator. Thus, the
+generator stores only the execution context of @pyinline{do_yield}, not of
+@pyinline{f}.
 
 The experienced linguist will immediately see what is going
 on. Clearly, Python has made a design decision to store only
@@ -556,7 +558,7 @@ Furthermore, generators can be handled by a strictly local rewriting
 process that can be handled by desugaring. That is, generators can be
 handled in the core language by reifying them into into first-class
 functions and applications and using a little state to record which
-function is the continuation of the @code{yield} point. Thus,
+function is the continuation of the @pyinline{yield} point. Thus,
 generators seem to fit perfectly with our desguaring strategy.
 
 @subsection{A (Local) CPS Transformation for Python}
@@ -564,16 +566,16 @@ generators seem to fit perfectly with our desguaring strategy.
 When converting programs to CPS, we take operators that can cause
 control-flow and reify each into a continuation function and
 appropriate application. These operators include simple sequences,
-loops combined with @code{break} and @code{continue}, and
-@code{try-except} and @code{try-finally} combined with @code{raise}
-(generators cannot use @code{return}).
+loops combined with @pyinline{break} and @pyinline{continue}, and
+@pyinline{try-except} and @pyinline{try-finally} combined with @pyinline{raise}
+(generators cannot use @pyinline{return}).
 
 Our CPS transformation turns every expression into a function that accepts an
 argument for each of the above control operators, and turns uses of control
 operators into applications of the appropriate continuation inside the
 function.  By passing in different continuation arguments, the caller of the
 resulting function has complete control over the behavior of control operators.
-For example, we might rewrite a @code{try-except} block from
+For example, we might rewrite a @pyinline{try-except} block from
 @pycode{
 try:
   raise Exception()
@@ -587,9 +589,9 @@ def except_handler(e): print(e)
 except_handler(Exception())
 }
 
-In the case of generators, rewriting @code{yield}
+In the case of generators, rewriting @pyinline{yield}
 with CPS would involve creating a handler that stores a function holding the
-code for what to do next, and rewriting @code{yield} expressions to call that
+code for what to do next, and rewriting @pyinline{yield} expressions to call that
 handler:
 @pycode{
 def f():
@@ -632,11 +634,11 @@ g.['next']() # ==> 1
 g.['next']() # ==> 2
 g.['next']() # throws "StopIteration"
 }
-We build the @code{yielder} function, which takes a value, which it returns
-after storing a continuation argument in the @code{to_call_next} field.  The
-@code{next} function always returns the result of calling this stored value.
-Each @code{yield} statement is rewritten to put everything after it into a new
-function definition, which is passed to the call to @code{yielder}. In
+We build the @pyinline{yielder} function, which takes a value, which it returns
+after storing a continuation argument in the @pyinline{to_call_next} field.  The
+@pyinline{next} function always returns the result of calling this stored value.
+Each @pyinline{yield} statement is rewritten to put everything after it into a new
+function definition, which is passed to the call to @pyinline{yielder}. In
 other words, this is the canonical CPS transformation, applied in the
 usual fashion.
 
@@ -649,8 +651,8 @@ UnboundLocalError: local variable 'x'
 }
 This is because Python creates a @emph{new scope} for each function
 definition, and assignments within that scope create new variables.
-In the body of @code{rest}, the assignment @code{x += 1} refers to a
-new @code{x}, not the one defined by @code{x = 1} in @code{start}.  This
+In the body of @pyinline{rest}, the assignment @pyinline{x += 1} refers to a
+new @pyinline{x}, not the one defined by @pyinline{x = 1} in @pyinline{start}.  This
 runs counter to traditional notions of functions that can close over
 mutable variables.  And in general, with multiple assignment
 statements and branching control flow, it is entirely unclear whether a
@@ -669,12 +671,12 @@ will return to a CPS transformation that does work for Python's generators.
 
 Python has a rich notion of scope, with several types of variables and implicit
 binding semantics that depend on the block structure of the program.  Most
-identifiers are @code{local}; this includes function parameters and variables
-defined with the @code{=} operator.  There are also @code{global} and
-@code{nonlocal} variables, with their own special semantics within closures,
+identifiers are @pyinline{local}; this includes function parameters and variables
+defined with the @pyinline{=} operator.  There are also @pyinline{global} and
+@pyinline{nonlocal} variables, with their own special semantics within closures,
 and interaction with classes.  Our core contribution to explaining Python's
-scope is to give a desugaring of the @code{nonlocal} and @code{global}
-keywords, along with implicit @code{local}, @code{global} and @code{instance}
+scope is to give a desugaring of the @pyinline{nonlocal} and @pyinline{global}
+keywords, along with implicit @pyinline{local}, @pyinline{global} and @pyinline{instance}
 identifiers, into traditional lexically scoped closures. 
 Global scope is still handled specially, since it exhibits a form of dynamic
 scope that isn't straightforward to capture with traditional
@@ -682,12 +684,12 @@ let-bindings.@note{We actually exploit this dynamic scope in bootstrapping
 Python's object system, but defer an explanation to the appendix.}
 
 We proceed by describing Python's handling of scope for local variables, the
-extension to @code{nonlocal}, and the interaction of both of these features with
+extension to @pyinline{nonlocal}, and the interaction of both of these features with
 classes.
 
 @subsection{Declaring and Updating Local Variables}
 
-In Python, the operator @code{=} performs local variable binding:
+In Python, the operator @pyinline{=} performs local variable binding:
 @pycode{
 def f():
   x = 'local variable'
@@ -696,7 +698,7 @@ def f():
 f() # ==> 'local variable'
 }
 The syntax for updating and creating a local variable are identical, so
-subsequent @code{=} statements mutate the variable created by the first.
+subsequent @pyinline{=} statements mutate the variable created by the first.
 @pycode{
 def f():
   x = 'local variable'
@@ -727,12 +729,12 @@ f(1) # ==> "big"
 
 Handling simple declarations of variables and updates to variables is
 straightforward to translate into a lexically-scoped language.  @(lambda-py)
-has a usual @code{let} form that allows for lexical binding.  In desugaring, we
+has a usual @pyinline{let} form that allows for lexical binding.  In desugaring, we
 scan the body of the function and accumulate all the variables on the left-hand
 side of assignment statements in the body.  These are let-bound at the top of
 the function to the special @(lp-term (undefined-val)) form, which evaluates to an
-exception in any context other than a @code{let}-binding context (@secref["s:warmup"]).  We use
-@code{x := e} as the expression form for variable assignment, which is not a
+exception in any context other than a @pyinline{let}-binding context (@secref["s:warmup"]).  We use
+@pyinline{x := e} as the expression form for variable assignment, which is not a
 binding form in the core.  Thus, in @(lambda-py), the example above rewrites to:
 @centered{
   @(lp-term
@@ -790,8 +792,8 @@ def f():
 
 f()() # ==> 'closed-over'
 }
-However, since @code{=} defines a new local variable, one cannot close over a
-variable and mutate it with the constructs we've seen so far; @code{=} simply
+However, since @pyinline{=} defines a new local variable, one cannot close over a
+variable and mutate it with the constructs we've seen so far; @pyinline{=} simply
 defines a new variable with the same name:
 @pycode{
 def g():
@@ -812,8 +814,8 @@ variable binding and update.
 
 Closing over a mutable variable is, however, a common and useful pattern.  Perhaps
 recognizing this, Python added a new keyword in Python 3.0 to
-allow this pattern, called @code{nonlocal}.  A function
-definition can include a @code{nonlocal} declaration at the top, which allows
+allow this pattern, called @pyinline{nonlocal}.  A function
+definition can include a @pyinline{nonlocal} declaration at the top, which allows
 mutations within the function's body to refer to variables in enclosing scopes
 on a per-variable basis.  If we add such a declaration to the previous example,
 we get a different answer:
@@ -828,8 +830,8 @@ def g():
 
 g() # ==> ('inner x', 'inner x')
 }
-The @code{nonlocal} declaration allows the inner assignment to @code{x} to
-``see'' the outer binding from @code{g}.  This effect can span any nesting
+The @pyinline{nonlocal} declaration allows the inner assignment to @pyinline{x} to
+``see'' the outer binding from @pyinline{g}.  This effect can span any nesting
 depth of functions:
 @pycode{
 def g():
@@ -845,7 +847,7 @@ def g():
 g() # ==> ('inner x', 'inner x')
 }
 
-Thus, the presence or absence of a @code{nonlocal} declaration can change an
+Thus, the presence or absence of a @pyinline{nonlocal} declaration can change an
 assignment statement from a binding occurrence of a variable to an assigning
 occurence.  We augment our algorithm for desugaring scope to reflect this:
 @itemlist[
@@ -856,7 +858,7 @@ occurence.  We augment our algorithm for desugaring scope to reflect this:
       @item{Collect all variables on the left-hand side of @(lp-term =) in a set @emph{locals}, stopping at other function boundaries,}
 
       @item{Let @emph{locals'} be @emph{locals} with any variables in
-      @code{nonlocal} declarations removed,}
+      @pyinline{nonlocal} declarations removed,}
 
       @item{For each variable @(lp-term var) in @emph{locals'}, wrap the
       function body in a @(lp-term let)-binding of @(lp-term var) to @(lp-term
@@ -962,11 +964,11 @@ y-value
 }
 
 Consider the example in @figure-ref["f:classexample"].  Here we observe an
-interesting phenomenon: in the body of @code{g}, the value of the variable
-@code{x} is @emph{not} @code{4}, the value of the most recent apparent
-assignment to @code{x}.  In fact, the body of @code{g} seems to "skip" the
+interesting phenomenon: in the body of @pyinline{g}, the value of the variable
+@pyinline{x} is @emph{not} @pyinline{4}, the value of the most recent apparent
+assignment to @pyinline{x}.  In fact, the body of @pyinline{g} seems to "skip" the
 scope in which x is bound to 4, instead closing over the outer scope in which
-@code{x} is bound to @code{"x-value"}.  At first glance this does not appear to
+@pyinline{x} is bound to @pyinline{"x-value"}.  At first glance this does not appear to
 be compatible with our previous notions of Python's closures.  We will see,
 however, that the correct desugaring is capable of expressing the semantics of
 scope in classes within the framework we have already established for dealing
@@ -989,7 +991,7 @@ f("x-value", "y-value")().g()
 
 In this example, we have three local scopes: the body of the function f, the
 body of the class definition c, and the body of the function g.  The scopes of
-@code{c} and @code{g} close over the same scope as @code{f}, but have distinct,
+@pyinline{c} and @pyinline{g} close over the same scope as @pyinline{f}, but have distinct,
 non-nesting scopes themselves.  @Figure-ref["f:class-scope"] shows the
 relationship graphically.  Algorithmically, we add new steps to scope
 desugaring:
@@ -1023,7 +1025,7 @@ desugaring:
       @item{Collect all variables on the left-hand side of @(lp-term =) in a set @emph{locals}, stopping at other function boundaries,}
 
       @item{Let @emph{locals'} be @emph{locals} with any variables in
-      @code{nonlocal} declarations removed,}
+      @pyinline{nonlocal} declarations removed,}
 
       @item{For each variable @(lp-term var) in @emph{locals'}, wrap the
       function body in a @(lp-term let)-binding of @(lp-term var) to @(lp-term
@@ -1055,7 +1057,7 @@ to the class object itself, the function would desugar to the following:
 }
 
 This achieves our desired semantics: the bodies of functions defined in the
-class @code{C} will close over the @code{x} and @code{y} from the function
+class @pyinline{C} will close over the @pyinline{x} and @pyinline{y} from the function
 definition, and the statements written in c-scope can still see those bindings.
 We note that scope desugaring yields terms in an intermediate language with a
 @(lp-term class) keyword.  In a later desugaring step, we remove the class
@@ -1077,7 +1079,7 @@ c.x = 3
 }
 will produce the same class.  We do, however, have to still account for
 @emph{uses} of the instance variables inside the class body, which are referred
-to with the variable name, not with a field lookup like @code{c.x}.  This
+to with the variable name, not with a field lookup like @pyinline{c.x}.  This
 observation is the key insight into @(lambda-py)'s treatment of instance
 variables.  We perform a final desugaring step for instance variables, where we
 let-bind them in a new scope just for evaluating the class body, and desugar
@@ -1110,7 +1112,7 @@ We have now covered Python's class semantics:
 function bodies do not close over the class body's scope, class bodies
 create their own local scope, statements in class bodies are executed sequentially,
 and definitions/assignments in class bodies result in the creation of class
-members.  The @code{nonlocal} and @code{global} keywords do not require special treatment 
+members.  The @pyinline{nonlocal} and @pyinline{global} keywords do not require special treatment 
 beyond what we have outlined here, even when present in class bodies.
 
 @subsection[#:tag "s:generators-redux"]{Generators Redux}
@@ -1181,22 +1183,22 @@ discussion of generators, and their implementation with a local CPS
 transformation.
 
 To implement generators, we first desugar Python down to a version of
-@(lambda-py) with an explicit @code{yield} statement, passing @code{yields}
+@(lambda-py) with an explicit @pyinline{yield} statement, passing @pyinline{yields}
 through unchanged.  As the final stage of desugaring, we identify functions
-that contain @code{yield}, and convert them to generators via local CPS.  We
+that contain @pyinline{yield}, and convert them to generators via local CPS.  We
 show the desugaring machinery @emph{around} the CPS transformation in
 @figure-ref["f:generators"].  To desugar them, in the body of the function we
-construct a generator object and store the CPS-ed body as a @code{___resume}
-attribute on the object. The @code{__next__} method on the generator, when
-called, will call the @code{___resume} closure with any arguments that are
-passed in. To handle yielding, we desugar the core @code{yield} expression to
-update the @code{___resume} attribute to store the current normal continuation,
-and then @code{return} the value that was yielded.
+construct a generator object and store the CPS-ed body as a @pyinline{___resume}
+attribute on the object. The @pyinline{__next__} method on the generator, when
+called, will call the @pyinline{___resume} closure with any arguments that are
+passed in. To handle yielding, we desugar the core @pyinline{yield} expression to
+update the @pyinline{___resume} attribute to store the current normal continuation,
+and then @pyinline{return} the value that was yielded.
 
 Matching Python's operators for control flow, we have five continuations, one
 for the normal completion of a statement or expression going onto the next, one
-for a @code{return} statement, one each for @code{break} and @code{continue},
-and one for the exception throwing @code{raise}.  This means that each CPSed
+for a @pyinline{return} statement, one each for @pyinline{break} and @pyinline{continue},
+and one for the exception throwing @pyinline{raise}.  This means that each CPSed
 expression becomes an anonymous function of five arguments, and can be passed
 in the appropriate behavior for each control operator.
 
@@ -1210,18 +1212,18 @@ We use this configurability to handle two special cases of generators:
 
 ]
 
-In the latter case, the generator raises a @code{StopIteration} exception. We
+In the latter case, the generator raises a @pyinline{StopIteration} exception. We
 encode this by setting the initial ``normal'' continuation to a function that
-will update @code{___resume} to always raise @code{StopIteration}, and then to
+will update @pyinline{___resume} to always raise @pyinline{StopIteration}, and then to
 raise that exception. Thus, if we evaluate the entire body of the generator, we
 will pass the result to this continuation, and the proper behavior will occur.
 
 Similarly, if an uncaught exception occurs in a generator, the generator will
 raise that exception, and any subsequent calls to the generator will result in
-@code{StopIteration}. We handle this by setting the initial @code{raise}
-continuation to be code that updates @code{___resume} to always raise
-@code{StopIteration}, and then we raise the exception that was passed to the
-continuation. Since each @code{try} block in CPS installs a new exception
+@pyinline{StopIteration}. We handle this by setting the initial @pyinline{raise}
+continuation to be code that updates @pyinline{___resume} to always raise
+@pyinline{StopIteration}, and then we raise the exception that was passed to the
+continuation. Since each @pyinline{try} block in CPS installs a new exception
 continuation, if a value is passed to the top-level exception handler it means
 that the exception was not caught, and again the expected behavior will occur.
 
@@ -1250,15 +1252,15 @@ paper has hinted that it proceeds in phases. Indeed, there are four:
   @item{Lift definitions out of classes (@secref["s:class-scope"]).}
 
   @item{Let-bind variables (@secref["s:nonlocal-scope"]). This is done second to correctly
-  handle occurrences of @code{nonlocal} and @code{global} in class methods.
+  handle occurrences of @pyinline{nonlocal} and @pyinline{global} in class methods.
   The result of these first two steps is an intermediate language between
   Python and the core with lexical scope, but still many surface constructs.}
 
   @item{Desugar classes, turn Python operators into method calls, turn
-  @code{for} loops into appropriately-guarded @(lp-term while) loops in the
+  @pyinline{for} loops into appropriately-guarded @(lp-term while) loops in the
   core, etc.}
 
-  @item{Desguar generators (functions containing @code{yield}, @secref["s:generators-redux"]).}
+  @item{Desguar generators (functions containing @pyinline{yield}, @secref["s:generators-redux"]).}
 
 ]
 These four steps yield a term in our core.  It isn't quite ready to
@@ -1288,10 +1290,10 @@ class tuple(object):
     return ___delta("tuple-len", self)
   ...
 }
-All occurrences of @code{___delta(str, e, ...)} are desugared to
+All occurrences of @pyinline{___delta(str, e, ...)} are desugared to
 @(lp-term (builtin-prim str (e ...))) directly.  We only do this
 for @emph{library} files, so normal Python programs can use
-@code{___delta} as the valid identifier it is. As another example,
+@pyinline{___delta} as the valid identifier it is. As another example,
 after the class definition of tuples, we have the statement
 @pycode{
 ___assign("%tuple", tuple)
@@ -1344,14 +1346,14 @@ from interesting blog posts. On all these tests @emph{we obtain the
 same results as CPython}.
 
 It would be more convincing to eventually handle all of Python's own
-@code{unittest} infrastructure to run CPython's test suite unchanged.  The
-@code{unittest} framework of CPython unfortunately relies on a number of
+@pyinline{unittest} infrastructure to run CPython's test suite unchanged.  The
+@pyinline{unittest} framework of CPython unfortunately relies on a number of
 reflective features on modules, and on native libraries, that we don't yet
 cover.  We leave the significant engineering work to get to this point as
 future work.  For now, we manually move the assertions to simpler if-based
 tests, which also run under CPython, to check conformance.
 
-Even if we can handle all of @code{unittest}, many of CPython's tests are written in
+Even if we can handle all of @pyinline{unittest}, many of CPython's tests are written in
 ``doctest'' style, meaning they are essentially a record of a REPL
 interaction.  This is especially true of the
 file that tests generators.  More engineering work would be required to run
@@ -1380,7 +1382,7 @@ function objects that compute the content of closures; properties that
 serialize; and so on.
 
 More interestingly, we are not done with scope! Consider
-@code{locals}, which
+@pyinline{locals}, which
 returns a dictionary of the current variable bindings in a given scope:
 @pycode{
 def f(x):
@@ -1389,10 +1391,10 @@ def f(x):
 
 f("x-val") # ==> {'x': 'x-val', 'y': 3}
 }
-Even if @code{locals} were a keyword, it
+Even if @pyinline{locals} were a keyword, it
 would not be trivial to desugar because variables can be bound on just
 some control flow paths. (We believe we have a (complicated)
-desugaring, but have not yet verified it.) Worse, @code{locals} is a
+desugaring, but have not yet verified it.) Worse, @pyinline{locals} is a
 value!
 @pycode{
 def f(x, g):
@@ -1404,20 +1406,20 @@ f("x-val", locals)
 #      'g': <builtin function locals>}
 }
 Thus, @emph{any} application could invoke
-@code{locals}.  We would therefore need to deploy our complex
+@pyinline{locals}.  We would therefore need to deploy our complex
 desugaring everywhere we cannot statically determine that a function
-is not @code{locals}, and change every application to check for it.
-Other built-in values like @code{super} and @code{dir}
+is not @pyinline{locals}, and change every application to check for it.
+Other built-in values like @pyinline{super} and @pyinline{dir}
 exhibit similar behavior.
 
-On top of this, @code{import} can splice all identifiers
- (@code{*}) from a module into local scope. For
-now, we handle only @code{import}s that bind the module object to a single
+On top of this, @pyinline{import} can splice all identifiers
+ (@pyinline{*}) from a module into local scope. For
+now, we handle only @pyinline{import}s that bind the module object to a single
 identifier. Indeed, even 
-Python 3 advises that @code{import *} should only be used
+Python 3 advises that @pyinline{import *} should only be used
 at module scope. 
 
-Finally, we do not handle @code{exec}, Python's
+Finally, we do not handle @pyinline{exec}, Python's
 ``eval''. Related efforts on handling similar operators in 
 JavaScript@~cite["politz:s5"] are sure to be helpful here.
 
@@ -1456,11 +1458,12 @@ and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
 - NSF and Google for funding
 - Brown and CS for providing "free hosting" services for our course
 - redex
+- Caitlin for @figure-ref{"f:class-scope"}
 }
 
 @(generate-bib)
 
-@section[#:tag "s:appendix"]{Appendix: The Rest of @(lambda-py)}
+@section[#:tag "s:appendix" #:style 'unnumbered]{Appendix: The Rest of @(lambda-py)}
 
 @figure["f:E" (elem "Evaluation contexts")]{
   @(with-rewriters
@@ -1555,7 +1558,7 @@ each type of mutation here:
 While local variables are handled directly via substitution, we handle global
 scope with an explicit environment @(lp-term ε) that follows the computation.
 We do this for two main reasons.  First, because global scope in Python is
-truly dynamic in ways that local scope is not (@code{exec} can modify global
+truly dynamic in ways that local scope is not (@pyinline{exec} can modify global
 scope in ways it cannot touch local scope), and we want to be open to those
 possibilities in the future.  Second, and more implementation-specific, we use
 global scope to bootstrap some mutual dependencies in the object system, and

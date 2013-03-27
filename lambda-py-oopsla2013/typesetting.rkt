@@ -32,6 +32,7 @@
         (render-metafunction name)))))
 (literal-style "Inconsolata")
 (paren-style "Inconsolata")
+(default-style "Inconsolata")
 (metafunction-font-size 11)
 
 (define (metafun-rewriter lws)
