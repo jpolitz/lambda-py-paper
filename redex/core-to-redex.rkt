@@ -96,7 +96,7 @@
                        ,(core->redex finally)))]
     [CBreak () (term break)]
     [CContinue () (term continue)]
-    [CUndefined () (term undefined)]
+    [CUndefined () (term (undefined-val))]
     [CModule (prelude body)
      (term (module ,(core->redex prelude) ,(core->redex body)))]
     [CConstructModule (source)
