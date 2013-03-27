@@ -74,8 +74,8 @@ it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
 source programs into the core. The core language is a mostly
 traditional stateful lambda-calculus augmented with
-features to represent the essence of Python (such as classes and
-dictionaries), and should thus be familiar to its potential users.
+features to represent the essence of Python (such as method lookup order and
+primitive lists), and should thus be familiar to its potential users.
 
 Because desugaring converts Python surface syntax to the core
 language, when it is composed with an interpreter for @(lambda-py)
@@ -237,8 +237,9 @@ operators for accessing and updating mutable references, shown in
 @figure-ref["f:references"].  Thus, the real @(lambda-py) program
 corresponding to the one above would be:
 @centered{
-  @(lp-term (prim "list-getitem" ((fetch (list (id %list local) ((obj-val %str (meta-str "first-elt") ()))))
-                                  (fetch (object (id %int local) (meta-num 0))))))
+  @(lp-term (prim "list-getitem"
+                  ((fetch (list (id %list local) ((obj-val %str (meta-str "first-elt") ()))))
+                   (fetch (object (id %int local) (meta-num 0))))))
 }
 Similarly, we can use @(lp-term set!) and @(lp-term alloc) to update the values
 in lists, and to allocate the return values of primitive operations.  We
