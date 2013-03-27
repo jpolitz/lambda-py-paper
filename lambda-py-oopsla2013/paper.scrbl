@@ -68,12 +68,13 @@ it is now being used to script new network paradigms@~cite["pox"].
 Thus, it is vital to have a precise semantics available for analyzing
 programs and proving properties about them.
 
-This paper presents a semantics for most of Python. Mindful that authors of
+This paper presents a semantics for most of (section [REF]) Python.
+Because authors of
 tools and of proofs prefer to contend with small languages, we divide
 the semantics into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
 source programs into the core. The core language is a mostly
-traditional stateful lambda-calculus-like language augmented with
+traditional stateful lambda-calculus augmented with
 features to represent the essence of Python (such as classes and
 dictionaries), and should thus be familiar to its potential users.
 
