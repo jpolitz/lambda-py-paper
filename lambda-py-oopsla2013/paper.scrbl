@@ -889,34 +889,6 @@ The assignment to @(lp-term x) inside the body of @(lp-term h) behaves as a
 typical assignment statement in a closure-based language like Scheme, ML, or
 JavaScript: it mutates the let-bound @(lp-term x) defined in @(lp-term g).
 
-@subsection{Global vs Local Unbound Errors}
-
-Uses of variables that are not defined at all attempt to look up the variable
-in global scope and fail:
-
-@pycode{
-def f():
-  # x is not bound anywhere
-  return x
-
-f()
-# yields "NameError: global name 'x' is not defined"
-}
-
-Python does, however, distinguish variables that may be declared locally but
-haven't reached their assignment yet:
-
-@pycode{
-def f():
-  # x is not bound anywhere
-  return x
-  x = 'this will never happen'
-
-f()
-# yields "UnboundLocalError: local variable 'x'
-# referenced before assignment"
-}
-
 @subsection{Classes and Scope}
 
 We've covered some subtleties of scope for local and nonlocal variables and
