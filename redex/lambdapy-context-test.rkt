@@ -21,7 +21,8 @@
    (10 (obj-val %tuple (meta-tuple ((pointer-val 11))) {}))
    (11 (obj-val vnone (no-meta) {}))
    (12 (pointer-val 11))
-   (13 vfalse)}))
+   (13 vfalse)
+   (14 vnone)}))
 
 (define basic-env (term
                    {(Exception 1)
@@ -31,7 +32,8 @@
                     (True 6)
                     (False 13)
                     (%isinstance 7)
-                    (BaseException 12)}))
+                    (BaseException 12)
+                    (%globals 14)}))
 (full-expect
  ((app
    (fun (f) (no-var)
@@ -317,5 +319,3 @@ while True:
 (check-eval/str/chk break-in-finally-in-while "all done" 100)
 
 
-
-(test-results)

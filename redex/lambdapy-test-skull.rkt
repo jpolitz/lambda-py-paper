@@ -15,6 +15,3 @@
 
 (when (redex-match λπ (get-attr e e) (term (get-attr (undefined-val) vnone)))
   (error 'redex-tests "Undefined-val was a (nested) expression"))
-
-
-#;(test-results)

@@ -7,11 +7,12 @@ def f(x):
   return x
 f('a-str')
 ")))
-  {(%str 1) (%locals 2)}
+  {(%str 1) (%locals 2) (%globals 3)}
   {(1 vnone)
-   (2 vnone)})
+   (2 vnone)
+   (3 vnone)})
  ((pointer-val ref_str)
-  {(%str 1) (%locals 2) (f ref_f)}
+  {(%str 1) (%locals 2) (%globals 3) (f ref_f)}
   {(ref_1 val_1) ...
    (ref_str (obj-val any_cls (meta-str "a-str") ()))
    (ref_n val_n) ...}))

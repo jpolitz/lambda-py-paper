@@ -107,8 +107,9 @@
         ((in-hole E (raise (obj-val %str (meta-str "Unbound identifier") ()))) ε Σ)
         "E-UnboundId")
    (--> ((in-hole E (id x global)) (name ε ((y ref) ...)) Σ)
-        ((in-hole E (raise (obj-val %str (meta-str "Unbound global") ()))) ε Σ)
+        ((in-hole E (raise (obj-val %str (meta-str string_error) ()))) ε Σ)
         "E-UnboundGlobal"
+        (where string_error ,(format "unbound-global: ~a" (term x)))
         (side-condition (not (member (term x) (term (y ...))))))
    (--> ((in-hole E (get-attr (pointer-val ref) (pointer-val ref_str))) ε Σ)
         ((in-hole E (store-lookup Σ ref_1)) ε Σ)
@@ -137,8 +138,9 @@
         ((in-hole E val) ε (override-store Σ ref val))
         "E-AssignGlobal")
    (--> ((in-hole E (assign (id x global) := val)) (name ε ((y ref) ...)) Σ)
-        ((in-hole E (raise (obj-val %str (meta-str "Unbound global") ()))) ε Σ)
+        ((in-hole E (raise (obj-val %str (meta-str string_error) ()))) ε Σ)
         "E-AssignGlobalUnbound"
+        (where string_error ,(format "unbound-global: ~a" (term x)))
         (side-condition (not (member (term x) (term (y ...))))))
    (--> ((in-hole E (assign ref := val)) ε Σ)
         ((in-hole E val) ε (override-store Σ ref val))
