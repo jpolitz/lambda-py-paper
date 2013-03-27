@@ -11,7 +11,6 @@
   "typesetting.rkt"
   "bib.rkt")
 
-@;{ TODO(joe): make this smaller and use for verbatim python examples }
 @(define (pycode . stx)
    (nested #:style 'code-inset
        (verbatim (string-join stx ""))))
@@ -99,7 +98,7 @@ In sum, this paper makes the following contributions:
   is defined as a reduction semantics using PLT Redex@~cite["redex"];}
 
   @item{an @emph{interpreter}, dubbed @(lambda-interp), implemented in
-  800LOC of Racket, that has been tested against the Redex model;}
+  700LOC of Racket, that has been tested against the Redex model;}
 
   @item{a @emph{desugaring} translation from Python programs to @(lambda-py),
   implemented in Racket;}
@@ -280,13 +279,11 @@ keyword @code{def}, which produces a callable object with a mutable set of
 fields, whose class is the built-in @(lp-term function) class.  For example a
 programmer is free to write:
 @pycode{
-
 def f():
   return 22
 
 f.x = -1
 f() # ==> 22
-
 }
 We model functions as just another kind of object value, with a type of
 @(lp-term mval) that looks like the usual functional λ: 
@@ -328,7 +325,7 @@ specifically, it uses the @(lp-term "__mro__") (short for @emph{method
 resolution order}) field of the class to
 determine which class dictionaries to search for the field.  This field is 
 visible to the Python programmer:
-@verbatim{
+@pycode{
 class C(object):
   pass # a class that does nothing
 
@@ -368,7 +365,7 @@ builtin Python function
 @code{type}.@note{http://docs.python.org/3/library/functions.html#type} The
 documentation states explicitly that the two following forms [sic] produce
 @emph{identical} type objects:
-@verbatim{
+@pycode{
 class X:
      a = 1
 
@@ -437,7 +434,7 @@ method, and if it does, calls it:
 This pattern is used to implement a myriad of features.  For example, when
 accessing function values on classes, the @(lp-term "__get__") method of the
 function implicitly binds the self argument:
-@verbatim{
+@pycode{
 class C(object):
   def f(self):
     return self
@@ -492,7 +489,7 @@ straightforward: any function definition that uses the @code{yield} keyword in
 its body is automatically converted into an object with a generator
 interface.  To illustrate the easy transition from function to generator,
 consider this simple program:
-@verbatim{
+@pycode{
 def f():
   x = 0
   while True:
@@ -511,7 +508,7 @@ immediately evaluates the body of the function; instead, it creates an
 object whose @code{next} method evaluates the body until the next
 @code{yield} statement, stores its state for later resumption, and
 returns the yielded value:
-@verbatim{
+@pycode{
 def f():
   x = 0
   while True:
@@ -527,7 +524,7 @@ gen.next() # ==> 3
 
 Contrast this with the following program, which seems to perform a 
 simple abstraction over the process of yielding:
-@verbatim{
+@pycode{
 def f():
   def do_yield(n):
     yield n
@@ -577,8 +574,7 @@ operators into applications of the appropriate continuation inside the
 function.  By passing in different continuation arguments, the caller of the
 resulting function has complete control over the behavior of control operators.
 For example, we might rewrite a @code{try-except} block from
-@verbatim{
-
+@pycode{
 try:
   raise Exception()
 except e:
@@ -586,18 +582,16 @@ except e:
 
 }
 to
-@verbatim{
-
+@pycode{
 def except_handler(e): print(e)
 except_handler(Exception())
-
 }
 
 In the case of generators, rewriting @code{yield}
 with CPS would involve creating a handler that stores a function holding the
 code for what to do next, and rewriting @code{yield} expressions to call that
 handler:
-@verbatim{
+@pycode{
 def f():
   x = 1
   yield x
@@ -611,7 +605,7 @@ g.next() # throws "StopIteration"
 }
 would be rewritten to something like:@note{This being a sketch, we
 have taken some liberties for simplicity.}
-@verbatim{
+@pycode{
 def f():
 
   def yielder(val, rest_of_function):
@@ -648,7 +642,7 @@ usual fashion.
 
 This rewriting is well-intentioned but does not work.  If this
 program is run under Python, it results in an error:
-@verbatim{
+@pycode{
     x += 1
 UnboundLocalError: local variable 'x'
                    referenced before assignment
@@ -694,7 +688,7 @@ classes.
 @subsection{Declaring and Updating Local Variables}
 
 In Python, the operator @code{=} performs local variable binding:
-@verbatim{
+@pycode{
 def f():
   x = 'local variable'
   return x
@@ -703,7 +697,7 @@ f() # ==> 'local variable'
 }
 The syntax for updating and creating a local variable are identical, so
 subsequent @code{=} statements mutate the variable created by the first.
-@verbatim{
+@pycode{
 def f():
   x = 'local variable'
   x = 'reassigned'
@@ -719,7 +713,7 @@ bindings can also be introduced inside branches of conditionals, it
 isn't statically determinable if a variable will be defined at certain
 program points.  Note also that variable declarations are not scoped
 to all blocks---here they are scoped to function definitions:
-@verbatim{
+@pycode{
 def f(y):
  if y > .5: x = 'big'
  else : pass
@@ -787,7 +781,7 @@ given scope.  Unfortunately, this covers only the simplest cases of Python's sco
 @subsection[#:tag "s:nonlocal-scope"]{Closing Over Variables}
 
 Bindings from outer scopes can be @emph{seen} by inner scopes:
-@verbatim{
+@pycode{
 def f():
   x = 'closed-over'
   def g()
@@ -799,7 +793,7 @@ f()() # ==> 'closed-over'
 However, since @code{=} defines a new local variable, one cannot close over a
 variable and mutate it with the constructs we've seen so far; @code{=} simply
 defines a new variable with the same name:
-@verbatim{
+@pycode{
 def g():
   x = 'not affected by h'
   def h():
@@ -823,7 +817,7 @@ definition can include a @code{nonlocal} declaration at the top, which allows
 mutations within the function's body to refer to variables in enclosing scopes
 on a per-variable basis.  If we add such a declaration to the previous example,
 we get a different answer:
-@verbatim{
+@pycode{
 def g():
   x = 'not affected by h'
   def h():
@@ -837,7 +831,7 @@ g() # ==> ('inner x', 'inner x')
 The @code{nonlocal} declaration allows the inner assignment to @code{x} to
 ``see'' the outer binding from @code{g}.  This effect can span any nesting
 depth of functions:
-@verbatim{
+@pycode{
 def g():
   x = 'not affected by h'
   def h():
@@ -902,7 +896,7 @@ JavaScript: it mutates the let-bound @(lp-term x) defined in @(lp-term g).
 Uses of variables that are not defined at all attempt to look up the variable
 in global scope and fail:
 
-@verbatim{
+@pycode{
 def f():
   # x is not bound anywhere
   return x
@@ -914,7 +908,7 @@ f()
 Python does, however, distinguish variables that may be declared locally but
 haven't reached their assignment yet:
 
-@verbatim{
+@pycode{
 def f():
   # x is not bound anywhere
   return x
@@ -936,7 +930,7 @@ variables elsewhere in Python, and we must address classes to wrap up the story
 on scope.
 
 @figure["f:classexample" "An example of class and function scope interacting"]{
-@verbatim{
+@pycode{
 def f(x, y):
   print(x); print(y); print("")
   class c:
@@ -960,7 +954,6 @@ y-value
 x-value
 y-value
 <class '__main__.c'>
-
 }
 }
 
@@ -985,15 +978,13 @@ Desugaring classes is substantially more complicated than handling simple local
 and nonlocal cases.  Consider the example from @figure-ref["f:classexample"],
 stripped of print statements: 
 
-@verbatim{
-
+@pycode{
 def f(x, y):
   class c:
     x = 4
     def g(self): pass
   return c
 f("x-value", "y-value")().g()
-
 }
 
 In this example, we have three local scopes: the body of the function f, the
@@ -1052,15 +1043,15 @@ to the class object itself, the function would desugar to the following:
         (fun (x y)
           (let (extracted-g local = (undefined-val)) in
           (let (c local = (undefined-val)) in
-            (seq
-            (assign (id extracted-g local) := (fun () none))
-            (seq
-            (assign (id c local) := (class "c"))
-            (seq
-            (set-attr (id c local) (object %str (meta-str "x")) := (object %int (meta-num 4)))
-            (seq
-            (set-attr (id c local) (object %str (meta-str "g")) := (id extracted-g local))
-            (return (id c local))))))))))))
+              (seq
+              (assign (id extracted-g local) := (fun () none))
+              (seq
+              (assign (id c local) := (class "c"))
+              (seq
+              (set-attr (id c local) (object %str (meta-str "x")) := (object %int (meta-num 4)))
+              (seq
+              (set-attr (id c local) (object %str (meta-str "g")) := (id extracted-g local))
+              (return (id c local))))))))))))
 }
 
 This achieves our desired semantics: the bodies of functions defined in the
@@ -1075,12 +1066,12 @@ keyword as we describe in @secref["s:desugaring-classes"].
 When we introduced classes we saw that there is no apparent difference
 between classes that introduce identifiers in their body and classes that
 introduce identifiers by field assignment.  That is,
-@verbatim{
+@pycode{
 class c:
  x = 3
 }
 and 
-@verbatim{
+@pycode{
 class c: pass
 c.x = 3
 }
@@ -1099,21 +1090,21 @@ assignment to the variable itself:
         (fun (x y)
           (let (extracted-g local = (undefined-val)) in
           (let (c local = (undefined-val)) in
-            (seq
-            (assign (id extracted-g local) := (fun () none))
-            (seq
-            (assign (id c local) := (class "c"))
-            (seq
-              (let (g local = (undefined-val)) in
-              (let (x local = (undefined-val)) in
-                (seq
-                (set-attr (id c local) (object %str (meta-str "x")) := (object %int (meta-num 4)))
-                (seq
-                (assign (id x local) := (object %int (meta-num 4)))
-                (seq
-                (set-attr (id c local) (object %str (meta-str "g")) := (id extracted-g local))
-                (assign (id g local) := (id extracted-g local)))))))
-            (return (id c local)))))))))))
+              (seq
+              (assign (id extracted-g local) := (fun () none))
+              (seq
+              (assign (id c local) := (class "c"))
+              (seq
+                (let (g local = (undefined-val)) in
+                (let (x local = (undefined-val)) in
+                    (seq
+                    (set-attr (id c local) (object %str (meta-str "x")) := (object %int (meta-num 4)))
+                    (seq
+                    (assign (id x local) := (object %int (meta-num 4)))
+                    (seq
+                    (set-attr (id c local) (object %str (meta-str "g")) := (id extracted-g local))
+                    (assign (id g local) := (id extracted-g local)))))))
+              (return (id c local)))))))))))
 }
 We have now covered Python's class semantics:
 function bodies do not close over the class body's scope, class bodies
@@ -1125,7 +1116,7 @@ beyond what we have outlined here, even when present in class bodies.
 @subsection[#:tag "s:generators-redux"]{Generators Redux}
 
 @figure["f:generators" "The desugaring of generators"]{
-@verbatim{def f(x ...): body-with-yield}
+@pycode{def f(x ...): body-with-yield}
 
 @(linebreak)
 @emph{desugars to...}
@@ -1166,7 +1157,7 @@ beyond what we have outlined here, even when present in class bodies.
 @emph{where...}
 @(linebreak)
 
-@verbatim{
+@pycode{
 class generator(object):
     def __init__(self, init):
         init(self)
@@ -1182,7 +1173,6 @@ class generator(object):
         
     def __list__(self):
         return [x for x in self]
-
 }
 }
 
@@ -1273,7 +1263,7 @@ paper has hinted that it proceeds in phases. Indeed, there are four:
 ]
 These four steps yield a term in our core.  It isn't quite ready to
 run, however, because we desugar to open terms. For instance,
-@verbatim{
+@pycode{
 print(5)
 }
 desugars to
@@ -1291,7 +1281,7 @@ We implement as many libraries as possible in Python@note{We
 augmented with some macros recognized by the desugaring.
 For example, the builtin class for tuples is implemented mostly in Python, but
 for getting the length of a tuple defers to the δ function:
-@verbatim{
+@pycode{
 class tuple(object):
   ...
   def __len__(self):
@@ -1303,7 +1293,7 @@ All occurrences of @code{___delta(str, e, ...)} are desugared to
 for @emph{library} files, so normal Python programs can use
 @code{___delta} as the valid identifier it is. As another example,
 after the class definition of tuples, we have the statement
-@verbatim{
+@pycode{
 ___assign("%tuple", tuple)
 }
 which desugars to an assignment statement @(lp-term (assign (id %tuple global) := (id tuple global))). Since
@@ -1392,7 +1382,7 @@ serialize; and so on.
 More interestingly, we are not done with scope! Consider
 @code{locals}, which
 returns a dictionary of the current variable bindings in a given scope:
-@verbatim{
+@pycode{
 def f(x):
   y = 3
   return locals()
@@ -1404,7 +1394,7 @@ would not be trivial to desugar because variables can be bound on just
 some control flow paths. (We believe we have a (complicated)
 desugaring, but have not yet verified it.) Worse, @code{locals} is a
 value!
-@verbatim{
+@pycode{
 def f(x, g):
   y = 3
   return g()
