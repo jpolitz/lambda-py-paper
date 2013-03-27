@@ -4,7 +4,7 @@
 
 (provide generate-bib ~cite)
 
-(define-bibtex-cite "joe.bib" ~cite what-is-this-id-for? generate-bib #:style number-style)
+(define-bibtex-cite "joe.bib" ~cite what-is-this-id-for? generate-bib)
 
 (define db (bibtex-parse (open-input-file "joe.bib")))
 
