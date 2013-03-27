@@ -9,8 +9,7 @@
   "../redex/lambdapy-reduction.rkt"
   "../redex/lambdapy-prim.rkt"
   "typesetting.rkt"
-  "bib.rkt"
-  "figures.rkt")
+  "bib.rkt")
 
 @;{ TODO(joe): make this smaller and use for verbatim python examples }
 @(define (pycode . stx)
@@ -18,7 +17,7 @@
        (verbatim (string-join stx ""))))
 
 @(define (lambda-py) (elem "λ" (subscript (larger "π"))))
-@(define (lambda-js) (elem "λ" (subscript (larger "JS"))))
+@(define (lambda-js) (elem "λ" (subscript "JS")))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 @title{Python: The Full Monty@(linebreak)
   @smaller{A Tested Semantics for the Python Programming Language}}
@@ -965,7 +964,7 @@ y-value
 }
 
 @figure["f:class-scope" "Interactions between class bodies and function scope"]{
-  @centered{@class-scope}
+  @centered{@image["class-scope.png" #:scale 0.7]}
 }
 
 Consider the example in @figure-ref["f:classexample"].  Here we observe an

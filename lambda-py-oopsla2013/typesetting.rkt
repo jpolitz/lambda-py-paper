@@ -220,6 +220,18 @@
     [(list _ lbrack x ref expr rbrack)
      (list "[" x "/" ref "]" expr)]))
 
+(define (unquote-rewriter the-lw)
+  (cond
+    [(symbol? the-lw) the-lw]
+    [(string? the-lw) the-lw]
+    [(list? the-lw) (map unquote-rewriter the-lw)]
+    [(lw? the-lw)
+     (match the-lw
+      [(lw e l ls c cs uq mf)
+       (lw (unquote-rewriter e) l ls c cs #f #f)]
+      [_ (error 'unquote "shouldn't happen")])]
+    [else (error 'unquote (format "Missed case: ~a" the-lw))]))
+
 (define (with-rewriters thnk)
   (with-compound-rewriters
    (
@@ -254,5 +266,6 @@
     ['δ delta-rewriter]
     ['subst-one subst-one-rewriter]
    )
-   (thnk)))
+   (with-unquote-rewriter unquote-rewriter
+   (thnk))))
 
