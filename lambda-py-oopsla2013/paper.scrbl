@@ -1341,7 +1341,7 @@ loading external files is not.
 
 @subsection{Testing}
 
-Python comes with an extensive test suite. Unfortuntely, this sute
+Python comes with an extensive test suite. Unfortuntely, this suite
 depends on numerous advanced features, and as such was useless as we
 were building up the semantics. We therefore went through the test
 suite files included with CPython, April 2012,@note{http://www.python.org/getit/releases/3.2.3/}
