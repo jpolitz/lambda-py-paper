@@ -554,7 +554,7 @@ process that can be handled by desugaring. That is, generators can be
 handled in the core language by reifying them into into first-class
 functions and applications and using a little state to record which
 function is the continuation of the @pyinline{yield} point. Thus,
-generators seem to fit perfectly with our desguaring strategy.
+generators seem to fit perfectly with our desugaring strategy.
 
 @subsection{A (Local) CPS Transformation for Python}
 
@@ -1197,7 +1197,7 @@ that the exception was not caught, and again the expected behavior will occur.
 Our goal is to have @(lambda-py) exhibit two properties:
 @itemlist[
 
-  @item{Desguaring must be able to translate all Python source programs (@emph{totality}).}
+  @item{Desugaring must be able to translate all Python source programs (@emph{totality}).}
 
   @item{The resulting desugared program, when evaluated, must produce
   the same value as the source would in Python (@emph{conformance}).}
@@ -1225,7 +1225,7 @@ paper has hinted that it proceeds in phases. Indeed, there are four:
   @pyinline{for} loops into appropriately-guarded @(lp-term while) loops in the
   core, etc.}
 
-  @item{Desguar generators (functions containing @pyinline{yield}, @secref["s:generators-redux"]).}
+  @item{Desugar generators (functions containing @pyinline{yield}, @secref["s:generators-redux"]).}
 
 ]
 These four steps yield a term in our core.  It isn't quite ready to
@@ -1267,7 +1267,7 @@ which desugars to an assignment statement @(lp-term (assign (id %tuple global) :
 %-prefixed variables aren't valid in Python,
 this gives us an private namespace of global variables that are
 un-tamperable by Python.  Thanks to these decisions, this project
- produces far more readable desguaring output than a previous effort
+ produces far more readable desugaring output than a previous effort
  for JavaScript@~cite["politz:s5"].
 
 @subsection{Performance}
@@ -1391,8 +1391,10 @@ JavaScript@~cite["politz:s5"] are sure to be helpful here.
 Overall, what we have learned most from this effort is how central
 scope is to understanding Python. Many of its features are orthogonal,
 but they all run afoul on the shoals of scope. Whether this is
-intentional or an accident of the contorted history of Python's scope [CITE]
-is unclear, but also irrelevant. Those attempting to improve Python or
+intentional or an accident of the contorted history of Python's scope is unclear (for
+example, see the discussion around the proposal to add
+@pyinline{nonlocal}@~cite["yee:nonlocal"]),
+but also irrelevant. Those attempting to improve Python or
 create robust sub-languages of it---whether for teaching or for
 specifying asset-backed securities---would do well to put
 their emphasis on scope first, because this is the feature most likely
