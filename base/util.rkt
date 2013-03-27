@@ -41,6 +41,8 @@
           (string-append
            wd "../tests/modules/")
           (string-append
+           wd "../python-lib/")
+          (string-append
            wd "../tests/python-reference/modules/"))))
 
 (define (get-module-path)
@@ -488,6 +490,16 @@
            (CId '$obj (LocalId))
            (make-pre-str (symbol->string attr))
            val)
+          (none))))
+
+(define (py-delfield obj attr)
+  (CLet '$obj (LocalId) obj
+    (CApp (CGetAttr
+            (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+            (make-builtin-str "__delattr__"))
+          (list
+           (CId '$obj (LocalId))
+           (make-builtin-str (symbol->string attr)))
           (none))))
 
 ;; sintactic sugar to get a field from an object

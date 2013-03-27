@@ -69,21 +69,6 @@
      (DResult-env body))))
 |#
 
-(define (desugar-locals [ids : (listof symbol)]) : LexExpr
-  (LexAssign (list (LexGlobalId '%locals 'Store)) 
-			 (LexFunc 'locals empty empty 
-					  (LexReturn 
-					   (some (LexDict 
-						(map (lambda (y) (LexStr (symbol->string y))) ids)
-						(map (lambda (y) (LexTryExceptElse 
-										  (LexLocalId y 'load) 
-										  (list 
-										   (LexExcept 
-											(list (LexGlobalId 'UnboundLocalError 'Load))
-											(LexStr "this isn't actually bound right now")))
-										  (LexPass))) ids))))
-					  empty (none))))
-
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
@@ -576,6 +561,7 @@
                                             (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
                        [LexGlobalId (x ctx) (rec-desugar
                                             (LexAssign (list (LexGlobalId x ctx)) (LexUndefined)))]
+                       [LexDotField (value attr) (py-delfield (rec-desugar value) attr)]
                        [else (error 'desugar (string-append "We don't know how to delete this yet: " (to-string target)))]))
                   (define (make-sequence [exprs : (listof CExpr)] )
                      (cond
