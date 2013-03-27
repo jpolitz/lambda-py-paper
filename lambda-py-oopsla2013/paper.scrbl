@@ -125,7 +125,7 @@ is available online at @url{https://www.github.com/brownplt/lambda-py}.
 
 @figure["f:exprs" (elem (lambda-py) " expressions")]{
   @(with-rewriters
-    (lambda () (render-language λπ #:nts '(e t v e+undef v+undef opt-var mval Σ ref))))
+    (lambda () (render-language λπ #:nts '(e t v val e+undef v+undef opt-var mval Σ ref))))
 }
 
 @figure*["f:skull" "Let-binding identifiers, and looking up references"]{
@@ -272,10 +272,6 @@ rather than objects directly.
 
 @subsection{First-class Functions}
 
-@figure*["f:functions" @elem{Evaluating function expressions}]{
-  @(lp-reduction '("E-Fun"))
-}
-
 Functions in Python are objects like any other.  They are defined with the
 keyword @pyinline{def}, which produces a callable object with a mutable set of
 fields, whose class is the built-in @(lp-term function) class.  For example a
@@ -298,7 +294,7 @@ The only deviation from the norm is that we have an explicit optional position
 for a varargs identifier: if @(lp-term opt-var) is of the form @(lp-term (y)),
 then if the function is called with more arguments than are in its list of
 variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
-@(lp-term y) in the body.
+@(lp-term y) in the body.  Since these rules are relatively unexciting and verbose, we defer their explanation to the appendix.
 
 @subsection{Loops, Exceptions, and Modules}
 
@@ -1437,7 +1433,7 @@ so on.
 @section[#:tag "s:related"]{Related Work}
 
 We are aware of only one other formalization for Python: Smeding's
- unpublished and sadly unheralded master's thesis [CITE]. Smeding
+ unpublished and sadly unheralded master's thesis@~cite["smeding:python-semantics"]. Smeding
  builds an executable semantics and tests it against 134 hand-written
  tests. The semantics is for Python 2.5, a language version without
  the complex scope we handle.  Also, instead of defining a core, it

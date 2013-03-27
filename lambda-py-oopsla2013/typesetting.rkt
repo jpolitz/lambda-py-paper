@@ -4,20 +4,14 @@
 (provide with-rewriters lp-term lp-term/val lp-reduction lp-metafunction)
 
 (define-syntax-rule (lp-term t)
-  (parameterize
-     [(default-font-size 11)]
   (with-rewriters
-   (λ () (render-term λπ t)))))
+   (λ () (render-term λπ t))))
 (define-syntax-rule (lp-term/val t)
-  (parameterize
-     [(default-font-size 11)]
   (with-rewriters
-   (λ () (term->pict/pretty-write λπ t)))))
+   (λ () (term->pict/pretty-write λπ t))))
 (define-syntax-rule (lp-reduction names)
   (parameterize
-    [(render-reduction-relation-rules names)
-     (default-font-size 11)
-     (label-font-size 11)]
+    [(render-reduction-relation-rules names)]
     (with-rewriters (lambda ()
       (render-reduction-relation λπ-red #:style 'compact-vertical)))))
 (define-syntax-rule (lp-metafunction name cases)
@@ -26,13 +20,14 @@
       (parameterize
         [(metafunction-cases (if cases cases (metafunction-cases)))
          (metafunction-pict-style 'left-right/compact-side-conditions)
-         (metafunction-font-size 11)
-         (default-font-size 11)
-         (label-font-size 11)]
+         (metafunction-font-size 11)]
         (render-metafunction name)))))
+(label-font-size 11)
+(default-font-size 11)
 (literal-style "Inconsolata")
 (paren-style "Inconsolata")
 (default-style "Inconsolata")
+(non-terminal-style (cons 'italic "Helvetica"))
 (metafunction-font-size 11)
 
 (define (metafun-rewriter lws)

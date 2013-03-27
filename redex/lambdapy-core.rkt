@@ -30,44 +30,29 @@
   (t global local)
   
   ;; types of meta-val
-  (mval (meta-num number)
-        (meta-str string)
-        (meta-none) ;; The Python value
-        (meta-list (val ...))
-        (meta-tuple (val ...))
-        (meta-set (val ...))
-        (meta-class x)
-        (meta-closure (λ (x ...) opt-var e opt-var))
-        (no-meta))
+  (mval (no-meta) (meta-num number) (meta-str string) (meta-none) ;; The Python value
+        (meta-list (val ...)) (meta-tuple (val ...)) (meta-set (val ...))
+        (meta-class x) (meta-closure (λ (x ...) opt-var e opt-var)))
 
   (opt-var (x) (no-var))
 
   ;; types of expressions
-  (e true false none ref (id x t)
+  (e v true false none ref
      (fetch e) (set! e e) (alloc e)
-     (assign e := e)
      (get-attr e e) (set-attr e e := e)
-     (if e e e)
+     (if e e e) (seq e e)
      (let (x t = e+undef) in e)
-     (app e (e ...)) (app e (e ...) e)
-     (frame e) ;; frame is application "residue" for return
-     (seq e e)
-     (while e e e) (loop e e) ;; loop is context "residue" for break & continue
-     (return e)
+     (id x t) (assign e := e)
+     (app e (e ...)) (app e (e ...) e) (frame e) ;; frame is application "residue" for return (return e)
+     (while e e e) (loop e e) break continue
      (builtin-prim op (e ...))
      (fun (x ...) opt-var e opt-var)
      (object e mval) (list e (e ...))
      (tuple e (e ...)) (set e (e ...))
-     (tryexcept e x e e)
-     (tryfinally e e)
+     (tryexcept e x e e) (tryfinally e e)
      (raise) (raise e)
-     undefined
-     break
-     continue
-     (module e e)
-     (construct-module e)
-     (err val)
-     v)
+     (module e e) (construct-module e)
+     (err val))
   
   ;; evaluation context
   (E hole
