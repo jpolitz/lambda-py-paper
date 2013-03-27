@@ -88,6 +88,7 @@
 
 (define (list-literal-rewriter lws)
   (match (lw-e lws)
+    [(? symbol?) (list lws)]
     [(list a b) (list (replace-e a "[]"))]
     [(list _ elt dots _)
      (list "[" elt dots "]")]

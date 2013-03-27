@@ -47,3 +47,25 @@
                                    (meta-str "close over this one")
                                    ()))
    (ref_n val_n) ...}))
+
+(full-expect
+ ((app (fun () (no-var)
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
+            (no-var))
+       ((object vnone (meta-str "get-this-one"))
+        (object vnone (meta-str "not-this-one"))))
+  () ())
+ ((err (obj-val any_cls (meta-str "arity-mismatch") any_dict)) ε Σ))
+
+(full-expect
+ ((app (fun () (args)
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
+            (no-var))
+       ((object vnone (meta-str "get-this-one"))
+        (object vnone (meta-str "not-this-one"))))
+  () ())
+ ((pointer-val ref_arg)
+  ε
+  ((ref_1 val_1) ...
+   (ref_arg (obj-val any_cls (meta-str "get-this-one") any_dict))
+   (ref_n val_n) ...)))

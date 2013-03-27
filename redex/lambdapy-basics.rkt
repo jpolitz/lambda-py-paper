@@ -7,7 +7,6 @@
 (expect none vnone)
 (expect true vtrue)
 (expect false vfalse)
-(expect undefined (undefined-val))
 
 ;; object values
 (full-expect
@@ -17,8 +16,6 @@
   ((1 (obj-val val_none (meta-list (val_true val_false)) ())))))
 
 ;; control flow
-(expect (if true none undefined) vnone)
-(expect (if false none undefined) (undefined-val))
 (expect (if (raise vtrue) false false)
         (err vtrue))
 (expect (seq true false) vfalse)

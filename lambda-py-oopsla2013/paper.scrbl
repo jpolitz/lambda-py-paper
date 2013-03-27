@@ -45,7 +45,7 @@ identifying scope as a pervasive concern that even impacts features
 that might be considered orthogonal.
 }
 
-@section{Motivation and Contributions}
+@section[#:tag "s:motivation"]{Motivation and Contributions}
 
 The Python programming language is currently widely used
 in industry, science, and education. Because of its popularity
@@ -121,7 +121,7 @@ classes, and their interaction with scope. Finally, we describe the
 results of testing our semantics against CPython.  All of our code
 is available online at @url{https://www.github.com/brownplt/lambda-py}.
 
-@section{Warmup: A Quick Tour of @(lambda-py)}
+@section[#:tag "s:warmup"]{Warmup: A Quick Tour of @(lambda-py)}
 
 @figure["f:exprs" (elem (lambda-py) " expressions")]{
   @(with-rewriters
@@ -173,7 +173,7 @@ store location containing @(lp-term (undefined-val)); that location must have a
 value @(lp-term val) assigned into it for lookup to succeed.
 @Figure-ref["f:skull"] shows the behavior of lookup in heaps Σ for values and
 for @(lp-term (undefined-val)).  This notion of undefined locations will
-come into play when we discuss scope [REF].
+come into play when we discuss scope in @secref["s:scope"].
 
 Python programs cannot manipulate object values directly; rather, they always
 work with references to objects.  Thus, many of the operations in @(lambda-py)
@@ -264,8 +264,7 @@ updated.
 The simplest rule for accessing fields simply checks in the object's dictionary
 for the provided name and returns the appropriate value, shown in E-GetField in
 @figure-ref["f:simple-objs"].  E-GetField also works over reference values,
-rather than objects directly.  [FILL update to meta-vals that contain strings
-and not literal strings]
+rather than objects directly.
 
 @figure*["f:simple-objs" @elem{Simple field access and update in @(lambda-py)}]{
   @(lp-reduction '("E-AssignUpdate" "E-AssignAdd" "E-GetField"))
@@ -306,13 +305,13 @@ variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
 @subsection{Loops, Exceptions, and Modules}
 
 We defer a full explanation of the terms in @figure-ref["f:exprs"], and the
-entire reduction relation, to the appendix [REF].  This includes a mostly-routine
+entire reduction relation, to the appendix.  This includes a mostly-routine
 encoding of control operators via special evaluation contexts, and a mechanism
 for loading new code via modules.  We continue here by focusing on some of the
 cases in the semantics that are unique in Python, and how we model them with
 @(lambda-py).
 
-@section{Classes, Methods, and Desugaring}
+@section[#:tag "s:classes"]{Classes, Methods, and Desugaring}
 
 Python has a featureful class system with first-class methods, implicit
 reciever binding, multiple inheritance, and more.  In this section we discuss
@@ -362,7 +361,7 @@ indeed, a list of them).  But programmers don't explicitly define
 constructs to build up the inheritance hierarchy the instances eventually use.
 
 
-@subsection{Desugaring Classes}
+@subsection[#:tag "s:desugaring-classes"]{Desugaring Classes}
 
 Most Python programmers use the special @code{class} form to create classes in
 Python.  However, @code{class} is merely syntactic sugar for a use of the
@@ -478,7 +477,7 @@ for primitive values.  This is what we do for much of our desugaring to
 @(lambda-py) and, though it is labor-intensive, it is also the
 straightforward part of the process.
 
-@section{Python: the Hard Parts}
+@section[#:tag "s:hardparts"]{Python: the Hard Parts}
 
 Not all of Python has a semantics as straightforward as that presented so far.
 Python has a unique notion of scope, with new scope operators added in Python 3 to
@@ -670,10 +669,10 @@ not work.  The straightforward CPS solution, which doesn't require
 extending the number of concepts in the language, is inexpressible in Python
 due to the mechanics of variable binding.  We now move on to describing how we
 can express Python's scope in a more traditional lexical model, and
-later [REF] we
+later, in @secref["s:generators-redux"] we
 will return to a CPS transformation that does work for Python's generators.
 
-@section{Scope}
+@section[#:tag "s:scope"]{Scope}
 
 Python has a rich notion of scope, with several types of variables and implicit
 binding semantics that depend on the block structure of the program.  Most
@@ -687,7 +686,7 @@ identifiers, into traditional lexically scoped closures.
 Global scope is still handled specially, since it exhibits a form of dynamic
 scope that isn't straightforward to capture with traditional
 let-bindings.@note{We actually exploit this dynamic scope in bootstrapping
-Python's object system [REF].}
+Python's object system, but defer an explanation to the appendix.}
 
 We proceed by describing Python's handling of scope for local variables, the
 extension to @code{nonlocal}, and the interaction of both of these features with
@@ -731,7 +730,7 @@ f(0) # throws an exception
 f(1) # ==> "big"
 }
 
-@subsubsection{Desugaring for Local Scope}
+@subsubsection[#:tag "s:local-scope"]{Desugaring for Local Scope}
 
 Handling simple declarations of variables and updates to variables is
 straightforward to translate into a lexically-scoped language.  @(lambda-py)
@@ -739,7 +738,7 @@ has a usual @code{let} form that allows for lexical binding.  In desugaring, we
 scan the body of the function and accumulate all the variables on the left-hand
 side of assignment statements in the body.  These are let-bound at the top of
 the function to the special @(lp-term (undefined-val)) form, which evaluates to an
-exception in any context other than a @code{let}-binding context ([REF section]}.  We use
+exception in any context other than a @code{let}-binding context (@secref["s:warmup"]).  We use
 @code{x := e} as the expression form for variable assignment, which is not a
 binding form in the core.  Thus, in @(lambda-py), the example above rewrites to:
 @centered{
@@ -786,7 +785,7 @@ function, and maintains lexical structure for the possibly-bound variables in a
 given scope.  Unfortunately, this covers only the simplest cases of Python's scope.
 
 
-@subsection{Closing Over Variables}
+@subsection[#:tag "s:nonlocal-scope"]{Closing Over Variables}
 
 Bindings from outer scopes can be @emph{seen} by inner scopes:
 @verbatim{
@@ -981,7 +980,7 @@ however, that the correct desugaring is capable of expressing the semantics of
 scope in classes within the framework we have already established for dealing
 with Python's scope.  
 
-@subsubsection{Desugaring classes}
+@subsubsection[#:tag "s:class-scope"]{Desugaring class scope}
 
 Desugaring classes is substantially more complicated than handling simple local
 and nonlocal cases.  Consider the example from @figure-ref["f:classexample"],
@@ -1070,11 +1069,11 @@ class @code{C} will close over the @code{x} and @code{y} from the function
 definition, and the statements written in c-scope can still see those bindings.
 We note that scope desugaring yields terms in an intermediate language with a
 @(lp-term class) keyword.  In a later desugaring step, we remove the class
-keyword as we describe in [REF].
+keyword as we describe in @secref["s:desugaring-classes"].
 
 @subsubsection{Instance Variables}
 
-When we introduced classes [REF] we said that there is no apparent difference
+When we introduced classes we saw that there is no apparent difference
 between classes that introduce identifiers in their body and classes that
 introduce identifiers by field assignment.  That is,
 @verbatim{
@@ -1124,7 +1123,7 @@ and definitions/assignments in class bodies result in the creation of class
 members.  The @code{nonlocal} and @code{global} keywords do not require special treatment 
 beyond what we have outlined here, even when present in class bodies.
 
-@subsection{Generators Redux}
+@subsection[#:tag "s:generators-redux"]{Generators Redux}
 
 @figure["f:generators" "The desugaring of generators"]{
 @verbatim{def f(x ...): body-with-yield}
@@ -1169,21 +1168,22 @@ beyond what we have outlined here, even when present in class bodies.
 @(linebreak)
 
 @verbatim{
-class %generator(object):
+class generator(object):
     def __init__(self, init):
         init(self)
 
-    def __next__(self, *args):
-        if len(args) > 0:
-            return self.___resume(args[0])
-        else:
-            return self.___resume(None)
+    def __next__(self):
+        return self.___resume(None)
+
+    def send(self, arg):
+        return self.___resume(arg)
 
     def __iter__(self):
         return self
         
     def __list__(self):
         return [x for x in self]
+
 }
 }
 
@@ -1236,7 +1236,7 @@ continuation. Since each @code{try} block in CPS installs a new exception
 continuation, if a value is passed to the top-level exception handler it means
 that the exception was not caught, and again the expected behavior will occur.
 
-@section{Engineering & Evaluation}
+@section[#:tag "s:engineering"]{Engineering & Evaluation}
 
 Our goal is to have @(lambda-py) exhibit two properties:
 @itemlist[
@@ -1258,9 +1258,9 @@ Though we have largely presented desugaring as an atomic activity, the
 paper has hinted that it proceeds in phases. Indeed, there are four:
 @itemlist[
 
-  @item{Lift definitions out of classes [REF].}
+  @item{Lift definitions out of classes (@secref["s:class-scope"]).}
 
-  @item{Let-bind variables [REF]. This is done second to correctly
+  @item{Let-bind variables (@secref["s:nonlocal-scope"]). This is done second to correctly
   handle occurrences of @code{nonlocal} and @code{global} in class methods.
   The result of these first two steps is an intermediate language between
   Python and the core with lexical scope, but still many surface constructs.}
@@ -1269,7 +1269,7 @@ paper has hinted that it proceeds in phases. Indeed, there are four:
   @code{for} loops into appropriately-guarded @(lp-term while) loops in the
   core, etc.}
 
-  @item{Desguar generators (functions containing @code{yield}).}
+  @item{Desguar generators (functions containing @code{yield}, @secref["s:generators-redux"]).}
 
 ]
 These four steps yield a term in our core.  It isn't quite ready to
@@ -1378,9 +1378,9 @@ to perform only limited testing for conformance. Fortunately, executing
 against Redex should be parallelizable, so we hope to increase
 confidence in the Redex model as well.
 
-@section{Future Work and Perspective}
+@section[#:tag "s:future"]{Future Work and Perspective}
 
-As section [REF] points out, there are some more parts of Python we
+As @secref["s:engineering"] points out, there are some more parts of Python we
 must reflect in the semantics before we can run Python's test
 cases in their native form. This is because Python is a large language
 with extensive libraries, a foreign-function interface, and more.
@@ -1443,7 +1443,7 @@ their emphasis on scope first, because this is the feature most likely
 to preclude sound analyses, correctness-preserving refactorings, and
 so on.
 
-@section{Related Work}
+@section[#:tag "s:related"]{Related Work}
 
 We are aware of only one other formalization for Python: Smeding's
  unpublished and sadly unheralded master's thesis [CITE]. Smeding
@@ -1470,3 +1470,54 @@ and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
 }
 
 @(generate-bib)
+
+@section[#:tag "s:appendix"]{Appendix: The Rest of @(lambda-py)}
+
+@figure["f:E" (elem "Evaluation contexts")]{
+  @(with-rewriters
+    (lambda () (render-language λπ #:nts '(E Es))))
+}
+@figure["f:T" (elem "Contexts for try-except")]{
+  @(with-rewriters
+    (lambda () (render-language λπ #:nts '(T Ts))))
+}
+@figure["f:H" (elem "Contexts for loops")]{
+  @(with-rewriters
+    (lambda () (render-language λπ #:nts '(H Hs))))
+}
+@figure["f:R" (elem "Contexts for return statements")]{
+  @(with-rewriters
+    (lambda () (render-language λπ #:nts '(R Rs))))
+}
+
+@figure["f:control" (elem "Control flow reductions")]{
+  @(lp-reduction '(E-While E-LoopContinue E-LoopBreak E-LoopNext
+                   E-TryDone E-TryCatch
+                   E-Return E-FramePop
+                   E-FinallyReturn E-FinallyBreak E-FinallyRaise E-FinallyContinue
+                   E-IfTrue E-IfFalse E-Seq))
+}
+
+Figures [FILL] show the rest of the @(lambda-py) semantics.  We proceed to
+briefly present each of the salient features in turn.
+
+@subsection{Contexts and Control Flow}
+
+@Figure-ref["f:E" "f:T" "f:H" "f:R"] show the different @emph{contexts} we use
+to capture control flow and order of operations in @(lambda-py).  @(lp-term E)
+is the usual @emph{evaluation context} that enforces left-to-right, eager
+evaluation of expressions. @(lp-term T) is a context for the first expression
+of a @(lp-term tryexcept) block, used to catch instances of @(lp-term raise).
+Similarly, @(lp-term H) defines contexts for loops, detecting @(lp-term continue) and @(lp-term break),
+and @(lp-term R) defines contexts for @(lp-term return) statements inside functions.
+Each interacts with a few expression forms to handle non-local control flow.
+
+@Figure-ref["f:control"] shows how these contexts interact with expressions.  For example, in the first @(lp-term
+while) statements.  When @(lp-term while) takes a step, it yields a @(lp-term
+loop) form that serves as the marker for where internal @(lp-term break) and
+@(lp-term continue) statements should collapse to.  It is for this reason that
+@(lp-term H) does @emph{not} descend into nested @(lp-term loop) forms; it
+would be incorrect for a @(lp-term break) in a nested loop to @(lp-term break)
+the outer loop.
+
+
