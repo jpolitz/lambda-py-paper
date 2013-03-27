@@ -12,8 +12,8 @@
   "bib.rkt")
 
 @(define (pycode . stx)
- (nested #:style 'code-inset
-     (verbatim (string-join stx ""))))
+  (nested #:style 'code-inset
+   (verbatim (string-join stx ""))))
 @(define (pyinline . stx)
   (tt (string-join stx "")))
 
@@ -69,9 +69,8 @@ Thus, it is vital to have a precise semantics available for analyzing
 programs and proving properties about them.
 
 This paper presents a semantics for most of (section [REF]) Python.
-Because authors of
-tools and of proofs prefer to contend with small languages, we divide
-the semantics into two parts: a core language, @(lambda-py), with a
+To make the semantics tractable for tools and proofs, we divide
+it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
 source programs into the core. The core language is a mostly
 traditional stateful lambda-calculus augmented with
@@ -88,8 +87,8 @@ fidelity with CPython. Therefore, users can built tools atop
 @(lambda-py), confident that they are conformant with the actual language.
 
 In the course of creating this high-fidelity semantics, we have also
-identified some peculiar corners of the language, including
-non-orthogonal features. In particular, scope proves to be
+identified some peculiar corners of the language.
+In particular, scope proves to be
 non-trivial and interacts with perhaps unexpected features. Our
 exposition focuses on these aspects.
 
@@ -135,7 +134,7 @@ is available online at @url{https://www.github.com/brownplt/lambda-py}.
 We
 provide an overview of the object model of @(lambda-py) and Python, some of the
 basic operations on objects, and the shape of our small step semantics.  This
-introduces notation and concepts that will be used later in the document to
+introduces notation and concepts that will be used later to
 explain the harder parts of Python's semantics.
 
 @subsection{@(lambda-py) Values}
@@ -160,7 +159,8 @@ The primitive content, or @emph{meta-val},
 position holds special kinds of builtin data, of which
 there is one per builtin type that @(lambda-py) models: numbers, strings, the
 distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
-functions.
+functions.@note{We express dictionaries in terms of lists and tuples, so they
+lack their own @(lp-term mval) form.}
 
 The distinguished @(lp-term (undefined-val)) form represents values on the heap
 that are uninitialized, and whose lookup should raise an exception.  Within
@@ -310,7 +310,7 @@ cases in the semantics that are unique in Python, and how we model them with
 Python has a featureful class system with first-class methods, implicit
 reciever binding, multiple inheritance, and more.  In this section we discuss
 what parts of the class system we put in @(lambda-py), and which parts
-we chose to eliminate by desugaring.
+we choose to eliminate by desugaring.
 
 @subsection{Field Lookup in Classes}
 
@@ -454,14 +454,12 @@ provide specialized behavior.  @(lambda-py) tracks Python this regard; it desuga
 surface expressions into calls to methods with particular names, and provides
 built-in implementations of those methods for arithmetic, dictionary access,
 and a number of other operations.  Some examples:
-@nested{
-
+@nested[#:style 'code-inset]{
 @pyinline{o[x]} @emph{ desugars to... } @(lp-term (app (get-attr (id o local) (object %str (meta-str "__getitem__"))) ()))
 
 @pyinline{x + y} @emph{ desugars to... } @(lp-term (app (get-attr (id x local) (object %str (meta-str "__add__"))) ((id y local))))
 
 @pyinline{f(x)} @emph{ desugars to... } @(lp-term (app (get-attr (id f local) (object %str (meta-str "__call__"))) ((id x local))))
-
 }
 
 With the basics of @pyinline{type} and object lookup in place, getting all of these
@@ -562,9 +560,9 @@ generators seem to fit perfectly with our desguaring strategy.
 When converting programs to CPS, we take operators that can cause
 control-flow and reify each into a continuation function and
 appropriate application. These operators include simple sequences,
-loops combined with @pyinline{break} and @pyinline{continue}, and
-@pyinline{try-except} and @pyinline{try-finally} combined with @pyinline{raise}
-(generators cannot use @pyinline{return}).
+loops combined with @pyinline{break} and @pyinline{continue},
+@pyinline{try-except} and @pyinline{try-finally} combined with @pyinline{raise},
+and @pyinline{return}.
 
 Our CPS transformation turns every expression into a function that accepts an
 argument for each of the above control operators, and turns uses of control
@@ -643,7 +641,6 @@ program is run under Python, it results in an error:
 @pycode{
     x += 1
 UnboundLocalError: local variable 'x'
-                   referenced before assignment
 }
 This is because Python creates a @emph{new scope} for each function
 definition, and assignments within that scope create new variables.
@@ -746,8 +743,8 @@ binding form in the core.  Thus, in @(lambda-py), the example above rewrites to:
           (return (id x local))))
          (no-var)))
       (seq
-      (app (id f global) ((object %float (meta-num 0))))
-      (app (id f global) ((object %float (meta-num 1))))))))
+      (app (id f global) ((object %int (meta-num 0))))
+      (app (id f global) ((object %int (meta-num 1))))))))
 }
 In the first application (to 0) the assignment will never happen, and the
 attempt to look up the @(lp-term (undefined-val))-valued @(lp-term x) in the
@@ -756,7 +753,7 @@ assignment in the then-branch will change the value of @(lp-term x) in the
 store to a non-@(lp-term (undefined-val)) string value, and the string
 @(lp-term "big") will be returned.
 
-The algorithm for desugaring scope is so far this:
+The algorithm for desugaring scope is so far:
 @itemlist[
 
   @item{For each function body:
@@ -1004,7 +1001,7 @@ desugaring:
 ]
 
 Recalling that the instance variables of a class desugar roughly to assignments
-to the class object itself, the function would desugar to the following:
+to the class object itself, the function desugars to the following:
 
 @centered{
   @(lp-term
@@ -1047,9 +1044,8 @@ c.x = 3
 }
 will produce the same class.  We do, however, have to still account for
 @emph{uses} of the instance variables inside the class body, which are referred
-to with the variable name, not with a field lookup like @pyinline{c.x}.  This
-observation is the key insight into @(lambda-py)'s treatment of instance
-variables.  We perform a final desugaring step for instance variables, where we
+to with the variable name, not with a field lookup like @pyinline{c.x}.
+We perform a final desugaring step for instance variables, where we
 let-bind them in a new scope just for evaluating the class body, and desugar
 each instance variable assignment into both a class assignment and an
 assignment to the variable itself:
@@ -1076,11 +1072,11 @@ assignment to the variable itself:
                     (assign (id g local) := (id extracted-g local)))))))
               (return (id c local)))))))))))
 }
-We have now covered Python's class semantics:
+We have now covered Python classes' scope semantics:
 function bodies do not close over the class body's scope, class bodies
 create their own local scope, statements in class bodies are executed sequentially,
 and definitions/assignments in class bodies result in the creation of class
-members.  The @pyinline{nonlocal} and @pyinline{global} keywords do not require special treatment 
+members.  The @pyinline{nonlocal} keyword does not require special treatment 
 beyond what we have outlined here, even when present in class bodies.
 
 @subsection[#:tag "s:generators-redux"]{Generators Redux}
