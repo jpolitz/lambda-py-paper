@@ -35,9 +35,9 @@
   ]
   (type-case CExpr core-stx
     [CSym (s) (term (sym ,(symbol->string s)))]
-    [CTrue () (term (id True global))]
-    [CFalse () (term (id False global))]
-    [CNone () (term (id None global))]
+    [CTrue () (term (alloc (obj-val %bool (meta-num 1) ())))]
+    [CFalse () (term (alloc (obj-val %bool (meta-num 0) ())))]
+    [CNone () (term (alloc (obj-val %none (meta-none) ())))]
     [CObject (class mval)
      (term (object ,(core->redex class) ,(mval->redex/opt mval)))]
     [CGetAttr (value attr)
@@ -198,5 +198,5 @@
     ['Is (prim-alloc op argsptrs)]
     ['IsNot (prim-alloc op argsptrs)]
 
-    [else (prim-noalloc op argsptrs)])))
+   [else (prim-noalloc op argsptrs)])))
 

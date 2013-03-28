@@ -292,6 +292,13 @@
           (class-lookup-mro (val_cls ...) string Σ))])
 
 (define-metafunction λπ
+  subst-exprs : x any (e ...) -> (e ...)
+  [(subst-exprs x any ()) ()]
+  [(subst-exprs x any (e e_rest ...))
+   ((subst-one x any e) e_subs ...)
+   (where (e_subs ...) (subst-exprs x any (e_rest ...)))])
+
+(define-metafunction λπ
   subst-fun : x any (x ...) opt-var e -> e
   [(subst-fun x any (y ...) (x) e) e]
   [(subst-fun x any (y ...) opt-var e) e

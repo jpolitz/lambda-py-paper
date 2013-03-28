@@ -51,21 +51,21 @@
 (full-expect
  ((app (fun () (no-var)
             (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0)))))))
-       ((object vnone (meta-str "get-this-one"))
-        (object vnone (meta-str "not-this-one"))))
+       ((object vnone (meta-str "get-nothing"))
+        (object vnone (meta-str "not-here-either"))))
   () ())
  ((err (obj-val any_cls (meta-str "arity-mismatch") any_dict)) ε Σ))
 
 (full-expect
  ((app (fun () (args)
             (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0)))))))
-       ((object vnone (meta-str "get-this-one"))
+       ((object vnone (meta-str "get-this-one(first)"))
         (object vnone (meta-str "not-this-one"))))
   () ())
  ((pointer-val ref_arg)
   ε
   ((ref_1 val_1) ...
-   (ref_arg (obj-val any_cls (meta-str "get-this-one") any_dict))
+   (ref_arg (obj-val any_cls (meta-str "get-this-one(first)") any_dict))
    (ref_n val_n) ...)))
 
 (full-expect
@@ -74,12 +74,12 @@
        ()
        (tuple (id %tuple global)
               ((object vnone (meta-str "not-this-one"))
-               (object vnone (meta-str "get-this-one")))))
+               (object vnone (meta-str "get-this-one(second)")))))
   {(%tuple 4)} {(4 vnone)})
  ((pointer-val ref_arg)
   ε
   ((ref_1 val_1) ...
-   (ref_arg (obj-val any_cls (meta-str "get-this-one") any_dict))
+   (ref_arg (obj-val any_cls (meta-str "get-this-one(second)") any_dict))
    (ref_n val_n) ...)))
 
 (full-expect

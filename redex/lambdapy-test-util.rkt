@@ -54,22 +54,26 @@
                     (λ (p) (redex-match? λπ pat (first p)))))))
 
 
+(define last-term (box #f))
+(define success (box #f))
+(define (get-last-term)
+  (unbox last-term))
 (define-syntax (full-expect stx)
   (syntax-case stx ()
       ((_ (e ε Σ) pat)
        #'(begin
-           (define last-term #f)
-           (define success #f)
+           (set-box! last-term #f)
+           (set-box! success #f)
            (test-->>∃ #:steps 1000000
                       λπ-red (term (e ε Σ))
                       (λ (p)
                         (if (not
                              (and
                               (redex-match? λπ pat p)))
-                            (begin (set! last-term p) #f)
-                            (begin (set! success #t) #t))))
-           (when (not success)
-             (display "Last term:\n") (pretty-write last-term))))))
+                            (begin (set-box! last-term p) #f)
+                            (begin (set-box! success #t) #t))))
+           (when (not (unbox success))
+             (display "Last term:\n") (pretty-write (unbox last-term)))))))
 
 (define py-none (CId 'None (GlobalId)))
 
