@@ -42,7 +42,7 @@
      (get-attr e e) (set-attr e e := e)
      (if e e e) (seq e e)
      (let (x t = e+undef) in e)
-     (id x t) (assign e := e)
+     (id x t) (assign e := e) (delete e)
      (app e (e ...)) (app e (e ...) e) (frame e) (return e)
      (while e e e) (loop e e) break continue
      (builtin-prim op (e ...))
@@ -50,7 +50,6 @@
      (object e mval) (list e (e ...))
      (tuple e (e ...)) (set e (e ...))
      (tryexcept e x e e) (tryfinally e e)
-     (tryreraise e e)
      (raise) (raise e)
      (module e e) (construct-module e)
      (err val))
@@ -74,7 +73,6 @@
      (raise E)
      (return E)
      (tryexcept E x e e) (tryfinally E e)
-     (tryreraise E e)
      (loop E e) (frame E)
      (app E (e ...)) (app val Es)
      (app E (e ...) e) (app val Es e)
@@ -98,7 +96,6 @@
      (builtin-prim op Ts)
      (raise T)
      (loop T e) (frame T)
-     (tryreraise T e)
      (app T (e ...)) (app val Ts)
      (app T (e ...) e) (app val Ts e)
      (app val (val ...) T)
@@ -125,7 +122,6 @@
      (builtin-prim op Hs)
      (raise H)
      (tryexcept H x e e) ;; DO go into try/catch to find break/continue
-     (tryreraise H e)
      (app H (e ...)) (app val Hs)
      (app H (e ...) e) (app val Hs e)
      (app val (val ...) H)
@@ -154,7 +150,6 @@
      (raise R)
      (loop R e) ;; DO go into active loops to find returns
      (tryexcept R x e e) ;; DO go into try/catches to find returns
-     (tryreraise R e)
      (app R (e ...)) (app val Rs)
      (app R (e ...) e) (app val Rs e)
      (app val (val ...) R)
@@ -166,7 +161,7 @@
   (Rs (val ... R e ...))
 
   ;; identifiers
-  ((w x y z f g h) (variable-except λ δ no-meta))
+  ((w x y z f g h) (variable-except λ δ no-meta no-var))
   
   (p (e ε Σ))
   (P (E ε Σ))

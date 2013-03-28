@@ -149,6 +149,15 @@
    (--> ((in-hole E (assign ref := val)) ε Σ)
         ((in-hole E val) ε (override-store Σ ref val))
         "E-AssignLocal")
+   (--> ((in-hole E (delete ref)) ε ((ref_1 v_1) ... (ref v) (ref_n v_n) ...))
+        ((in-hole E v) ε ((ref_1 v_1) ... (ref (undefined-val)) (ref_n v_n) ...))
+        "E-DeleteLocal")
+   (--> ((in-hole E (delete (id x global))) ((x_1 ref_1) ... (x ref) (x_n ref_n) ...) Σ)
+        ((in-hole E (store-lookup Σ ref)) ((x_1 ref_1) ... (x_n ref_n) ...) Σ)
+        "E-DeleteGlobal")
+   (--> ((in-hole E (delete (id x global))) (name ε ((x_1 ref_1) ...)) Σ)
+        ((in-hole E (raise (obj-val %str (meta-str "Unbound global") {}))) ε Σ)
+        "E-DeleteNoGlobal")
    (--> ((in-hole E (set-attr (pointer-val ref_obj) (pointer-val ref_str) := val_1)) ε Σ)
         ((in-hole E val_1) ε (override-store Σ ref_1 val_1))
         (where (obj-val any_cls1 mval ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...))
@@ -338,6 +347,8 @@
    (seq (subst-one x any e_1) (subst-one x any e_2))]
   [(subst-one x any (assign e_1 := e_2))
    (assign (subst-one x any e_1) := (subst-one x any e_2))]
+  [(subst-one x any (delete e))
+   (delete (subst-one x any e))]
   [(subst-one x any (if e_1 e_2 e_3))
    (if (subst-one x any e_1)
        (subst-one x any e_2)
