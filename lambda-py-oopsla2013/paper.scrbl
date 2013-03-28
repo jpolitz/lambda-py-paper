@@ -70,7 +70,7 @@ it is now being used to script new network paradigms@~cite["pox"].
 Thus, it is vital to have a precise semantics available for analyzing
 programs and proving properties about them.
 
-This paper presents a semantics for most of (section [REF]) Python.
+This paper presents a semantics for much of Python (@secref["s:engineering"]).
 To make the semantics tractable for tools and proofs, we divide
 it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
@@ -1345,8 +1345,9 @@ with extensive libraries, a foreign-function interface, and more.
 
 Libraries aside, there are some interesting features in Python left to
 tackle. These include special fields, such as the properties of
-function objects that compute the content of closures; properties that
-serialize; and so on.
+function objects that compute the content of closures, complex cases of
+destructuring assignments, a few reflective features like the metaclass form,
+and others.
 
 More interestingly, we are not done with scope! Consider
 @pyinline{locals}, which
@@ -1358,11 +1359,11 @@ def f(x):
 
 f("x-val") # ==> {'x': 'x-val', 'y': 3}
 }
-Even if @pyinline{locals} were a keyword, it
-would not be trivial to desugar because variables can be bound on just
-some control flow paths. (We believe we have a (complicated)
-desugaring, but have not yet verified it.) Worse, @pyinline{locals} is a
-value!
+This use of @pyinline{locals} can be desugared to a clever combination of
+assignments into a dictionary along with variable assignments, which we do.
+However, this desugaring of @pyinline{locals} relies on it being a strictly
+@emph{local} operation (for lack of a better word).
+But worse, @pyinline{locals} is a value!
 @pycode{
 def f(x, g):
   y = 3
@@ -1427,7 +1428,7 @@ and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
 - NSF and Google for funding
 - Brown and CS for providing "free hosting" services for our course
 - redex
-- Caitlin for @figure-ref{"f:class-scope"}
+- Caitlin for @figure-ref["f:class-scope"]
 }
 
 @(generate-bib)
