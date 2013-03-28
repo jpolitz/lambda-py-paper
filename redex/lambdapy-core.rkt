@@ -17,8 +17,7 @@
   ((v val)
 	 (obj-val val mval ((string ref) ...))
 	 (obj-val x mval ((string ref) ...))
-   (pointer-val ref)
-   (sym string))
+   (pointer-val ref) (sym string))
   (v+undef v (undefined-val))
   (e+undef e (undefined-val))
   
@@ -50,9 +49,8 @@
      (object e mval) (list e (e ...))
      (tuple e (e ...)) (set e (e ...))
      (tryexcept e x e e) (tryfinally e e)
-     (raise) (raise e)
-     (module e e) (construct-module e)
-     (err val))
+     (raise) (raise e) (err val)
+     (module e e) (construct-module e))
 
   ;; evaluation context
   (E hole

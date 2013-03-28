@@ -156,8 +156,8 @@ Each @(lambda-py) object is written as a triple of one of the forms:
 }
 These objects have their @emph{class} in the first position, their primitive
 content in the second, and the dictionary of string-indexed fields that they
-holds in the third.  The class value is either another @(lambda-py) value or a
-lazily-evaluated identifier pointing to an environment of built-in classes.
+hold in the third.  The class value is either another @(lambda-py) value or the
+name of a built-in class.
 The primitive content, or @emph{meta-val},
 position holds special kinds of builtin data, of which
 there is one per builtin type that @(lambda-py) models: numbers, strings, the
@@ -166,7 +166,7 @@ functions.@note{We express dictionaries in terms of lists and tuples, so we do
 not need to introduce a special @(lp-term mval) form for them.}
 
 The distinguished @(lp-term (undefined-val)) (``skull'') form represents uninitialized heap
-locations, and whose lookup should raise an exception.  Within
+locations whose lookup should raise an exception.  Within
 expressions, this form can @emph{only} appear in @(lp-term let)-bindings
 whose binding position can contain both expressions and @(lp-term
 (undefined-val)).  The evaluation of @(lp-term (undefined-val)) in a @(lp-term
@@ -203,7 +203,7 @@ that new list.
 
 Similar rules for objects in general, tuples, and sets are shown in
 @figure-ref["f:steps-values"].  Lists, tuples, and sets are given their own
-expression forms because they need to evaluate all of their sub-expressions and
+expression forms because they need to evaluate their subexpressions and
 have corresponding evaluation contexts.
 
 @figure["f:steps-values" (elem (lambda-py) " reduction rules for creating objects")]{
@@ -294,7 +294,7 @@ We model functions as just another kind of object value, with a type of
   @(lp-term (meta-closure (λ (x ...) opt-var e)))   
 }
 
-The @(lp-term opt-var) position holds an explicit optoinal varargs identifier:
+The @(lp-term opt-var) indicates whether the function is variable-arity:
 if @(lp-term opt-var) is of the form @(lp-term (y)),
 then if the function is called with more arguments than are in its list of
 variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
@@ -305,9 +305,8 @@ variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
 We defer a full explanation of the terms in @figure-ref["f:exprs"], and the
 entire reduction relation, to the appendix.  This includes a mostly-routine
 encoding of control operators via special evaluation contexts, and a mechanism
-for loading new code via modules.  We continue here by focusing on some of the
-cases in the semantics that are unique in Python, and how we model them with
-@(lambda-py).
+for loading new code via modules.  We continue here by focusing on
+cases in @(lambda-py) that are unique in Python.
 
 @section[#:tag "s:classes"]{Classes, Methods, and Desugaring}
 
@@ -332,7 +331,7 @@ class C(object):
   pass # a class that does nothing
 
 print(C.__mro__)
-# (<class '__main__.C'>, <class 'object'>)
+# (<class 'C'>, <class 'object'>)
 }
 
 Field lookups on objects whose class value is @(lp-term C) will first look in
@@ -425,14 +424,15 @@ method, and if it does, calls it:
   (set-attr (id object global) (object %str (meta-str "__getattribute__")) :=
     (fun (obj field)
       (let (value local = (get-attr obj field)) in
-        (if (builtin-prim "has-field?" ((id value local) (object %str (meta-str "__get__"))))
+        (if (builtin-prim "has-field?" ((id value local)
+                                        (object %str (meta-str "__get__"))))
             (return (app (get-attr (id value local) (object %str (meta-str "__get__"))) ()))
             (return (id value local)))))))
 }
 
 This pattern is used to implement a myriad of features.  For example, when
 accessing function values on classes, the @(lp-term "__get__") method of the
-function implicitly binds the self argument:
+function binds the self argument:
 @pycode{
 class C(object):
   def f(self):
@@ -443,7 +443,7 @@ g = c.f # accessing c.f creates a
         # method object closed over c
 g() is c # ==> True
 
-# We can also bind a self value manually:
+# We can also bind self manually:
 self_is_5 = C.f.__get__(5)
 self_is_5() # ==> 5
 }
@@ -456,18 +456,18 @@ surface expressions into calls to methods with particular names, and provides
 built-in implementations of those methods for arithmetic, dictionary access,
 and a number of other operations.  Some examples:
 @nested[#:style 'code-inset]{
-@pyinline{o[x]} @emph{ desugars to... } @(lp-term (app (get-attr (id o local) (object %str (meta-str "__getitem__"))) ()))
+@pyinline{o[p]} @emph{ desugars to... } @(lp-term (app (get-attr (id o local) (object %str (meta-str "__getitem__"))) ((id p local))))
 
-@pyinline{x + y} @emph{ desugars to... } @(lp-term (app (get-attr (id x local) (object %str (meta-str "__add__"))) ((id y local))))
+@pyinline{n + m} @emph{ desugars to... } @(lp-term (app (get-attr (id n local) (object %str (meta-str "__add__"))) ((id m local))))
 
-@pyinline{f(x)} @emph{ desugars to... } @(lp-term (app (get-attr (id f local) (object %str (meta-str "__call__"))) ((id x local))))
+@pyinline{fun(a)} @emph{ desugars to... } @(lp-term (app (get-attr (id fun local) (object %str (meta-str "__call__"))) ((id a local))))
 }
 
-With the basics of @pyinline{type} and object lookup in place, getting all of these
+With the basics of @pyinline{type} and object lookup in place, getting these
 operations right is just a matter of desugaring to the right method calls, and
-providing the right built-in versions. numbers to handle the base cases
-for primitive values.  This is what we do for much of our desugaring to
-@(lambda-py) and, though it is labor-intensive, it is also the
+providing the right built-in versions
+for primitive values.  This is the form of much of our desugaring, and though
+it is labor-intensive, it is also the
 straightforward part of the process.
 
 @section[#:tag "s:hardparts"]{Python: the Hard Parts}
@@ -576,7 +576,6 @@ try:
   raise Exception()
 except e:
   print(e)
-
 }
 to
 @pycode{
@@ -787,17 +786,17 @@ def f():
 f()() # ==> 'closed-over'
 }
 However, since @pyinline{=} defines a new local variable, one cannot close over a
-variable and mutate it with the constructs we've seen so far; @pyinline{=} simply
+variable and mutate it with what we've seen so far; @pyinline{=} simply
 defines a new variable with the same name:
 @pycode{
 def g():
-  x = 'not affected by h'
+  x = 'not affected'
   def h():
     x = 'inner x'
     return x
   return (h(), x)
 
-g() # ==> ('inner x', 'not affected by h')
+g() # ==> ('inner x', 'not affected')
 }
 This is mirrored in our desugaring:
 each function adds a new let-binding
@@ -1033,23 +1032,26 @@ keyword as we describe in @secref["s:desugaring-classes"].
 
 When we introduced classes we saw that there is no apparent difference
 between classes that introduce identifiers in their body and classes that
-introduce identifiers by field assignment.  That is,
+introduce identifiers by field assignment.  That is, either of the following
+forms will produce the same class @pyinline{C}:
 @pycode{
-class c:
- x = 3
+class C:
+  x = 3
+# or ...
+class C: pass
+C.x = 3
 }
-and 
-@pycode{
-class c: pass
-c.x = 3
-}
-will produce the same class.  We do, however, have to still account for
+
+We do, however, have to still account for
 @emph{uses} of the instance variables inside the class body, which are referred
 to with the variable name, not with a field lookup like @pyinline{c.x}.
 We perform a final desugaring step for instance variables, where we
 let-bind them in a new scope just for evaluating the class body, and desugar
 each instance variable assignment into both a class assignment and an
-assignment to the variable itself:
+assignment to the variable itself.  The full desugaring of the example
+is shown in @figure-ref["f:full-class-desugar"].
+
+@figure["f:full-class-desugar" "Full class scope desugaring"]{
 @centered{
   @(lp-term
     (let (f local = (undefined-val)) in
@@ -1073,12 +1075,13 @@ assignment to the variable itself:
                     (assign (id g local) := (id extracted-g local)))))))
               (return (id c local)))))))))))
 }
+}
+
 We have now covered Python classes' scope semantics:
 function bodies do not close over the class body's scope, class bodies
 create their own local scope, statements in class bodies are executed sequentially,
 and definitions/assignments in class bodies result in the creation of class
-members.  The @pyinline{nonlocal} keyword does not require special treatment 
-beyond what we have outlined here, even when present in class bodies.
+members.  The @pyinline{nonlocal} keyword does not require further special treatment, even when present in class bodies.
 
 @subsection[#:tag "s:generators-redux"]{Generators Redux}
 
@@ -1167,11 +1170,11 @@ and one for the exception throwing @pyinline{raise}.  This means that each CPSed
 expression becomes an anonymous function of five arguments, and can be passed
 in the appropriate behavior for each control operator.
 
-We use this configurability to handle two special cases of generators:
+We use this configurability to handle two special cases:
 
 @itemlist[
 
-  @item{Exceptions thrown during execution that are uncaught by the generator}
+  @item{Throwing an exception while running the generator}
 
   @item{Running the generator to completion}
 
@@ -1222,23 +1225,18 @@ paper has hinted that it proceeds in phases. Indeed, there are four:
   Python and the core with lexical scope, but still many surface constructs.}
 
   @item{Desugar classes, turn Python operators into method calls, turn
-  @pyinline{for} loops into appropriately-guarded @(lp-term while) loops in the
-  core, etc.}
+  @pyinline{for} loops into appropriately-guarded @(lp-term while) loops, etc.}
 
   @item{Desugar generators (functions containing @pyinline{yield}, @secref["s:generators-redux"]).}
 
 ]
-These four steps yield a term in our core.  It isn't quite ready to
-run, however, because we desugar to open terms. For instance,
-@pycode{
-print(5)
-}
+These four steps yield a term in our core, but it isn't ready to
+run yet because we desugar to open terms. For instance, @pyinline{print(5)}
 desugars to
 @centered{
 @(lp-term (app (id print global) ((object (id %int global) (meta-num 5)))))
 }
-which relies on both @(lp-term print) and the built-in @(lp-term %int) class
-being defined.
+which relies on free variables @(lp-term print) and @(lp-term %int).
 
 @subsection{Python Libraries in Python}
 
@@ -1378,7 +1376,7 @@ def f(x):
   y = 3
   return locals()
 
-f("x-val") # ==> {'x': 'x-val', 'y': 3}
+f("val") # ==> {'x': 'val', 'y': 3}
 }
 This use of @pyinline{locals} can be desugared to a clever combination of
 assignments into a dictionary along with variable assignments, which we do.
@@ -1406,9 +1404,7 @@ On top of this, @pyinline{import} can splice all identifiers
 now, we handle only @pyinline{import}s that bind the module object to a single
 identifier. Indeed, even 
 Python 3 advises that @pyinline{import *} should only be used
-at module scope. 
-
-Finally, we do not handle @pyinline{exec}, Python's
+at module scope.  Finally, we do not handle @pyinline{exec}, Python's
 ``eval''. Related efforts on handling similar operators in 
 JavaScript@~cite["politz:s5"] are sure to be helpful here.
 
