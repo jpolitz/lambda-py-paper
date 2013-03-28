@@ -7,22 +7,22 @@
    (2 (obj-val %function (meta-closure (λ () (no-var)
                                           (alloc
                                            (obj-val BaseException (no-meta)
-                                                    {("__mro__" 9)})) (no-var))) {}))
+                                                    {("__mro__" 9)})))) {}))
    (3 vnone)
    (4 vnone)
    (5 vnone)
    (6 vtrue)
    (7 (pointer-val 8))
    (8 (obj-val %function (meta-closure (λ (o1 o2) (no-var)
-                                         (builtin-prim "isinstance" ((id o1 local) (id o2 local)))
-                                         (no-var)))
+                                         (builtin-prim "isinstance" ((id o1 local) (id o2 local)))))
                {}))
    (9 (pointer-val 10))
    (10 (obj-val %tuple (meta-tuple ((pointer-val 11))) {}))
    (11 (obj-val vnone (no-meta) {}))
    (12 (pointer-val 11))
    (13 vfalse)
-   (14 vnone)}))
+   (14 vnone)
+   (15 vnone)}))
 
 (define basic-env (term
                    {(Exception 1)
@@ -33,19 +33,18 @@
                     (False 13)
                     (%isinstance 7)
                     (BaseException 12)
-                    (%globals 14)}))
+                    (%globals 14)
+                    (None 15)}))
 (full-expect
  ((app
    (fun (f) (no-var)
          (return (builtin-prim "str-getitem"
                                ((app (id f local) ())
-                                (mknum 0))))
-         (no-var))
+                                (mknum 0)))))
    ((fun () (no-var)
           (seq
            (return ,(redex-strv "get-my-g"))
-           (raise (sym "should not reach")))
-          (no-var))))
+           (raise (sym "should not reach"))))))
   () ())
  ((obj-val any_cls (meta-str "g") any_dict) ε Σ))
 
@@ -64,8 +63,7 @@
          (return (sym "return-through-try"))
          x
          (raise (sym "should not reach"))
-         (raise (sym "should not reach")))
-        (no-var)) ())
+         (raise (sym "should not reach")))) ())
   ()())
  ((sym "return-through-try") ε Σ))
 
@@ -74,8 +72,7 @@
    (fun () (no-var)
         (tryfinally
          (return (sym "return-through-finally"))
-         (return (sym "return-from-finally")))
-        (no-var)) ())
+         (return (sym "return-from-finally")))) ())
   ()())
  ((sym "return-from-finally") ε Σ))
 
@@ -85,8 +82,7 @@
      (fun () (no-var)
           (tryfinally
            (return (sym "return-after-finally"))
-           (assign (id check-var global) := (sym "saw finally")))
-          (no-var)) ()))
+           (assign (id check-var global) := (sym "saw finally")))) ()))
   ()())
  ((sym "return-after-finally")
   {(x ref) ... (check-var ref_chk) (x_n ref_n) ...}
@@ -98,8 +94,7 @@
      (fun () (no-var)
           (tryfinally
            (raise (sym "raise-after-finally"))
-           (assign (id check-var global) := (sym "saw finally")))
-          (no-var)) ()))
+           (assign (id check-var global) := (sym "saw finally")))) ()))
   ()())
  ((err (sym "raise-after-finally"))
   {(x ref) ... (check-var ref_chk) (x_n ref_n) ...}

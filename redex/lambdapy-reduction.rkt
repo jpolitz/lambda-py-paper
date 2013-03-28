@@ -5,16 +5,20 @@
   "lambdapy-core.rkt"
   "lambdapy-prim.rkt")
 
-(provide λπ-red override-store class-lookup class-lookup-mro store-lookup maybe-bind-method subst)
+(provide
+  λπ-red
+  override-store
+  class-lookup
+  class-lookup-mro
+  store-lookup
+  env-lookup
+  subst)
 
 
 (define λπ-red
   (reduction-relation
    λπ
    #:domain p
-   (==> none vnone "E-None")
-   (==> true vtrue "E-True")
-   (==> false vfalse "E-False")
    (--> ((in-hole E (list val_c (val ...))) ε Σ)
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-List"
@@ -38,10 +42,10 @@
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
         "E-Alloc"
         (where (Σ_1 ref_new) (extend-store Σ val)))
-   (--> ((in-hole E (fun (x ...) opt-var_1 e opt-var_2)) ε Σ)
+   (--> ((in-hole E (fun (x ...) opt-var e)) ε Σ)
         ((in-hole E (pointer-val ref_fun)) ε Σ_1)
         (where (Σ_1 ref_fun)
-          (extend-store Σ (obj-val %function (meta-closure (λ (x ...) opt-var_1 e opt-var_2)) ())))
+          (extend-store Σ (obj-val %function (meta-closure (λ (x ...) opt-var e)) ())))
         "E-Fun")
    (--> ((in-hole E (object val mval)) ε Σ)
         ((in-hole E (pointer-val ref_new)) ε Σ_1)
@@ -133,7 +137,7 @@
         (where (Σ_result val_result)
           (class-lookup (pointer-val ref_obj) (store-lookup Σ (env-lookup ε x_cls)) string Σ))
         (side-condition (not (member (term string) (term (string_1 ...)))))
-        "E-GetAttr-Class/Lazy")
+        "E-GetField-Class/Id")
    (--> ((in-hole E (assign (id x global) := val)) (name ε ((x_2 ref_2) ... (x ref) (x_3 ref_3) ...)) Σ)
         ((in-hole E val) ε (override-store Σ ref val))
         "E-AssignGlobal")
@@ -161,7 +165,7 @@
         "E-SetFieldAdd")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ...))) ε Σ)
         ((in-hole E (frame (subst (x ...) (ref_arg ...) e))) ε Σ_1)
-        (where (obj-val any_c (meta-closure (λ (x ...) (no-var) e opt-var)) any_dict)
+        (where (obj-val any_c (meta-closure (λ (x ...) (no-var) e)) any_dict)
                (store-lookup Σ ref_fun))
         (side-condition
           (equal? (length (term (val ...))) (length (term (x ...)))))
@@ -170,21 +174,21 @@
         "E-App")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ...))) ε Σ)
         ((in-hole E (err (obj-val %str (meta-str "arity-mismatch") {}))) ε Σ)
-        (where (obj-val any_c (meta-closure (λ (x ...) (no-var) e opt-var)) any_dict)
+        (where (obj-val any_c (meta-closure (λ (x ...) (no-var) e)) any_dict)
                (store-lookup Σ ref_fun))
         (side-condition
           (not (equal? (length (term (val ...))) (length (term (x ...))))))
         "E-AppArity")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ...))) ε Σ)
         ((in-hole E (err (obj-val %str (meta-str "arity-mismatch-vargs") {}))) ε Σ)
-        (where (obj-val any_c (meta-closure (λ (x ...) (y) e opt-var)) any_dict)
+        (where (obj-val any_c (meta-closure (λ (x ...) (y) e)) any_dict)
                (store-lookup Σ ref_fun))
         (side-condition
           (< (length (term (val ...))) (length (term (x ...)))))
-        "E-AppVargsArity")
+        "E-AppVarArgsArity")
    (--> ((in-hole E (app (pointer-val ref_fun) (val ...))) ε Σ)
         ((in-hole E (frame (subst (x ... y_varg) (ref_arg ... ref_tupleptr) e))) ε Σ_3)
-        (where (obj-val any_c (meta-closure (λ (x ...) (y_varg) e opt-var)) any_dict)
+        (where (obj-val any_c (meta-closure (λ (x ...) (y_varg) e)) any_dict)
                (store-lookup Σ ref_fun))
         (side-condition
           (>= (length (term (val ...))) (length (term (x ...)))))
@@ -279,32 +283,11 @@
           (class-lookup-mro (val_cls ...) string Σ))])
 
 (define-metafunction λπ
-  maybe-bind-method : val val Σ -> (Σ val)
-  [(maybe-bind-method (pointer-val ref_obj) (pointer-val ref_result) Σ)
-   (Σ_3 (pointer-val ref_method))
-   (where (obj-val any_fun (meta-closure (λ (x ...) opt-var_1 e opt-var_2)) ())
-    (store-lookup Σ ref_result))
-   (where (Σ_1 ref_self) (extend-store Σ (pointer-val ref_obj)))
-   (where (Σ_2 ref_func) (extend-store Σ_1 (pointer-val ref_result)))
-   (where val_method (obj-val method (no-meta) (("__self__" ref_self) ("__func__" ref_func))))
-   (where (Σ_3 ref_method) (extend-store Σ_2 val_method))]
-  [(maybe-bind-method (pointer-val ref_obj) val_other Σ)
-   (Σ val_other)])
-   
-(define-metafunction λπ
-  subst-exprs : x any (e ...) -> (e ...)
-  [(subst-exprs x any ()) ()]
-  [(subst-exprs x any (e e_rest ...))
-   ((subst-one x any e) e_subs ...)
-   (where (e_subs ...) (subst-exprs x any (e_rest ...)))])
-
-(define-metafunction λπ
-  subst-fun : x any (x ...) opt-var e opt-var -> e
-  [(subst-fun x any (y ...) (x) e opt-var) e]
-  [(subst-fun x any (y ...) opt-var e (x)) e]
-  [(subst-fun x any (y ...) opt-var_1 e opt-var_2) e
+  subst-fun : x any (x ...) opt-var e -> e
+  [(subst-fun x any (y ...) (x) e) e]
+  [(subst-fun x any (y ...) opt-var e) e
    (side-condition (member (term x) (term (y ...))))]
-  [(subst-fun x any (y ...) opt-var_1 e opt-var_2) (subst-one x any e)])
+  [(subst-fun x any (y ...) opt-var_1 e) (subst-one x any e)])
 
 (define-metafunction λπ
   subst-mval : x any mval -> mval
@@ -317,8 +300,8 @@
   [(subst-mval x any (meta-set (val ...)))
    (meta-set (subst-exprs x any (val ...)))]
   [(subst-mval x any (meta-class y)) (meta-class y)] ;; this is a name not a variable
-  [(subst-mval x any (meta-closure (λ (y ...) opt-var_1 e opt-var_2)))
-   (meta-closure (λ (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e opt-var_2) opt-var_2))]
+  [(subst-mval x any (meta-closure (λ (y ...) opt-var_1 e)))
+   (meta-closure (λ (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e)))]
   [(subst-mval x any (meta-none)) (meta-none)]
   [(subst-mval x any (no-meta)) (no-meta)]
   [(subst-mval x any (meta-port)) (meta-port)])
@@ -340,10 +323,6 @@
   [(subst-one x any (id y global)) (id y global)] ;; leave globals intact
   [(subst-one x any (id y local)) (id y local)
    (side-condition (not (equal? (term y) (term x))))]
-  [(subst-one x any true) true]
-  [(subst-one x any false) false]
-  [(subst-one x any none) none]
-  [(subst-one x any undefined) undefined]
   [(subst-one x any ref) ref]
   [(subst-one x any (fetch e)) (fetch (subst-one x any e))]
   [(subst-one x any (set! e_1 e_2))
@@ -374,8 +353,8 @@
    (app (subst-one x any e) (subst-exprs x any (e_arg ...)))]
   [(subst-one x any (app e (e_arg ...) e_star))
    (app (subst-one x any e) (subst-exprs x any (e_arg ...)) (subst-one x any e_star))]
-  [(subst-one x any (fun (y ...) opt-var_1 e opt-var_2))
-   (fun (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e opt-var_2) opt-var_2)]
+  [(subst-one x any (fun (y ...) opt-var_1 e))
+   (fun (y ...) opt-var_1 (subst-fun x any (y ...) opt-var_1 e))]
   [(subst-one x any (while e_1 e_2 e_3))
    (while (subst-one x any e_1)
           (subst-one x any e_2)

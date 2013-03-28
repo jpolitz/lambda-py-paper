@@ -1,6 +1,6 @@
 #lang racket
 
-(require redex redex/pict "../redex/lambdapy-core.rkt" "../redex/lambdapy-reduction.rkt")
+(require redex redex/pict slideshow/pict "../redex/lambdapy-core.rkt" "../redex/lambdapy-reduction.rkt")
 (provide with-rewriters lp-term lp-term/val lp-reduction lp-metafunction)
 
 (define-syntax-rule (lp-term t)
@@ -91,7 +91,8 @@
     [(list _ elt1 ... _)
      (append (list "[") elt1 (list "]"))]))
 
-(define (undefined-rewriter _) (list "☠"))
+(define (undefined-rewriter _)
+  (list (text "☠")))
 
 (define (metanum-rewriter lws)
   (match lws [(list _ _ n _) (list "" n "")]))

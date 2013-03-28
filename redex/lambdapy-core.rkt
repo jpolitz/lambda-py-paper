@@ -32,12 +32,12 @@
   ;; types of meta-val
   (mval (no-meta) (meta-num number) (meta-str string) (meta-none) ;; The Python value
         (meta-list (val ...)) (meta-tuple (val ...)) (meta-set (val ...))
-        (meta-class x) (meta-closure (λ (x ...) opt-var e opt-var)))
+        (meta-class x) (meta-closure (λ (x ...) opt-var e)))
 
   (opt-var (x) (no-var))
 
   ;; types of expressions
-  (e v true false none ref
+  (e v ref
      (fetch e) (set! e e) (alloc e)
      (get-attr e e) (set-attr e e := e)
      (if e e e) (seq e e)
@@ -46,14 +46,15 @@
      (app e (e ...)) (app e (e ...) e) (frame e) (return e)
      (while e e e) (loop e e) break continue
      (builtin-prim op (e ...))
-     (fun (x ...) opt-var e opt-var)
+     (fun (x ...) opt-var e)
      (object e mval) (list e (e ...))
      (tuple e (e ...)) (set e (e ...))
      (tryexcept e x e e) (tryfinally e e)
+     (tryreraise e e)
      (raise) (raise e)
      (module e e) (construct-module e)
      (err val))
-  
+
   ;; evaluation context
   (E hole
      (fetch E) (set! E e) (set! val E)
@@ -73,12 +74,13 @@
      (raise E)
      (return E)
      (tryexcept E x e e) (tryfinally E e)
+     (tryreraise E e)
      (loop E e) (frame E)
      (app E (e ...)) (app val Es)
      (app E (e ...) e) (app val Es e)
      (app val (val ...) E))
   (Es (val ... E e ...))
-  
+
   ;; context in a try block
   (T hole
      (fetch T) (set! T e) (set! val T)
@@ -96,6 +98,7 @@
      (builtin-prim op Ts)
      (raise T)
      (loop T e) (frame T)
+     (tryreraise T e)
      (app T (e ...)) (app val Ts)
      (app T (e ...) e) (app val Ts e)
      (app val (val ...) T)
@@ -104,7 +107,7 @@
   ;; (tryfinally H e) ;; Don't go into try/finallys to find raises
   ;; (tryexcept T x e e) ;; Don't catch other try-blocks errors
   (Ts (val ... T e ...))
-  
+
   ;; context for while body
   (H hole
      (fetch H) (set! H e) (set! val H)
@@ -122,6 +125,7 @@
      (builtin-prim op Hs)
      (raise H)
      (tryexcept H x e e) ;; DO go into try/catch to find break/continue
+     (tryreraise H e)
      (app H (e ...)) (app val Hs)
      (app H (e ...) e) (app val Hs e)
      (app val (val ...) H)
@@ -131,7 +135,7 @@
   ;; (loop H e) ;;  Don't go into other loops to find break/continue
   ;; (frame H) ;; Don't go into nested function calls to find breaks
   (Hs (val ... H e ...))
-  
+
   ;; contexts for returning
   (R hole
      (fetch R) (set! R e) (set! val R)
@@ -150,6 +154,7 @@
      (raise R)
      (loop R e) ;; DO go into active loops to find returns
      (tryexcept R x e e) ;; DO go into try/catches to find returns
+     (tryreraise R e)
      (app R (e ...)) (app val Rs)
      (app R (e ...) e) (app val Rs e)
      (app val (val ...) R)
@@ -160,9 +165,8 @@
   ;; (tryfinally R e) DON'T go into try/finallys to find returns
   (Rs (val ... R e ...))
 
-  ;; identifiers, as per
-  ;; http://docs.python.org/3.2/reference/lexical_analysis.html#keywords
-  ((w x y z f g h) (variable-except λ δ))
+  ;; identifiers
+  ((w x y z f g h) (variable-except λ δ no-meta))
   
   (p (e ε Σ))
   (P (E ε Σ))

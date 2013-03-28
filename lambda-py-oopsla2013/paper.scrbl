@@ -1,9 +1,11 @@
 #lang scribble/sigplan @10pt @preprint
 
-@(require scriblib/footnote scribble/manual scriblib/figure racket/base)
 @(require
+  scriblib/footnote
+  scribble/manual
+  scriblib/figure
+  racket/base
   (only-in racket/string string-join)
-  slideshow/pict
   redex
   "../redex/lambdapy-core.rkt"
   "../redex/lambdapy-reduction.rkt"
@@ -159,8 +161,8 @@ The primitive content, or @emph{meta-val},
 position holds special kinds of builtin data, of which
 there is one per builtin type that @(lambda-py) models: numbers, strings, the
 distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
-functions.@note{We express dictionaries in terms of lists and tuples, so they
-lack their own @(lp-term mval) form.}
+functions.@note{We express dictionaries in terms of lists and tuples, so we do
+not need to introduce a special @(lp-term mval) form for them.}
 
 The distinguished @(lp-term (undefined-val)) form represents values on the heap
 that are uninitialized, and whose lookup should raise an exception.  Within
@@ -1522,6 +1524,12 @@ each type of mutation here:
 
 @subsection{Global Scope}
 
+@figure*["f:lazy-get" "Accessing fields on a class defined by an identifier"]{
+  @(lp-reduction '(E-GetField-Class/Id))
+  @(linebreak)
+  @(lp-metafunction env-lookup #f)
+}
+
 While local variables are handled directly via substitution, we handle global
 scope with an explicit environment @(lp-term ε) that follows the computation.
 We do this for two main reasons.  First, because global scope in Python is
@@ -1541,6 +1549,50 @@ class position is an identifier, we look it up in the global environment.  We on
 use identifiers with special %-prefixed names that aren't visible to Python in
 this way.  It may be possible to remove this touch of dynamic scope from our
 semantics, but we haven't yet found the desugaring strategy that lets us do so.
+@Figure-ref["f:lazy-get"] shows the reduction rule for this case.
+
+
+@subsection{Variable-arity Functions}
+
+@figure*["f:varargs" "Variable-arity functions"]{
+  @(lp-reduction '(E-AppArity E-AppVarArgsArity E-AppVarArgs1 E-AppVarArgs2))
+}
+
+We implement Python's variable-arity functions directly in our core semantics,
+with the reduction rules shown in @figure-ref["f:varargs"].  We show first the
+two arity-mismatch cases in the semantics, where either no vararg is supplied
+and the argument count is wrong, and second where a vararg is supplied but the
+count is too low.  If the count is higher than the number of parameters and a
+vararg is present, a new tuple is allocated with the extra arguments, and
+passed as the vararg.  Finally, the form @(lp-term (app e (e ...) e)) allows a
+variable-length collection of arguments to be @emph{passed} to the function;
+this simply unpacks the values into another application expression. 
+
+@subsection{@pyinline{True}, @pyinline{False}, and @pyinline{None}}
+
+The keywords @pyinline{True}, @pyinline{False}, and @pyinline{None} all
+evaluate to objects in Python, but to the same object every time.  That is,
+there is a distinguished @pyinline{True} object that every @pyinline{True}
+expression evaluates to.  In @(lambda-py), we do not have a form for
+@pyinline{True}, instead desugaring it to a variable reference bound in the
+environment.  The same goes for @pyinline{None} and @pyinline{False}.  These
+variables are let-bound before anything else to allocations of new object
+values:
+
+@centered{
+@(lp-term
+  (let (True global = (alloc (obj-val %bool (meta-num 1) ()))) in
+  (let (False global = (alloc (obj-val %bool (meta-num 0) ()))) in
+  (let (None global = (alloc (obj-val %none (meta-none) ()))) in
+    e_prog))))
+}
+
+This pattern ensures that all references to these identifiers in the desugared
+program are truly to the same objects.  Note also that the boolean values are
+represented simply as number-like values, but with the built-in @(lp-term
+%bool) class, so they can be added and subtracted like numbers, but perform
+%method lookup on the @(lp-term %bool) class.
+
 
 
 

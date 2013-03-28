@@ -71,6 +71,9 @@
            (when (not success)
              (display "Last term:\n") (pretty-write last-term))))))
 
+(define py-none (CId 'None (GlobalId)))
+
+(define inherit-ε (term {(%str 5) (None 13)}))
 (define inherit-Σ (term {(4 (obj-val type (meta-class %str) (("__mro__" 9) ("not-inherited" 6))))
    (5 (pointer-val 4))
    (6 (pointer-val 7))
@@ -79,4 +82,5 @@
    (9 (pointer-val 10))
    (10 (obj-val %tuple (meta-tuple ((pointer-val 4) (pointer-val 8))) ()))
    (11 (pointer-val 12))
-   (12 (obj-val %function (meta-closure (λ (self) (no-var) none (no-var))) ()))}))
+   (12 (obj-val %function (meta-closure (λ (self) (no-var) vnone)) ()))
+   (13 (obj-val %none (meta-none) ()))}))

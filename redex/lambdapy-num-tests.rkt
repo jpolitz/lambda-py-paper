@@ -3,8 +3,8 @@
 (require "lambdapy-test-util.rkt")
 
 ;; prims
-(expect (builtin-prim "is" (true true)) vtrue)
-(expect (builtin-prim "is" (true false)) vfalse)
+(expect (builtin-prim "is" (vtrue vtrue)) vtrue)
+(expect (builtin-prim "is" (vtrue vfalse)) vfalse)
 (expect (builtin-prim "is" ((mknum 1) (mknum 1))) vtrue)
 (expect (builtin-prim "is" ((mknum 1) (mknum 2))) vfalse)
 #| ; NOTE(dbp): currently the implementation of numeric primitives,

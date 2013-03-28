@@ -6,7 +6,7 @@
                       (list (CObject (CId '%str (GlobalId))
                                      (some (MetaStr "identity function"))))
                       (none)))
-  {(%str 5)}
+  ,inherit-ε
   ,inherit-Σ)
  ((pointer-val ref_str)
   ε
@@ -20,7 +20,7 @@
                                                           (some (MetaStr "no args")))) (none))
                       (list)
                       (none)))
-  {(%str 5)}
+  ,inherit-ε
   ,inherit-Σ)
  ((pointer-val ref_str)
   ε
@@ -37,9 +37,9 @@
                        (list (CObject (CId '%str (GlobalId))
                                       (some (MetaStr "close over this one"))))
                        (none))
-                 (list (CNone))
+                 (list py-none)
                  (none)))
-  {(%str 5)}
+  ,inherit-ε
   ,inherit-Σ)
  ((pointer-val ref_str)
   ε
@@ -50,8 +50,7 @@
 
 (full-expect
  ((app (fun () (no-var)
-            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
-            (no-var))
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0)))))))
        ((object vnone (meta-str "get-this-one"))
         (object vnone (meta-str "not-this-one"))))
   () ())
@@ -59,8 +58,7 @@
 
 (full-expect
  ((app (fun () (args)
-            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
-            (no-var))
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0)))))))
        ((object vnone (meta-str "get-this-one"))
         (object vnone (meta-str "not-this-one"))))
   () ())
@@ -72,8 +70,7 @@
 
 (full-expect
  ((app (fun (x) (args)
-            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
-            (no-var))
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0)))))))
        ()
        (tuple (id %tuple global)
               ((object vnone (meta-str "not-this-one"))
@@ -87,8 +84,7 @@
 
 (full-expect
  ((app (fun (x) (no-var)
-            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0))))))
-            (no-var))
+            (return (builtin-prim "tuple-getitem" ((fetch (id args local)) (fetch (object vnone (meta-num 0)))))))
        ()
        (tuple (id %tuple global)
               ((object vnone (meta-str "not-this-one"))
@@ -102,8 +98,7 @@
 
 (full-expect
  ((app (fun (x to-fetch) (no-var)
-            (return (id to-fetch local))
-            (no-var))
+            (return (id to-fetch local)))
        ()
        (tuple (id %tuple global)
               ((object vnone (meta-str "not-this-one"))

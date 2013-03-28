@@ -35,9 +35,9 @@
   ]
   (type-case CExpr core-stx
     [CSym (s) (term (sym ,(symbol->string s)))]
-    [CTrue () (term true)]
-    [CFalse () (term false)]
-    [CNone () (term none)]
+    [CTrue () (term (id True global))]
+    [CFalse () (term (id False global))]
+    [CNone () (term (id None global))]
     [CObject (class mval)
      (term (object ,(core->redex class) ,(mval->redex/opt mval)))]
     [CGetAttr (value attr)
@@ -66,12 +66,12 @@
       [none ()
        (term (app ,(core->redex fun)
                   ,(map core->redex args)))])]
-    ;; TODO(joe): all combinations
+    ;; NOTE(joe): We explicitly drop the opt-class, so we don't
+    ;; quite capture no-argument super() in the core
     [CFunc (args varargs body opt-class)
      (term (fun ,args
                 ,(var->redex/opt varargs)
-                ,(core->redex body)
-                ,(var->redex/opt opt-class)))]
+                ,(core->redex body)))]
     [CWhile (test body orelse)
      (term (while ,(core->redex test)
                   ,(core->redex body)
