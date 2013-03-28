@@ -49,7 +49,7 @@
      (object e mval) (list e (e ...))
      (tuple e (e ...)) (set e (e ...))
      (tryexcept e x e e) (tryfinally e e)
-     (raise) (raise e) (err val)
+     (raise e) (err val)
      (module e e) (construct-module e))
 
   ;; evaluation context

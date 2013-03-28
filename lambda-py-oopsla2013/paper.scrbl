@@ -1499,6 +1499,24 @@ loop) form that serves as the marker for where internal @(lp-term break) and
 would be incorrect for a @(lp-term break) in a nested loop to @(lp-term break)
 the outer loop.
 
+One interesting feature of @pyinline{while} and @pyinline{tryexcept} in Python
+is that they have distinguished ``else'' clauses.  For @pyinline{while} loops,
+these else clauses run when the condition is @pyinline{False}, but @emph{not}
+when the loop is broken out of.  For @pyinline{tryexcept}, the else clause is
+only visited if @emph{no} exception was thrown while evaluating the body.  This
+is reflected in E-TryDone and the else branch of the @(lp-term if) statement
+produced by E-While.
+
+We handle one feature of Python's exception raising imperfectly.  If a
+programmer uses @pyinline{raise} without providing an explicit value to throw,
+@emph{the exception bound in the most recent active catch block} is thrown
+instead.  We have a limited solution that involves raising a special designated
+``reraise'' value, but this fails to capture some subtle behavior of nested
+catch blocks.  We believe a more sophisticated desugaring that uses a global
+stack to keep track of entrances and exits to catch blocks will work, but have
+yet to verify it.  We still pass a number of tests that use @pyinline{raise}
+with no argument.
+
 @subsection{Mutation}
 
 @figure*["f:mutation" "Various operations on mutable variables and values"]{
@@ -1614,8 +1632,11 @@ This pattern ensures that all references to these identifiers in the desugared
 program are truly to the same objects.  Note also that the boolean values are
 represented simply as number-like values, but with the built-in @(lp-term
 %bool) class, so they can be added and subtracted like numbers, but perform
-%method lookup on the @(lp-term %bool) class.
+%method lookup on the @(lp-term %bool) class.  This reflects Python's semantics:
 
+@pycode{
+isinstance(True, int) # ==> True
+}
 
 @section[#:style 'unnumbered]{Appendix 2: Confusing Rename Refactorings}
 

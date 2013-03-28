@@ -388,7 +388,6 @@
    (tuple (subst-one x any e_c) (subst-exprs x any (e ...)))]
   [(subst-one x any (set e_c (e ...)))
    (set (subst-one x any e_c) (subst-exprs x any (e ...)))]
-  [(subst-one x any (raise)) (raise)]
   [(subst-one x any (raise e)) (raise (subst-one x any e))]
   [(subst-one x any (tryexcept e_t x e_c e_e)) ;; need to skip catch block if caught
    (tryexcept (subst-one x any e_t)
