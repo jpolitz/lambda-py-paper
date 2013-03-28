@@ -1486,7 +1486,8 @@ the outer loop.
 
 @figure*["f:mutation" "Various operations on mutable variables and values"]{
   @(lp-reduction '(E-App E-LetLocal E-LetGlobal E-GetVar E-GetVar E-AssignLocal E-AssignGlobal
-                   E-Alloc E-Fetch E-Set! E-SetFieldAdd E-SetFieldUpdate))
+                   E-Alloc E-Fetch E-Set! E-SetFieldAdd E-SetFieldUpdate
+                   E-DeleteLocal E-DeleteGlobal))
 }
 
 There are @emph{three} separate mutability operators in @(lambda-py), @(lp-term (set! e e)), which mutates the value stored in a reference value, @(lp-term (assign e := e)), which mutates variables, and @(lp-term (set-field e e e)), which updates and adds fields to objects.
@@ -1522,6 +1523,10 @@ each type of mutation here:
   exec, may require that we do so for certain extensions in the future.}
 
 ]
+
+Finally, we show the E-Delete operators, which allow a Python program to revert
+the value in the store at a particular location back to undefined, or to remove
+a global binding.
 
 @subsection{Global Scope}
 
