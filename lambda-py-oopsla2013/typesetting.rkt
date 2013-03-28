@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex redex/pict slideshow/pict "../redex/lambdapy-core.rkt" "../redex/lambdapy-reduction.rkt")
-(provide with-rewriters lp-term lp-term/val lp-reduction lp-metafunction)
+(provide with-rewriters lp-term lp-term/val lp-reduction lp-metafunction lp-metafunctions)
 
 (define-syntax-rule (lp-term t)
   (with-rewriters
@@ -22,6 +22,14 @@
          (metafunction-pict-style 'left-right/compact-side-conditions)
          (metafunction-font-size 11)]
         (render-metafunction name)))))
+(define-syntax-rule (lp-metafunctions name ... cases)
+  (with-rewriters
+    (lambda ()
+      (parameterize
+        [(metafunction-cases (if cases cases (metafunction-cases)))
+         (metafunction-pict-style 'left-right/compact-side-conditions)
+         (metafunction-font-size 11)]
+        (render-metafunctions name ...)))))
 (label-font-size 11)
 (default-font-size 11)
 (literal-style "Inconsolata")
@@ -195,7 +203,7 @@
   (define (binder-rewriter lw)
     (match (lw-e lw)
       [(list _ var type equals val _)
-       (list var "" equals val)]
+       (list var " " equals val)]
       [else (error 'list (format "Let binder fell through: ~a" (map lw-e (lw-e lw))))]))
   (match lws
     [(list _ let binder in body _)

@@ -4,6 +4,7 @@
   scriblib/footnote
   scribble/manual
   scriblib/figure
+  scribble/core
   racket/base
   (only-in racket/string string-join)
   redex
@@ -109,7 +110,7 @@ In sum, this paper makes the following contributions:
   @item{a demonstration of @emph{conformance} of the composition of
   desugaring with @(lambda-interp) to a real Python implementation; and,}
 
-  @item{@emph{insights} gained from this process.}
+  @item{@emph{insights} about Python gained from this process.}
 
 ]
 
@@ -141,7 +142,7 @@ explain the harder parts of Python's semantics.
 
 @subsection{@(lambda-py) Values}
 
-@Figure-ref["f:exprs"] shows all the values and expressions @(lambda-py).  The
+@Figure-ref["f:exprs"] shows all the values and expressions of @(lambda-py).  The
 metavariables @(lp-term v) and @(lp-term val) range over the values of the
 language.  All values in @(lambda-py) are either objects, written as
 triples in @(lp-term 〈〉), or references to entries in the store Σ, written
@@ -164,8 +165,8 @@ distinguished @(lp-term (meta-none)) value, lists, tuples, sets, classes, and
 functions.@note{We express dictionaries in terms of lists and tuples, so we do
 not need to introduce a special @(lp-term mval) form for them.}
 
-The distinguished @(lp-term (undefined-val)) form represents values on the heap
-that are uninitialized, and whose lookup should raise an exception.  Within
+The distinguished @(lp-term (undefined-val)) (``skull'') form represents uninitialized heap
+locations, and whose lookup should raise an exception.  Within
 expressions, this form can @emph{only} appear in @(lp-term let)-bindings
 whose binding position can contain both expressions and @(lp-term
 (undefined-val)).  The evaluation of @(lp-term (undefined-val)) in a @(lp-term
@@ -293,8 +294,8 @@ We model functions as just another kind of object value, with a type of
   @(lp-term (meta-closure (λ (x ...) opt-var e)))   
 }
 
-The only deviation from the norm is that we have an explicit optional position
-for a varargs identifier: if @(lp-term opt-var) is of the form @(lp-term (y)),
+The @(lp-term opt-var) position holds an explicit optoinal varargs identifier:
+if @(lp-term opt-var) is of the form @(lp-term (y)),
 then if the function is called with more arguments than are in its list of
 variables @(lp-term (x ...)), they are allocated in a new tuple and bound to
 @(lp-term y) in the body.  Since these rules are relatively unexciting and verbose, we defer their explanation to the appendix.
@@ -310,7 +311,7 @@ cases in the semantics that are unique in Python, and how we model them with
 
 @section[#:tag "s:classes"]{Classes, Methods, and Desugaring}
 
-Python has a featureful class system with first-class methods, implicit
+Python has a large system with first-class methods, implicit
 reciever binding, multiple inheritance, and more.  In this section we discuss
 what parts of the class system we put in @(lambda-py), and which parts
 we choose to eliminate by desugaring.
@@ -345,10 +346,7 @@ the reduction rule for field access that uses it.
     @(lp-reduction '("E-GetField-Class"))
   }
   @para{
-    @(lp-metafunction class-lookup #f)
-  }
-  @para{
-    @(lp-metafunction class-lookup-mro #f)
+    @(lp-metafunctions class-lookup class-lookup-mro fetch-pointer #f)
   }
 }
 
@@ -1290,9 +1288,9 @@ The full process for running a Python program in our semantics is:
   @item{Compose items 1-3 into a single @(lambda-py) expression}
   @item{Evaluate the @(lambda-py) expression}
 ]
-Parsing and desugaring for 1 takes a nontrivial amount of time (on the order of
+Parsing and desugaring for (1) takes a nontrivial amount of time (on the order of
 40 seconds on the first author's laptop).  Because this work is
-needlessly repeated for each test, we begain caching the results of the
+needlessly repeated for each test, we began caching the results of the
 desugared library files, which
 reduced the time to run our tests into the realm of feasibility for
 rapid development.  When we first performed this optimization, it made
@@ -1306,20 +1304,25 @@ takes on the order of 20 minutes, even with the optimization.
 
 @figure["f:tests" "Distribution of passing tests"]{
 @centered{
-  @tabular[#:sep @hspace[3]
+  @table[(style #f
+         (list (table-columns (list
+                                  (style #f '(left))
+                                  (style #f '(right))
+                                  (style #f '(right))))))
     (list
-      (list "Feature" "# of tests" @elem{LOC@note{reported by @url{http://cloc.sourceforge.net/}}})
-      (list "" "" "")
-      (list "Built-in Datatypes" "64" "580")
-      (list "Scope" "38" "446")
-      (list "(Multiple) Inheritance" "16" "303")
-      (list "Exceptions" "24" "230")
-      (list "Properties" "9" "184")
-      (list "Iteration" "9" "178")
-      (list "Generators" "9" "129")
-      (list "Modules" "6" "58")
-      (list "" "" "")
-      (list "Total" "175" "2108"))
+      (list @para{Feature} @para{# of tests} @para{@hspace[2]LOC@note{reported by @url{http://cloc.sourceforge.net/}}})
+      (list @para{} @para{} @para{})
+      (list @para{Built-in Datatypes} @para{64} @para{580})
+      (list @para{Scope} @para{38} @para{446})
+      (list @para{Exceptions} @para{24} @para{230})
+      (list @para{(Multiple) Inheritance} @para{16} @para{303})
+      (list @para{Properties} @para{9} @para{184})
+      (list @para{Iteration} @para{9} @para{178})
+      (list @para{Generators} @para{9} @para{129})
+      (list @para{Modules} @para{6} @para{58})
+      (list @para{} @para{} @para{})
+      (list @para{Total} @para{175} @para{2108})
+      )
   ]
 }
 }
@@ -1484,7 +1487,7 @@ briefly present each of the salient features in turn.
 @subsection{Contexts and Control Flow}
 
 @Figure-ref["f:E" "f:T" "f:H" "f:R"] show the different @emph{contexts} we use
-to capture control flow and order of operations in @(lambda-py).  @(lp-term E)
+to capture left-to-right, eager order of operations in @(lambda-py).  @(lp-term E)
 is the usual @emph{evaluation context} that enforces left-to-right, eager
 evaluation of expressions. @(lp-term T) is a context for the first expression
 of a @(lp-term tryexcept) block, used to catch instances of @(lp-term raise).

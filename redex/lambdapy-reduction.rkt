@@ -276,7 +276,8 @@
    (where (obj-val any_1 any_2 ((string_1 ref_1) ...  (string ref) (string_2 ref_2) ...))
           (store-lookup Σ ref_c))]
   [(class-lookup-mro ((pointer-val ref_c) val_rest ...) string Σ)
-   (class-lookup-mro (val_rest ...) string Σ)
+   (class-lookup-mro (val_rest ...)
+                     string Σ)
    (where (obj-val any_1 any_2 ((string_1 ref_1) ...))
           (store-lookup Σ ref_c))
    (side-condition (not (member (term string) (term (string_1 ...)))))])
