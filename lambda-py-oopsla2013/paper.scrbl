@@ -1239,7 +1239,8 @@ desugars to
 @centered{
 @(lp-term (app (id print global) ((object (id %int global) (meta-num 5)))))
 }
-which relies on the built-in @(lp-term %int) class being defined.
+which relies on both @(lp-term print) and the built-in @(lp-term %int) class
+being defined.
 
 @subsection{Python Libraries in Python}
 
@@ -1290,49 +1291,66 @@ The full process for running a Python program in our semantics is:
   @item{Evaluate the @(lambda-py) expression}
 ]
 Parsing and desugaring for 1 takes a nontrivial amount of time (on the order of
-4 seconds on the first author's laptop).  Because this work is
-needlessly repeated for each test, we memoized the process, which
-reduced the time to run 100 tests from roughly 7 minutes to 22 seconds.
-A corollary is
-that evaluating @(lambda-py) programs is relatively quick, but desugaring and
-loading external files is not.
+40 seconds on the first author's laptop).  Because this work is
+needlessly repeated for each test, we begain caching the results of the
+desugared library files, which
+reduced the time to run our tests into the realm of feasibility for
+rapid development.  When we first performed this optimization, it made
+running 100 tests drop from roughly 7 minutes to 22 seconds.  Subsequently,
+we moved more functionality out of the @(lambda-py) and into verbose but
+straightforward
+desugaring, which caused a serious performance hit; running 100 tests now
+takes on the order of 20 minutes, even with the optimization.
 
 @subsection{Testing}
+
+@figure["f:tests" "Distribution of passing tests"]{
+@centered{
+  @tabular[#:sep @hspace[3]
+    (list
+      (list "Feature" "# of tests" @elem{LOC@note{reported by @url{http://cloc.sourceforge.net/}}})
+      (list "" "" "")
+      (list "Built-in Datatypes" "64" "580")
+      (list "Scope" "38" "446")
+      (list "(Multiple) Inheritance" "16" "303")
+      (list "Exceptions" "24" "230")
+      (list "Properties" "9" "184")
+      (list "Iteration" "9" "178")
+      (list "Generators" "9" "129")
+      (list "Modules" "6" "58")
+      (list "" "" "")
+      (list "Total" "175" "2108"))
+  ]
+}
+}
 
 Python comes with an extensive test suite. Unfortuntely, this suite
 depends on numerous advanced features, and as such was useless as we
 were building up the semantics. We therefore went through the test
 suite files included with CPython, April 2012,@note{http://www.python.org/getit/releases/3.2.3/}
-covering the following features: classes and multiple
-inheritance; scope; generators; operators on built-in values;
-iteration and looping; exceptions; and basic modules. From these we
-selected a suite of representative tests, focusing on ones that cover
-subtle corner-cases. This resulted in a representative suite of
-151 tests (2000 LOC). To this we have since added other tests, such as
-from interesting blog posts. On all these tests @emph{we obtain the
+and ported a representative suite of 175 tests (2100 LOC).  In
+our selection of tests, we focused on orthogonality and
+subtle corner-cases. The distribution of those tests across features is reported in
+@figure-ref["f:tests"].  On all these tests @emph{we obtain the
 same results as CPython}.
 
 It would be more convincing to eventually handle all of Python's own
 @pyinline{unittest} infrastructure to run CPython's test suite unchanged.  The
 @pyinline{unittest} framework of CPython unfortunately relies on a number of
 reflective features on modules, and on native libraries, that we don't yet
-cover.  We leave the significant engineering work to get to this point as
-future work.  For now, we manually move the assertions to simpler if-based
+cover.  For now, we manually move the assertions to simpler if-based
 tests, which also run under CPython, to check conformance.
-
-Even if we can handle all of @pyinline{unittest}, many of CPython's tests are written in
-``doctest'' style, meaning they are essentially a record of a REPL
-interaction.  This is especially true of the
-file that tests generators.  More engineering work would be required to run
-these tests as-is, so we manually turn them into tests that we can run.
 
 @subsection{Correspondence with Redex}
 
 We run our tests against @(lambda-interp), not against the Redex-defined
 reduction relation for @(lambda-py).  We can run tests on @(lambda-py), but
-performance is excruciatingly slow: it takes over 5 minutes to run individual
+performance is excruciatingly slow: it takes over an hour to run complete
+individual
 tests under the Redex reduction relation. Therefore, we have been able
-to perform only limited testing for conformance. Fortunately, executing
+to perform only limited testing for conformance by hand-writing portions
+of the environment and heap (as Redex terms) that the Python code in the test
+uses.  Fortunately, executing
 against Redex should be parallelizable, so we hope to increase
 confidence in the Redex model as well.
 
