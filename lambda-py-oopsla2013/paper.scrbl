@@ -56,8 +56,8 @@ that check for various potential error patterns@~cite["pylint" "pyflakes" "pep8"
 It also features interactive development environments@~cite["pycharm" "pydev" "wingware"]
 that offer a variety of features such as variable-renaming
 refactorings and code completion. Unfortunately, all these tools are
-unsound: for instance, a simple eight-line program that uses no
-``dynamic'' features was able to confuse the variable renaming feature
+unsound: for instance, the simple eight-line program shown in the appendix uses no
+``dynamic'' features and confuses the variable renaming feature
 of all these environments.
 
 The difficulty of reasoning about Python becomes even more pressing as
@@ -1618,5 +1618,74 @@ represented simply as number-like values, but with the built-in @(lp-term
 %method lookup on the @(lp-term %bool) class.
 
 
+@section[#:style 'unnumbered]{Appendix 2: Confusing Rename Refactorings}
 
+This program:
+@pycode{
+def f(x):
+  class C(object):
+    x = "C's x"
+    def meth(self):
+      return x + ' ' + C.x
+  return C
+
+f('input x')().meth()
+# ==> 'input x, C's x'
+}
+confuses the variable rename refactoring of all the Python IDEs we tried.  We
+present these weaknesses to show that getting a scope analysis right in Python
+is quite hard; we are making no comment on the overall usefulness of these
+tools, which we are ill-equipped to judge as non-users!  We found these tools
+by following links from recommendations on StackOverflow, and PyCharm and
+WingWare IDE are not free (though we performed this experiment in their free
+trials).
+
+For PyCharm, if we rename the @pyinline{x} parameter to @pyinline{y}, the class
+variable @pyinline{x} also gets changed to @pyinline{y}, but the access at
+@pyinline{C.x} does not.  This changes the program to throw an error.  If we
+instead select the @pyinline{x} in @pyinline{C.x} and refactor to @pyinline{y},
+The class variable and use of @pyinline{x} change, but the original
+definition's parameter does not:
+
+@pycode{
+def f(x):
+  class C(object):
+    y = "C's x"
+    def meth(self):
+      return y + ' ' + C.y
+      # we highlighted the x in "C.x" and renamed to y
+  return C
+
+f('input x')().meth()
+# ==> Unbound id y
+}
+
+This changes the behavior to an error again, as y is now an unbound identifier
+in the body of @pyinline{meth}.
+
+PyDev has the same problem as PyCharm with renaming the function's parameter.
+If we instead try rename the @pyinline{x} in the body of @pyinline{C}, it gets
+it mostly right, but also renames all the instances of @pyinline{x} in our
+strings:
+
+@pycode{
+def f(x):
+  class C(object):
+    y = "C's y"
+    # we highlighed the x before = above
+    # and renamed to y
+    def meth(self):
+      return x + ' ' + C.y
+  return C
+
+f('input y')().meth()
+# ==> 'input y, C's y'
+}
+
+WingWare IDE for Python is less obviously wrong: it pops up a dialog with
+different bindings and asks the user to check the ones they want rewritten.
+However, if we try to refactor based on the @pyinline{x} inside the method, it
+doesn't give us an option to re-name the function parameter, only the class
+variable name and the access at @pyinline{C.x}.  In other cases it provides a
+list that contains a superset of the actual identifiers that should be renamed.
 
