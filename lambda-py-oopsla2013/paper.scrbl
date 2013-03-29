@@ -1635,7 +1635,7 @@ this mimics @pyinline{apply} in languages like Racket or JavaScript.
 
 @subsection{Modules}
 
-@figure*["f:modules" "Simple modules in Python"]{
+@figure*["f:modules" @elem{Simple modules in @(lambda-py)}]{
   @(lp-reduction '(E-ConstructModule E-ModuleDone))
   @(linebreak)
   @(lp-metafunction vars->fresh-env #f)
