@@ -104,17 +104,11 @@
           )
         (define list-of-functions empty)
         (define list-of-identifiers empty)
-        (define (replace-classes [expr : LexExpr])
-          (lexexpr-modify-tree expr (lambda (e)
-          (type-case LexExpr e
-            #;[LexClass (scope name bases body)
-                      (LexApp (LexLam empty (LexClass scope name
-                                                      (replace-classes bases )
-                                                      (replace-classes body))) empty)]
-            [else (default-recur)]))))
         (define (hoist-functions [expr : LexExpr])
           (begin
-          (let ((result (let ((replaced-body (replace-functions (replace-classes expr))))
+            (set! list-of-functions empty)
+            (set! list-of-identifiers empty)
+          (let ((result (let ((replaced-body (replace-functions expr)))
             (introduce-locals
              list-of-identifiers
              (LexSeq
@@ -243,11 +237,53 @@
                                 (LexAssign (list (LexLocalId (first affected-var) 'Store)) value)
                                 (LexAssign targets (LexLocalId (first affected-var) 'Load))))
                               ]
-                             [else (error 'e "can't handle multiple assignment yet.")]))]
+                             [else
+                              (type-case LexExpr (first targets)
+                                [LexTuple (targs)
+                                          (LexSeq
+                                           (flatten
+                                            (list
+                                             (list
+                                              (LexAssign
+                                               (list
+                                                (LexTuple (map
+                                                           (lambda (y) (LexLocalId y 'Store))
+                                                           affected-var))) value))
+                                             (2-map (lambda ([a : LexExpr] [b : symbol])
+                                                      (LexAssign (list a) (LexLocalId b 'Load))
+                                                      )
+                                                    targs affected-var)))) ]
+                                [else (error 'split-instance "we don't handle multiple targets.")]
+                             #|[else (error 'e (string-append
+                                              "can't handle multiple assignment yet."
+                                              (to-string affected-var)))];|#
+                             )]))]
                                         ;[LexAugAssign (op target value )]
+               [LexFor (target iter body) (type-case LexExpr target
+                                            [LexInstanceId
+                                             (x ctx)
+                                             (LexSeq
+                                              (list
+                                               (LexFor
+                                                (LexLocalId x ctx)
+                                                       (split-instance-into-instance-locals-helper iter)
+                                                       (split-instance-into-instance-locals-helper body))
+                                               (LexAssign (list target) (LexLocalId x 'Load))))
+                                                           ]
+                                            [else (default-recur)])]
                [LexBlock (nls es) e]
                [LexClass (scope name bases body) e]
                [else (default-recur)])))))
+
+      (define (2-map fun arg1 arg2)
+        (cond
+         [(and (empty? arg1) (empty? arg2)) empty]
+         [(or (and (empty? arg1) (not (empty? arg2)))
+              (and (not (empty? arg1)) (empty? arg2)))
+          (error '2-map "argument lists must be of same length")]
+         [else (cons (fun (first arg1) (first arg2)) (2-map fun (rest arg1) (rest arg2)))]))
+           
+      
       (define (deal-with-class expr class-expr)
         (begin 
         ;(display (string-append "deal-with-class on " (to-string expr)))
@@ -269,7 +305,10 @@
                                               class-expr
                                               )))
                                (LexSeq (list (LexAssign
-                                              (list class-expr)
+                                              (list (type-case LocalOrGlobal scope
+                                                      [Locally-scoped [] (LexLocalId name 'Store)]
+                                                      [Globally-scoped [] (LexGlobalId name 'Store)]
+                                                      [else (error 'e "should be no more instance scope!")]))
                                               (LexClass scope name bases (LexPass)))
                                              (deal-with-class
                                               new-body
@@ -290,8 +329,30 @@
                                   (if (Globally-scoped? scope)
                                       (LexGlobalId name 'Load)
                                       (LexLocalId name 'Load)))))]
-                 [else (default-recur)])))))]
-        (top-level-deal-with-class expr)))
+                 [else (default-recur)])))))
+          (define (replace-classes [expr : LexExpr])
+          (lexexpr-modify-tree expr (lambda (e)
+          (type-case LexExpr e
+            [LexClass (scope name bases body)
+                      (type-case LocalOrGlobal scope
+                        [Instance-scoped
+                         []
+                         (LexAssign
+                          (list
+                           (LexInstanceId name 'Store))
+                       (LexApp (LexLam empty
+                                       (LexLocalLet
+                                        name (LexUndefined)
+                                        (LexSeq
+                                         (list
+                                          (LexClass (Locally-scoped) name
+                                                    (replace-classes bases )
+                                                    (replace-classes body))
+                                          (LexLocalId name 'Load))))) empty))]
+                        [else (default-recur)])]
+                      
+            [else (default-recur)]))))]
+        (top-level-deal-with-class (replace-classes  expr))))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
 (collapse-pyseq
@@ -510,26 +571,6 @@
   (LexAssign (list (LexGlobalId '%locals 'Store))
              (LexLocalId '%locals-save 'Load)))
 
-#;(define (phase2-locals [ids : (listof symbol)]) : LexExpr
-  (let ((ids (filter-locals ids)))
-  (begin
-    (LexCore
-     (CAssign (CId '%locals (GlobalId))
-              (CFunc empty (none)
-                     (CReturn
-                       (py-app (CId '%dict (GlobalId))
-                             (list
-                              (CList (CId '%list (GlobalId))
-                                     (pairs->tupleargs
-                                      (map (lambda (y) (make-builtin-str (symbol->string y))) ids)
-                                      (map (lambda (y) (CTryExceptElse 
-                                         (CId y (LocalId))
-                                         '%-%
-                                          (make-builtin-str "this isn't actually bound right now")
-                                         (CId y (LocalId)))) ids))))
-                             (none)) 
-                       
-                       ) (none) ))))))
 
 (define (collect-locals-in-scope expr starting-locals) : (listof symbol)
   (flatten
