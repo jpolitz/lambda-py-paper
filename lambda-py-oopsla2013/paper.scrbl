@@ -66,8 +66,6 @@ the language is adopted in increasingly important domains. For
 instance, the US Securities and Exchange Commission has proposed using
 Python as an executable specification of financial contracts@~cite["sec-python"], and
 it is now being used to script new network paradigms@~cite["pox"].
-@; cite a real paper, not a Web site
-@; Everything I've found cites the web page... it's just software
 Thus, it is vital to have a precise semantics available for analyzing
 programs and proving properties about them.
 
@@ -282,10 +280,10 @@ fields, whose class is the built-in @(lp-term function) class.  For example a
 programmer is free to write:
 @pycode{
 def f():
-  return 22
+  return f.x
 
 f.x = -1
-f() # ==> 22
+f() # ==> -1
 }
 We model functions as just another kind of object value, with a type of
 @(lp-term mval) that looks like the usual functional λ: 
@@ -311,7 +309,7 @@ cases in @(lambda-py) that are unique in Python.
 @section[#:tag "s:classes"]{Classes, Methods, and Desugaring}
 
 Python has a large system with first-class methods, implicit
-reciever binding, multiple inheritance, and more.  In this section we discuss
+receiver binding, multiple inheritance, and more.  In this section we discuss
 what parts of the class system we put in @(lambda-py), and which parts
 we choose to eliminate by desugaring.
 
@@ -513,9 +511,9 @@ def f():
     yield x
 
 gen = f()
-gen.next() # ==> 1
-gen.next() # ==> 2
-gen.next() # ==> 3
+gen.__next__() # ==> 1
+gen.__next__() # ==> 2
+gen.__next__() # ==> 3
 # ...
 }
 
@@ -595,9 +593,9 @@ def f():
   yield x
 
 g = f()
-g.next() # ==> 1
-g.next() # ==> 2
-g.next() # throws "StopIteration"
+g.__next__() # ==> 1
+g.__next__() # ==> 2
+g.__next__() # throws "StopIteration"
 }
 would be rewritten to something like:@note{This being a sketch, we
 have taken some liberties for simplicity.}
@@ -624,9 +622,9 @@ def f():
   return { 'next' : next }
 
 g = f()
-g.['next']() # ==> 1
-g.['next']() # ==> 2
-g.['next']() # throws "StopIteration"
+g['next']() # ==> 1
+g['next']() # ==> 2
+g['next']() # throws "StopIteration"
 }
 We build the @pyinline{yielder} function, which takes a value, which it returns
 after storing a continuation argument in the @pyinline{to_call_next} field.  The
@@ -779,7 +777,7 @@ Bindings from outer scopes can be @emph{seen} by inner scopes:
 @pycode{
 def f():
   x = 'closed-over'
-  def g()
+  def g():
     return x
   return g
 
@@ -842,7 +840,7 @@ g() # ==> ('inner x', 'inner x')
 
 Thus, the presence or absence of a @pyinline{nonlocal} declaration can change an
 assignment statement from a binding occurrence of a variable to an assigning
-occurence.  We augment our algorithm for desugaring scope to reflect this:
+occurrence.  We augment our algorithm for desugaring scope to reflect this:
 @itemlist[
 
   @item{For each function body:
@@ -1303,7 +1301,8 @@ takes on the order of 20 minutes, even with the optimization.
 @figure["f:tests" "Distribution of passing tests"]{
 @centered{
   @table[(style #f
-         (list (table-columns (list
+         (list (style #f '(center))
+                (table-columns (list
                                   (style #f '(left))
                                   (style #f '(right))
                                   (style #f '(right))))))
@@ -1325,7 +1324,7 @@ takes on the order of 20 minutes, even with the optimization.
 }
 }
 
-Python comes with an extensive test suite. Unfortuntely, this suite
+Python comes with an extensive test suite. Unfortunately, this suite
 depends on numerous advanced features, and as such was useless as we
 were building up the semantics. We therefore went through the test
 suite files included with CPython, April 2012,@note{http://www.python.org/getit/releases/3.2.3/}
@@ -1477,7 +1476,7 @@ and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
                    E-IfTrue E-IfFalse E-Seq))
 }
 
-Figures [FILL] show the rest of the @(lambda-py) semantics.  We proceed to
+The figures in this section show the rest of the @(lambda-py) semantics.  We proceed to
 briefly present each of the salient features in turn.
 
 @subsection{Contexts and Control Flow}
@@ -1491,13 +1490,14 @@ Similarly, @(lp-term H) defines contexts for loops, detecting @(lp-term continue
 and @(lp-term R) defines contexts for @(lp-term return) statements inside functions.
 Each interacts with a few expression forms to handle non-local control flow.
 
-@Figure-ref["f:control"] shows how these contexts interact with expressions.  For example, in the first @(lp-term
-while) statements.  When @(lp-term while) takes a step, it yields a @(lp-term
-loop) form that serves as the marker for where internal @(lp-term break) and
-@(lp-term continue) statements should collapse to.  It is for this reason that
-@(lp-term H) does @emph{not} descend into nested @(lp-term loop) forms; it
-would be incorrect for a @(lp-term break) in a nested loop to @(lp-term break)
-the outer loop.
+@Figure-ref["f:control"] shows how these contexts interact with expressions.
+For example, in first few rules, we see how we handle @(lp-term break) and
+@(lp-term continue) in @(lp-term while) statements.  When @(lp-term while)
+takes a step, it yields a @(lp-term loop) form that serves as the marker for
+where internal @(lp-term break) and @(lp-term continue) statements should
+collapse to.  It is for this reason that @(lp-term H) does @emph{not} descend
+into nested @(lp-term loop) forms; it would be incorrect for a @(lp-term break)
+in a nested loop to @(lp-term break) the outer loop.
 
 One interesting feature of @pyinline{while} and @pyinline{tryexcept} in Python
 is that they have distinguished ``else'' clauses.  For @pyinline{while} loops,
@@ -1539,7 +1539,7 @@ each type of mutation here:
   operation needs to have its result re-allocated, since programmers only see
   references to numbers, not object values themselves.  We leave the pieces of
   object values immutable and use this general strategy for updating them,
-  rather than defining separate mutability for each type (e.g. lists).}
+  rather than defining separate mutability for each type (e.g., lists).}
 
   @item{We use @(lp-term (assign e := e)) for assignment to both local and
   global variables.  We discuss global variables more in the next section.
@@ -1552,15 +1552,15 @@ each type of mutation here:
 
   @item{We use @(lp-term (set-field e e e)) to update and add fields to
   objects' dictionaries.  We leave the fields of objects' dictionaries as
-  references and not values to leave open possibilities for sharing references
+  references and not values to allow ourselves the ability to share references
   between object fields and variables.  We maintain a strict separation in our
-  current semantics, but certain dynamic patterns, like module loading and
-  exec, may require that we do so for certain extensions in the future.}
+  current semantics, with the exception of modules, and we expect that we'll
+  continue to need it in the future to handle patterns of @pyinline{exec}.}
 
 ]
 
 Finally, we show the E-Delete operators, which allow a Python program to revert
-the value in the store at a particular location back to undefined, or to remove
+the value in the store at a particular location back to @(lp-term (undefined-val)), or to remove
 a global binding.
 
 @subsection{Global Scope}
@@ -1575,59 +1575,38 @@ While local variables are handled directly via substitution, we handle global
 scope with an explicit environment @(lp-term ε) that follows the computation.
 We do this for two main reasons.  First, because global scope in Python is
 truly dynamic in ways that local scope is not (@pyinline{exec} can modify global
-scope in ways it cannot touch local scope), and we want to be open to those
+scope), and we want to be open to those
 possibilities in the future.  Second, and more implementation-specific, we use
 global scope to bootstrap some mutual dependencies in the object system, and
 allow ourselves a touch of dynamism in the semantics.
 
 For example, when computing booleans, @(lambda-py) needs to yield numbers from
-the δ function that are real booleans (e.g. have the built-in @(lp-term (id %bool global))
+the δ function that are real booleans (e.g., have the built-in @(lp-term (id %bool global))
 object as their class).  However, we need booleans to set up if-tests while we
 are bootstrapping the creation of the boolean class itself!  To handle this, we
 allow global identifiers to appear in the class position of objects.  If we
-look for the class of an object (via E-GetFieldClass, for instance), and the
+look for the class of an object, and the
 class position is an identifier, we look it up in the global environment.  We only
 use identifiers with special %-prefixed names that aren't visible to Python in
 this way.  It may be possible to remove this touch of dynamic scope from our
 semantics, but we haven't yet found the desugaring strategy that lets us do so.
-@Figure-ref["f:lazy-get"] shows the reduction rule for this case.
+@Figure-ref["f:lazy-get"] shows the reduction rule for field lookup in this case.
 
-
-@subsection{Variable-arity Functions}
-
-@figure*["f:varargs" "Variable-arity functions"]{
-  @(lp-reduction '(E-AppArity E-AppVarArgsArity E-AppVarArgs1 E-AppVarArgs2))
-}
-
-We implement Python's variable-arity functions directly in our core semantics,
-with the reduction rules shown in @figure-ref["f:varargs"].  We show first the
-two arity-mismatch cases in the semantics, where either no vararg is supplied
-and the argument count is wrong, and second where a vararg is supplied but the
-count is too low.  If the count is higher than the number of parameters and a
-vararg is present, a new tuple is allocated with the extra arguments, and
-passed as the vararg.  Finally, the form @(lp-term (app e (e ...) e)) allows a
-variable-length collection of arguments to be @emph{passed} to the function;
-this simply unpacks the values into another application expression. 
 
 @subsection{@pyinline{True}, @pyinline{False}, and @pyinline{None}}
 
-The keywords @pyinline{True}, @pyinline{False}, and @pyinline{None} all
-evaluate to objects in Python, but to the same object every time.  That is,
-there is a distinguished @pyinline{True} object that every @pyinline{True}
-expression evaluates to.  In @(lambda-py), we do not have a form for
+The keywords @pyinline{True}, @pyinline{False}, and @pyinline{None} are all
+singleton references in Python.  In @(lambda-py), we do not have a form for
 @pyinline{True}, instead desugaring it to a variable reference bound in the
-environment.  The same goes for @pyinline{None} and @pyinline{False}.  These
-variables are let-bound before anything else to allocations of new object
-values:
-
-@centered{
+environment.  The same goes for @pyinline{None} and @pyinline{False}.  We
+bind each to an allocation of an object:@centered{
 @(lp-term
   (let (True global = (alloc (obj-val %bool (meta-num 1) ()))) in
   (let (False global = (alloc (obj-val %bool (meta-num 0) ()))) in
   (let (None global = (alloc (obj-val %none (meta-none) ()))) in
     e_prog))))
 }
-
+and these bindings happen before anything else.
 This pattern ensures that all references to these identifiers in the desugared
 program are truly to the same objects.  Note also that the boolean values are
 represented simply as number-like values, but with the built-in @(lp-term
@@ -1638,6 +1617,55 @@ represented simply as number-like values, but with the built-in @(lp-term
 isinstance(True, int) # ==> True
 }
 
+@subsection{Variable-arity Functions}
+
+@figure*["f:varargs" "Variable-arity functions"]{
+  @(lp-reduction '(E-AppArity E-AppVarArgsArity E-AppVarArgs1 E-AppVarArgs2))
+}
+
+We implement Python's variable-arity functions directly in our core semantics,
+with the reduction rules shown in @figure-ref["f:varargs"].  We show first the
+two arity-mismatch cases in the semantics, where either no vararg is supplied
+and the argument count is wrong, or where a vararg is supplied but the
+count is too low.  If the count is higher than the number of parameters and a
+vararg is present, a new tuple is allocated with the extra arguments, and
+passed as the vararg.  Finally, the form @(lp-term (app e (e ...) e)) allows a
+variable-length collection of arguments to be @emph{passed} to the function;
+this mimics @pyinline{apply} in languages like Racket or JavaScript.
+
+@subsection{Modules}
+
+@figure*["f:modules" "Simple modules in Python"]{
+  @(lp-reduction '(E-ConstructModule E-ModuleDone))
+  @(linebreak)
+  @(lp-metafunction vars->fresh-env #f)
+}
+
+We model modules with the two rules in @figure-ref["f:modules"].
+E-ConstructModule starts the evaluation of the module, which is represented by
+a @(lp-term meta-code) structure.  A @(lp-term meta-code) contains a list of
+global variables to bind for the module, a name for the module, and an
+expression that holds the module's body.  To start evaluating the module, a new
+location is allocated for each global variable used in the module, initialized
+to @(lp-term (undefined-val)) in the store, and a new environment is created
+mapping each of these new identifiers to the new locations.
+
+Evaluation that proceeds inside the module, @emph{replacing} the global
+environment ε with the newly-created environment.  The old environment is
+stored with a new @(lp-term in-module) form that is left in the current
+context.  This step also sets up an expression that will create a new module
+object, whose fields hold the global variable references of the running module.
+
+When the evaluation of the module is complete (the @(lp-term in-module) term
+sees a value), the old global environment is reinstated.
+
+To desugar to these core forms, we desugar the files to be imported, and
+analyze their body to find all the global variables they use.  The desugared
+expression and variables are combined with the filename to create the @(lp-term
+meta-code) object.  This is roughly an implementation of Python's
+@pyinline{compile}, and it should be straightforward to extend it to implement
+@pyinline{exec}, though for now we've focused on specifically the module case.
+
 @section[#:style 'unnumbered]{Appendix 2: Confusing Rename Refactorings}
 
 This program:
@@ -1646,7 +1674,7 @@ def f(x):
   class C(object):
     x = "C's x"
     def meth(self):
-      return x + ' ' + C.x
+      return x + ', ' + C.x
   return C
 
 f('input x')().meth()
@@ -1654,39 +1682,24 @@ f('input x')().meth()
 }
 confuses the variable rename refactoring of all the Python IDEs we tried.  We
 present these weaknesses to show that getting a scope analysis right in Python
-is quite hard; we are making no comment on the overall usefulness of these
-tools, which we are ill-equipped to judge as non-users!  We found these tools
-by following links from recommendations on StackOverflow, and PyCharm and
-WingWare IDE are not free (though we performed this experiment in their free
-trials).
+is quite hard!  We found these tools by following recommendations on
+StackOverflow a trusted resource.  Two of the tools we tested, PyCharm and
+WingWare IDE, are products that developers actually purchase to do Python
+development (we performed this experiment in their free trials).
 
 For PyCharm, if we rename the @pyinline{x} parameter to @pyinline{y}, the class
 variable @pyinline{x} also gets changed to @pyinline{y}, but the access at
 @pyinline{C.x} does not.  This changes the program to throw an error.  If we
 instead select the @pyinline{x} in @pyinline{C.x} and refactor to @pyinline{y},
 The class variable and use of @pyinline{x} change, but the original
-definition's parameter does not:
-
-@pycode{
-def f(x):
-  class C(object):
-    y = "C's x"
-    def meth(self):
-      return y + ' ' + C.y
-      # we highlighted the x in "C.x" and renamed to y
-  return C
-
-f('input x')().meth()
-# ==> Unbound id y
-}
-
-This changes the behavior to an error again, as y is now an unbound identifier
-in the body of @pyinline{meth}.
+definition's parameter does not.  This changes the behavior to an error again,
+as @pyinline{y} is now an unbound identifier in the body of @pyinline{meth}.
 
 PyDev has the same problem as PyCharm with renaming the function's parameter.
 If we instead try rename the @pyinline{x} in the body of @pyinline{C}, it gets
 it mostly right, but also renames all the instances of @pyinline{x} in our
-strings:
+strings (something that even a parser, much less a lexical analyzer should be
+able to detect):
 
 @pycode{
 def f(x):
@@ -1705,7 +1718,10 @@ f('input y')().meth()
 WingWare IDE for Python is less obviously wrong: it pops up a dialog with
 different bindings and asks the user to check the ones they want rewritten.
 However, if we try to refactor based on the @pyinline{x} inside the method, it
-doesn't give us an option to re-name the function parameter, only the class
+doesn't give us an option to rename the function parameter, only the class
 variable name and the access at @pyinline{C.x}.  In other cases it provides a
 list that contains a superset of the actual identifiers that should be renamed.
+In other words, it not only overapproximates (which in Python may be
+inevitable), it also (more dangerously) undershoots.
+
 

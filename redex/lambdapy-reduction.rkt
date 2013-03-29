@@ -12,6 +12,7 @@
   class-lookup-mro
   store-lookup
   env-lookup
+  vars->fresh-env
   subst)
 
 
@@ -225,6 +226,19 @@
    (--> ((in-hole E ref) ε (name Σ ((ref_1 v+undef_1) ... (ref (undefined-val)) (ref_n v+undef_n) ...)))
         ((in-hole E (raise (obj-val %str (meta-str "Uninitialized local") ()))) ε Σ)
         "E-GetVarUndef")
+
+   (--> ((in-hole E (construct-module (pointer-val ref_mod))) ε_old Σ)
+        ((in-hole E (seq (in-module e_body ε_old)
+                         (alloc (obj-val $module (no-meta) ((string_arg ref_new) ...)))))
+                         ε_new Σ_1)
+        (where (obj-val any_cls (meta-code (x_arg ...) x_name e_body) any_dict)
+               (store-lookup Σ ref_mod))
+        (where (Σ_1 ε_new (ref_new ...)) (vars->fresh-env Σ (x_arg ...)))
+        (where (string_arg ...) ,(map symbol->string (term (x_arg ...))))
+        "E-ConstructModule")
+   (--> ((in-hole E (in-module v ε_old)) ε_mod Σ)
+        ((in-hole E vnone) ε_old Σ)
+        "E-ModuleDone")
    with
    [(--> (in-hole P e_1) (in-hole P e_2))
     (==> e_1 e_2)]
@@ -253,6 +267,17 @@
   [(extend-store (name Σ ((ref v+undef) ...)) v+undef_new)
    (((ref v+undef) ... (ref_new v+undef_new)) ref_new)
    (where ref_new (get-new-loc Σ))])
+
+(define-metafunction λπ
+  vars->fresh-env : Σ (x ...) -> (Σ ε (ref ...))
+  [(vars->fresh-env Σ ()) (Σ () ())]
+  [(vars->fresh-env Σ (x)) (Σ_1 ((x ref)) (ref))
+   (where (Σ_1 (ref)) (alloc Σ (undefined-val)))]
+  [(vars->fresh-env Σ (x x_r ...)) (Σ_2 ((x ref) (x_rest ref_rest) ...) (ref ref_rest ...))
+   (where (Σ_1 ref) (extend-store Σ (undefined-val)))
+   (where (Σ_2 ((x_rest ref_rest) ...) (ref_rest ...))
+          (vars->fresh-env Σ_1 (x_r ...)))])
+
 
 (define-metafunction λπ
   extend-store/list : Σ (v+undef ...) -> (Σ (ref ...))

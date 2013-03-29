@@ -481,7 +481,7 @@
             [(not (and (is-obj-ptr? v-code s-code)
                         (object-is? (fetch-ptr v-code s-code) '%code env sto)))
               (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
-             [else
+            [else
               (let ((obj (fetch-ptr v-code s-code)))
                 (local [(define metacode (some-v (VObjectClass-mval obj)))
                         (define global-var (MetaCode-globals metacode))

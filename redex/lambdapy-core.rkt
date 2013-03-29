@@ -3,7 +3,6 @@
 (require redex)
 (provide (all-defined-out))
 
-
 (define-language λπ
   ;; heap
   (Σ ((ref v+undef) ...))
@@ -31,13 +30,13 @@
   ;; types of meta-val
   (mval (no-meta) (meta-num number) (meta-str string) (meta-none) ;; The Python value
         (meta-list (val ...)) (meta-tuple (val ...)) (meta-set (val ...))
-        (meta-class x) (meta-closure (λ (x ...) opt-var e)))
+        (meta-class x) (meta-code (x ...) x e)
+        (meta-closure (λ (x ...) opt-var e)))
 
   (opt-var (x) (no-var))
 
   ;; types of expressions
-  (e v ref
-     (fetch e) (set! e e) (alloc e)
+  (e v ref (fetch e) (set! e e) (alloc e)
      (get-attr e e) (set-attr e e := e)
      (if e e e) (seq e e)
      (let (x t = e+undef) in e)
@@ -50,7 +49,8 @@
      (tuple e (e ...)) (set e (e ...))
      (tryexcept e x e e) (tryfinally e e)
      (raise e) (err val)
-     (module e e) (construct-module e))
+     (module e e) (construct-module e)
+     (in-module e ε))
 
   ;; evaluation context
   (E hole
@@ -74,7 +74,8 @@
      (loop E e) (frame E)
      (app E (e ...)) (app val Es)
      (app E (e ...) e) (app val Es e)
-     (app val (val ...) E))
+     (app val (val ...) E)
+     (construct-module E) (in-module E ε))
   (Es (val ... E e ...))
 
   ;; context in a try block
@@ -97,6 +98,7 @@
      (app T (e ...)) (app val Ts)
      (app T (e ...) e) (app val Ts e)
      (app val (val ...) T)
+     (construct-module T)
      )
   ;; Cases left out:
   ;; (tryfinally H e) ;; Don't go into try/finallys to find raises
@@ -123,6 +125,7 @@
      (app H (e ...)) (app val Hs)
      (app H (e ...) e) (app val Hs e)
      (app val (val ...) H)
+     (construct-module E)
      )
   ;; Cases left out:
   ;; (tryfinally H e) ;; Don't go into try/finallys to find break/continue
@@ -151,7 +154,7 @@
      (app R (e ...)) (app val Rs)
      (app R (e ...) e) (app val Rs e)
      (app val (val ...) R)
-     ;; todo - may need more
+     (construct-module E)
      )
   ;; Cases left out:
   ;; (frame R) ;; Don't go into other functions to find returns
