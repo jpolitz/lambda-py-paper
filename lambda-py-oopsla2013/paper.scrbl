@@ -1683,7 +1683,7 @@ f('input x')().meth()
 confuses the variable rename refactoring of all the Python IDEs we tried.  We
 present these weaknesses to show that getting a scope analysis right in Python
 is quite hard!  We found these tools by following recommendations on
-StackOverflow a trusted resource.  Two of the tools we tested, PyCharm and
+StackOverflow, a trusted resource.  Two of the tools we tested, PyCharm and
 WingWare IDE, are products that developers actually purchase to do Python
 development (we performed this experiment in their free trials).
 
