@@ -534,35 +534,34 @@ into a generator, so only @pyinline{do_yield} is a generator. Thus, the
 generator stores only the execution context of @pyinline{do_yield}, not of
 @pyinline{f}.
 
+@subsubsection{Failing to Desugar Generators with (Local) CPS}
+
 The experienced linguist will immediately see what is going
 on. Clearly, Python has made a design decision to store only
 @emph{local} continuations.  This design can be justified on the
 grounds that converting a whole program to continuation-passing style
 (CPS) can be onerous, is not modular, can impact performance, and
 depends on the presence of tail-calls (which Python does not have). In
-contrast, it is easy to envision a translation strategy that performs
+contrast, it is natural to envision a translation strategy that performs
 only a local conversion to CPS (or, equivalently, stores the local
 stack frames) while still presenting a continuation-free interface to
 the rest of the program.
 
-From the perspective of our semantics, this offers a boon: we don't
+From the perspective of our semantics, this is a potential boon: we don't
 need to use a CPS-style semantics for the whole language!
-Furthermore, generators can be handled by a strictly local rewriting
-process that can be handled by desugaring. That is, generators can be
-handled in the core language by reifying them into into first-class
-functions and applications and using a little state to record which
+Furthermore, perhaps generators can be handled by a strictly local rewriting
+process. That is, in the core language generators can be reified
+into first-class
+functions and applications that use a little state to record which
 function is the continuation of the @pyinline{yield} point. Thus,
 generators seem to fit perfectly with our desugaring strategy.
 
-@subsection{A (Local) CPS Transformation for Python}
-
-When converting programs to CPS, we take operators that can cause
+To convert programs to CPS, we take operators that can cause
 control-flow and reify each into a continuation function and
 appropriate application. These operators include simple sequences,
 loops combined with @pyinline{break} and @pyinline{continue},
 @pyinline{try-except} and @pyinline{try-finally} combined with @pyinline{raise},
 and @pyinline{return}.
-
 Our CPS transformation turns every expression into a function that accepts an
 argument for each of the above control operators, and turns uses of control
 operators into applications of the appropriate continuation inside the
@@ -651,14 +650,14 @@ CPS transformation to Python function definitions can work.
 
 The lesson from this example is that the @emph{interaction} of non-traditional
 scope and control flow made a traditional translation
-not work.  The straightforward CPS solution, which doesn't require
-extending the number of concepts in the language, is inexpressible in Python
-due to the mechanics of variable binding.  We now move on to describing how we
-can express Python's scope in a more traditional lexical model, and
-later, in @secref["s:generators-redux"] we
-will return to a CPS transformation that does work for Python's generators.
+not work.  The straightforward CPS solution, which avoids
+extending the number of concepts in the language, is incorrect
+in the presence of Python's mechanics of variable binding.  We now move on to describing how we
+can express Python's scope in a more traditional lexical model.
+Then, in @secref["s:generators-redux"] we will
+demonstrate a working transformation for Python's generators.
 
-@section[#:tag "s:scope"]{Scope}
+@subsection[#:tag "s:scope"]{Scope}
 
 Python has a rich notion of scope, with several types of variables and implicit
 binding semantics that depend on the block structure of the program.  Most
@@ -678,7 +677,7 @@ We proceed by describing Python's handling of scope for local variables, the
 extension to @pyinline{nonlocal}, and the interaction of both of these features with
 classes.
 
-@subsection{Declaring and Updating Local Variables}
+@subsubsection{Declaring and Updating Local Variables}
 
 In Python, the operator @pyinline{=} performs local variable binding:
 @pycode{
@@ -715,8 +714,6 @@ def f(y):
 f(0) # throws an exception
 f(1) # ==> "big"
 }
-
-@subsubsection[#:tag "s:local-scope"]{Desugaring for Local Scope}
 
 Handling simple declarations of variables and updates to variables is
 straightforward to translate into a lexically-scoped language.  @(lambda-py)
@@ -771,7 +768,7 @@ function, and maintains lexical structure for the possibly-bound variables in a
 given scope.  Unfortunately, this covers only the simplest cases of Python's scope.
 
 
-@subsection[#:tag "s:nonlocal-scope"]{Closing Over Variables}
+@subsubsection[#:tag "s:nonlocal-scope"]{Closing Over Variables}
 
 Bindings from outer scopes can be @emph{seen} by inner scopes:
 @pycode{
@@ -884,7 +881,7 @@ The assignment to @(lp-term x) inside the body of @(lp-term h) behaves as a
 typical assignment statement in a closure-based language like Scheme, ML, or
 JavaScript: it mutates the let-bound @(lp-term x) defined in @(lp-term g).
 
-@subsection{Classes and Scope}
+@subsubsection[#:tag "s:class-scope"]{Classes and Scope}
 
 We've covered some subtleties of scope for local and nonlocal variables and
 their interaction with closures.  What we've presented so far would be enough
@@ -936,8 +933,6 @@ be compatible with our previous notions of Python's closures.  We will see,
 however, that the correct desugaring is capable of expressing the semantics of
 scope in classes within the framework we have already established for dealing
 with Python's scope.  
-
-@subsubsection[#:tag "s:class-scope"]{Desugaring class scope}
 
 Desugaring classes is substantially more complicated than handling simple local
 and nonlocal cases.  Consider the example from @figure-ref["f:classexample"],
@@ -1195,12 +1190,12 @@ that the exception was not caught, and again the expected behavior will occur.
 
 @section[#:tag "s:engineering"]{Engineering & Evaluation}
 
-Our goal is to have @(lambda-py) exhibit two properties:
+Our goal is to have desugaring and @(lambda-py) enjoy two properties:
 @itemlist[
 
-  @item{Desugaring must be able to translate all Python source programs (@emph{totality}).}
+  @item{Desugaring translates all Python source programs to @(lambda-py) (@emph{totality}).}
 
-  @item{The resulting desugared program, when evaluated, must produce
+  @item{Desugared programs evaluate to
   the same value as the source would in Python (@emph{conformance}).}
 
 ]
@@ -1223,9 +1218,9 @@ paper has hinted that it proceeds in phases. Indeed, there are four:
   Python and the core with lexical scope, but still many surface constructs.}
 
   @item{Desugar classes, turn Python operators into method calls, turn
-  @pyinline{for} loops into appropriately-guarded @(lp-term while) loops, etc.}
+  @pyinline{for} loops into guarded @(lp-term while) loops, etc.}
 
-  @item{Desugar generators (functions containing @pyinline{yield}, @secref["s:generators-redux"]).}
+  @item{Desugar generators (@secref["s:generators-redux"]).}
 
 ]
 These four steps yield a term in our core, but it isn't ready to
@@ -1247,7 +1242,6 @@ For example, the builtin class for tuples is implemented mostly in Python, but
 for getting the length of a tuple defers to the δ function:
 @pycode{
 class tuple(object):
-  ...
   def __len__(self):
     return ___delta("tuple-len", self)
   ...
@@ -1404,8 +1398,19 @@ now, we handle only @pyinline{import}s that bind the module object to a single
 identifier. Indeed, even 
 Python 3 advises that @pyinline{import *} should only be used
 at module scope.  Finally, we do not handle @pyinline{exec}, Python's
-``eval''. Related efforts on handling similar operators in 
+``eval'' (though the code loading we do for modules comes close). Related
+efforts on handling similar operators in 
 JavaScript@~cite["politz:s5"] are sure to be helpful here.
+
+We note that most traditional analyses would be seriously challenged by
+programs that use functions like @pyinline{locals} in a higher-order way, and
+would probably benefit from checking that it isn't used in the first place.
+We don't see the lack of full support for such functions as a serious
+weakness of @(lambda-py), or an impediment to reasoning about most Python
+programs.  Rather, it's an interesting future challenge to handle a few of
+these remaining esoteric features. It's also useful to simply call out the
+weirdness of these operators that may violate otherwise reasonable assumptions
+about soundness.
 
 Overall, what we have learned most from this effort is how central
 scope is to understanding Python. Many of its features are orthogonal,
