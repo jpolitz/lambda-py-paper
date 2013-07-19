@@ -1303,16 +1303,16 @@ takes on the order of 20 minutes, even with the optimization.
     (list
       (list @para{Feature} @para{# of tests} @para{@hspace[2]LOC@note{reported by @url{http://cloc.sourceforge.net/}}})
       (list @para{} @para{} @para{})
-      (list @para{Built-in Datatypes} @para{64} @para{580})
-      (list @para{Scope} @para{38} @para{446})
-      (list @para{Exceptions} @para{24} @para{230})
+      (list @para{Built-in Datatypes} @para{81} @para{902})
+      (list @para{Scope} @para{39} @para{455})
+      (list @para{Exceptions} @para{25} @para{247})
       (list @para{(Multiple) Inheritance} @para{16} @para{303})
       (list @para{Properties} @para{9} @para{184})
-      (list @para{Iteration} @para{9} @para{178})
+      (list @para{Iteration} @para{13} @para{214})
       (list @para{Generators} @para{9} @para{129})
       (list @para{Modules} @para{6} @para{58})
       (list @para{} @para{} @para{})
-      (list @para{Total} @para{175} @para{2108})
+      (list @para{Total} @para{205} @para{2636})
       )
   ]
 }
@@ -1322,7 +1322,7 @@ Python comes with an extensive test suite. Unfortunately, this suite
 depends on numerous advanced features, and as such was useless as we
 were building up the semantics. We therefore went through the test
 suite files included with CPython, April 2012,@note{http://www.python.org/getit/releases/3.2.3/}
-and ported a representative suite of 175 tests (2100 LOC).  In
+and ported a representative suite of 205 tests (2600 LOC).  In
 our selection of tests, we focused on orthogonality and
 subtle corner-cases. The distribution of those tests across features is reported in
 @figure-ref["f:tests"].  On all these tests @emph{we obtain the
