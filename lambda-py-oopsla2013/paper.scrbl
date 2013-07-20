@@ -534,7 +534,7 @@ into a generator, so only @pyinline{do_yield} is a generator. Thus, the
 generator stores only the execution context of @pyinline{do_yield}, not of
 @pyinline{f}.
 
-@subsubsection{Failing to Desugar Generators with (Local) CPS}
+@subsubsection[#:style 'unnumbered]{Failing to Desugar Generators with (Local) CPS}
 
 The experienced linguist will immediately see what is going
 on. Clearly, Python has made a design decision to store only
@@ -650,8 +650,7 @@ CPS transformation to Python function definitions can work.
 
 The lesson from this example is that the @emph{interaction} of non-traditional
 scope and control flow made a traditional translation
-not work.  The straightforward CPS solution, which avoids
-extending the number of concepts in the language, is incorrect
+not work.  The straightforward CPS solution is thus incorrect
 in the presence of Python's mechanics of variable binding.  We now move on to describing how we
 can express Python's scope in a more traditional lexical model.
 Then, in @secref["s:generators-redux"] we will
@@ -1398,7 +1397,7 @@ now, we handle only @pyinline{import}s that bind the module object to a single
 identifier. Indeed, even 
 Python 3 advises that @pyinline{import *} should only be used
 at module scope.  Finally, we do not handle @pyinline{exec}, Python's
-``eval'' (though the code loading we do for modules comes close). Related
+``eval'' (though the code-loading we do for modules comes close). Related
 efforts on handling similar operators in 
 JavaScript@~cite["politz:s5"] are sure to be helpful here.
 
@@ -1409,8 +1408,8 @@ We don't see the lack of full support for such functions as a serious
 weakness of @(lambda-py), or an impediment to reasoning about most Python
 programs.  Rather, it's an interesting future challenge to handle a few of
 these remaining esoteric features. It's also useful to simply call out the
-weirdness of these operators that may violate otherwise reasonable assumptions
-about soundness.
+weirdness of these operators, which are liable to violate the soundness of
+otherwise-sound program tools.
 
 Overall, what we have learned most from this effort is how central
 scope is to understanding Python. Many of its features are orthogonal,
@@ -1442,6 +1441,18 @@ therefore do not consider these related.
 
 Our work follows the path laid out by @(lambda-js)@~cite["guha:js-essence"]
 and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
+
+@section[#:style 'unnumbered]{Acknowledgments}
+
+We thank the US NSF and Google for their support. We thank Caitlin Santone for
+lending her graphical expertise to @figure-ref["f:class-scope"]. The paper
+title is entirely due to Benjamin Lerner.
+
+And now for something completely different: This paper was the result of an
+international collaboration resulting from an on-line course taught by the
+first and last authors. Several other students in the class also contributed to
+the project, including Ramakrishnan Muthukrishnan, Bo Wang, Chun-Che Wang,
+Hung-I Chuang, Kelvin Jackson, Victor Andrade, and Jesse Millikan.
 
 @;{Acknowledgments:
 - Ben Lerner for title
