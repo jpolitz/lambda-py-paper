@@ -1627,7 +1627,7 @@ This pattern ensures that all references to these identifiers in the desugared
 program are truly to the same objects.  Note also that the boolean values are
 represented simply as number-like values, but with the built-in @(lp-term
 %bool) class, so they can be added and subtracted like numbers, but perform
-%method lookup on the @(lp-term %bool) class.  This reflects Python's semantics:
+method lookup on the @(lp-term %bool) class.  This reflects Python's semantics:
 
 @pycode{
 isinstance(True, int) # ==> True
@@ -1681,6 +1681,8 @@ expression and variables are combined with the filename to create the @(lp-term
 meta-code) object.  This is roughly an implementation of Python's
 @pyinline{compile}, and it should be straightforward to extend it to implement
 @pyinline{exec}, though for now we've focused on specifically the module case.
+
+@element["newpage" ""]
 
 @section[#:style 'unnumbered]{Appendix 2: Confusing Rename Refactorings}
 
