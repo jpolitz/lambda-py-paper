@@ -1,4 +1,4 @@
-#lang scribble/sigplan @10pt @preprint
+#lang scribble/sigplan @10pt
 
 @(require
   scriblib/footnote
@@ -24,7 +24,10 @@
 @(define (lambda-js) (elem "λ" (subscript "JS")))
 @(define (lambda-interp) (elem "λ" (subscript (larger "π↓"))))
 @title{Python: The Full Monty@(linebreak)
-  @smaller{A Tested Semantics for the Python Programming Language}}
+  @smaller{A Tested Semantics for the}
+  @(linebreak)
+  @smaller{Python Programming Language}
+}
 
 @authorinfo["Joe Gibbs Politz" "Providence, RI, USA" "joe@cs.brown.edu"]
 @authorinfo["Alejandro Martinez" "La Plata, BA, Argentina" "amtriathlon@gmail.com"]
@@ -47,6 +50,8 @@ these components. Finally, we examine subtle aspects of the language,
 identifying scope as a pervasive concern that even impacts features
 that might be considered orthogonal.
 }
+
+@category["J.3" "Life and Medical Sciences" "Biology and Genetics"]
 
 @section[#:tag "s:motivation"]{Motivation and Contributions}
 
@@ -73,7 +78,7 @@ This paper presents a semantics for much of Python (@secref["s:engineering"]).
 To make the semantics tractable for tools and proofs, we divide
 it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
-source programs into the core. The core language is a mostly
+source programs into the core.@note{@emph{Desugaring} is more complex than mere removal of syntactic sugar.  We blame Arjun Guha for the confusing term.} The core language is a mostly
 traditional stateful lambda-calculus augmented with
 features to represent the essence of Python (such as method lookup order and
 primitive lists), and should thus be familiar to its potential users.
@@ -1465,6 +1470,7 @@ Hung-I Chuang, Kelvin Jackson, Victor Andrade, and Jesse Millikan.
 
 @(generate-bib)
 
+
 @section[#:tag "s:appendix" #:style 'unnumbered]{Appendix: The Rest of @(lambda-py)}
 
 @figure["f:E" (elem "Evaluation contexts")]{
@@ -1483,7 +1489,6 @@ Hung-I Chuang, Kelvin Jackson, Victor Andrade, and Jesse Millikan.
   @(with-rewriters
     (lambda () (render-language λπ #:nts '(R Rs))))
 }
-
 @figure["f:control" (elem "Control flow reductions")]{
   @(lp-reduction '(E-While E-LoopContinue E-LoopBreak E-LoopNext
                    E-TryDone E-TryCatch
@@ -1492,8 +1497,8 @@ Hung-I Chuang, Kelvin Jackson, Victor Andrade, and Jesse Millikan.
                    E-IfTrue E-IfFalse E-Seq))
 }
 
-The figures in this section show the rest of the @(lambda-py) semantics.  We proceed to
-briefly present each of the salient features in turn.
+The figures in this section show the rest of the @(lambda-py) semantics.  We
+proceed to briefly present each of them in turn.
 
 @subsection{Contexts and Control Flow}
 
@@ -1682,8 +1687,6 @@ meta-code) object.  This is roughly an implementation of Python's
 @pyinline{compile}, and it should be straightforward to extend it to implement
 @pyinline{exec}, though for now we've focused on specifically the module case.
 
-@element["newpage" ""]
-
 @section[#:style 'unnumbered]{Appendix 2: Confusing Rename Refactorings}
 
 This program:
@@ -1711,7 +1714,7 @@ variable @pyinline{x} also gets changed to @pyinline{y}, but the access at
 instead select the @pyinline{x} in @pyinline{C.x} and refactor to @pyinline{y},
 The class variable and use of @pyinline{x} change, but the original
 definition's parameter does not.  This changes the behavior to an error again,
-as @pyinline{y} is now an unbound identifier in the body of @pyinline{meth}.
+as @pyinline{y} is an unbound identifier in the body of @pyinline{meth}.
 
 PyDev has the same problem as PyCharm with renaming the function's parameter.
 If we instead try rename the @pyinline{x} in the body of @pyinline{C}, it gets
