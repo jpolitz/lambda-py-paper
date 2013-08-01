@@ -78,7 +78,9 @@ This paper presents a semantics for much of Python (@secref["s:engineering"]).
 To make the semantics tractable for tools and proofs, we divide
 it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
-source programs into the core.@note{@emph{Desugaring} is more complex than mere removal of syntactic sugar.  We blame Arjun Guha for the confusing term.} The core language is a mostly
+source programs into the core.@note{@emph{Desugaring} is more complex than mere
+removal of syntactic sugar.  We blame Arjun Guha for the confusing term.} The
+core language is a mostly
 traditional stateful lambda-calculus augmented with
 features to represent the essence of Python (such as method lookup order and
 primitive lists), and should thus be familiar to its potential users.
