@@ -38,6 +38,15 @@
 @authorinfo["Anand Chitipothu" "Bangalore, India" "anandology@gmail.com"]
 @authorinfo["Shriram Krishnamurthi" "Providence, RI, USA" "sk@cs.brown.edu"]
 
+@;{NOTE(joe 1 Aug 2013): This relies on adding the right text to the
+\permission option in racket/collects/scribble/sigplan/sigplanconf.cls:
+
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from Permissions@acm.org.} 
+
+@copyrightyear{2013}
+@conferenceinfo["OOPSLA '13" "October 29-31 2013, Indianapolis, IN, USA"]
+@copyrightdata{978-1-4503-2374-1/13/10}
+
 @abstract{
 We present a small-step operational semantics for the Python
 programming language.  We present both a core language for Python,
