@@ -61,6 +61,7 @@ that might be considered orthogonal.
 }
 
 @category["J.3" "Life and Medical Sciences" "Biology and Genetics"]
+@keywords["serpents"]
 
 @section[#:tag "s:motivation"]{Motivation and Contributions}
 
@@ -87,8 +88,10 @@ This paper presents a semantics for much of Python (@secref["s:engineering"]).
 To make the semantics tractable for tools and proofs, we divide
 it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
-source programs into the core.@note{@emph{Desugaring} is more complex than mere
-removal of syntactic sugar.  We blame Arjun Guha for the confusing term.} The
+source programs into the core.@note{The term @emph{desugaring} is slightly misleading, because ours is really
+a compiler to a slightly different language. Nevertheless, it is
+more suggestive than a general term like ``compiler''. We blame Arjun
+Guha for the confusing terminology.} The
 core language is a mostly
 traditional stateful lambda-calculus augmented with
 features to represent the essence of Python (such as method lookup order and
@@ -489,7 +492,7 @@ straightforward part of the process.
 Not all of Python has a semantics as straightforward as that presented so far.
 Python has a unique notion of scope, with new scope operators added in Python 3 to
 provide some features of more traditional static scoping.  It also has powerful
-control flow constructs, notably generators. We now begin examining these in detail.
+control flow constructs, notably generators.
 
 @subsection{Generators}
 
@@ -1309,25 +1312,20 @@ takes on the order of 20 minutes, even with the optimization.
 
 @figure["f:tests" "Distribution of passing tests"]{
 @centered{
-  @table[(style #f
-         (list (style #f '(center))
-                (table-columns (list
-                                  (style #f '(left))
-                                  (style #f '(right))
-                                  (style #f '(right))))))
+  @tabular[#:sep @hspace[4]
     (list
-      (list @para{Feature} @para{# of tests} @para{@hspace[2]LOC@note{reported by @url{http://cloc.sourceforge.net/}}})
-      (list @para{} @para{} @para{})
-      (list @para{Built-in Datatypes} @para{81} @para{902})
-      (list @para{Scope} @para{39} @para{455})
-      (list @para{Exceptions} @para{25} @para{247})
-      (list @para{(Multiple) Inheritance} @para{16} @para{303})
-      (list @para{Properties} @para{9} @para{184})
-      (list @para{Iteration} @para{13} @para{214})
-      (list @para{Generators} @para{9} @para{129})
-      (list @para{Modules} @para{6} @para{58})
-      (list @para{} @para{} @para{})
-      (list @para{Total} @para{205} @para{2636})
+      (list @para{} @para{Feature} @para{# of tests} @para{LOC})
+      (list @para{} @para{} @para{} @para{})
+      (list @para{} @para{Built-in Datatypes} @para{81} @para{902})
+      (list @para{} @para{Scope} @para{39} @para{455})
+      (list @para{} @para{Exceptions} @para{25} @para{247})
+      (list @para{} @para{(Multiple) Inheritance} @para{16} @para{303})
+      (list @para{} @para{Properties} @para{9} @para{184})
+      (list @para{} @para{Iteration} @para{13} @para{214})
+      (list @para{} @para{Generators} @para{9} @para{129})
+      (list @para{} @para{Modules} @para{6} @para{58})
+      (list @para{} @para{} @para{} @para{})
+      (list @para{} @para{Total} @para{205} @para{2636})
       )
   ]
 }
@@ -1464,7 +1462,7 @@ We thank the US NSF and Google for their support. We thank Caitlin Santone for
 lending her graphical expertise to @figure-ref["f:class-scope"]. The paper
 title is entirely due to Benjamin Lerner.
 
-And now for something completely different: This paper was the result of an
+This paper was the result of an
 international collaboration resulting from an on-line course taught by the
 first and last authors. Several other students in the class also contributed to
 the project, including Ramakrishnan Muthukrishnan, Bo Wang, Chun-Che Wang,
