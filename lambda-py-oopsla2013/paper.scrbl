@@ -46,6 +46,7 @@ Permission to make digital or hard copies of all or part of this work for person
 @copyrightyear{2013}
 @conferenceinfo["OOPSLA '13" "October 29-31 2013, Indianapolis, IN, USA"]
 @copyrightdata{978-1-4503-2374-1/13/10}
+@doi{2509136.2509536}
 
 @abstract{
 We present a small-step operational semantics for the Python
@@ -1460,7 +1461,9 @@ and its follow-up@~cite["politz:s5"], both for variants of JavaScript.
 
 We thank the US NSF and Google for their support. We thank Caitlin Santone for
 lending her graphical expertise to @figure-ref["f:class-scope"]. The paper
-title is entirely due to Benjamin Lerner.
+title is entirely due to Benjamin Lerner.  We are grateful to the Artifact
+Evaluation Committee for their excellent and detailed feedback, especially the
+one reviewer who found a bug in iteration with generators.
 
 This paper was the result of an
 international collaboration resulting from an on-line course taught by the
@@ -1480,36 +1483,18 @@ Hung-I Chuang, Kelvin Jackson, Victor Andrade, and Jesse Millikan.
 @(generate-bib)
 
 
-@section[#:tag "s:appendix" #:style 'unnumbered]{Appendix: The Rest of @(lambda-py)}
+@section[#:tag "s:appendix" #:style 'unnumbered]{Appendix 1: The Rest of @(lambda-py)}
 
-@figure["f:E" (elem "Evaluation contexts")]{
-  @(with-rewriters
-    (lambda () (render-language λπ #:nts '(E Es))))
-}
-@figure["f:T" (elem "Contexts for try-except")]{
-  @(with-rewriters
-    (lambda () (render-language λπ #:nts '(T Ts))))
-}
-@figure["f:H" (elem "Contexts for loops")]{
-  @(with-rewriters
-    (lambda () (render-language λπ #:nts '(H Hs))))
-}
-@figure["f:R" (elem "Contexts for return statements")]{
-  @(with-rewriters
-    (lambda () (render-language λπ #:nts '(R Rs))))
-}
-@figure["f:control" (elem "Control flow reductions")]{
-  @(lp-reduction '(E-While E-LoopContinue E-LoopBreak E-LoopNext
-                   E-TryDone E-TryCatch
-                   E-Return E-FramePop
-                   E-FinallyReturn E-FinallyBreak E-FinallyRaise E-FinallyContinue
-                   E-IfTrue E-IfFalse E-Seq))
-}
-
-The figures in this section show the rest of the @(lambda-py) semantics.  We
+The figures in this section show the rest of the @(lambda-py) semantics. We
 proceed to briefly present each of them in turn.
 
+@figure["f:E" (elem "Evaluation contexts") @(with-rewriters (lambda () (render-language λπ #:nts '(E Es))))]
+
 @subsection{Contexts and Control Flow}
+
+@figure["f:T" (elem "Contexts for try-except") @(with-rewriters (lambda () (render-language λπ #:nts '(T Ts))))]
+@figure["f:H" (elem "Contexts for loops") @(with-rewriters (lambda () (render-language λπ #:nts '(H Hs))))]
+
 
 @Figure-ref["f:E" "f:T" "f:H" "f:R"] show the different @emph{contexts} we use
 to capture left-to-right, eager order of operations in @(lambda-py).  @(lp-term E)
@@ -1519,6 +1504,14 @@ of a @(lp-term tryexcept) block, used to catch instances of @(lp-term raise).
 Similarly, @(lp-term H) defines contexts for loops, detecting @(lp-term continue) and @(lp-term break),
 and @(lp-term R) defines contexts for @(lp-term return) statements inside functions.
 Each interacts with a few expression forms to handle non-local control flow.
+
+@figure["f:R" (elem "Contexts for return statements") @(with-rewriters (lambda () (render-language λπ #:nts '(R Rs))))]
+@figure["f:control" (elem "Control flow reductions")
+  @(lp-reduction '(E-While E-LoopContinue E-LoopBreak E-LoopNext
+                   E-TryDone E-TryCatch
+                   E-Return E-FramePop
+                   E-FinallyReturn E-FinallyBreak E-FinallyRaise E-FinallyContinue
+                   E-IfTrue E-IfFalse E-Seq))]
 
 @Figure-ref["f:control"] shows how these contexts interact with expressions.
 For example, in first few rules, we see how we handle @(lp-term break) and
