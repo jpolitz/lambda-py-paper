@@ -1,0 +1,71 @@
+\begin{thebibliography}{10}
+
+\bibitem{pydev}
+Appcelerator.
+\newblock Pydev, 2013.
+
+\bibitem{redex}
+Matthias Felleisen, Robert~Bruce Findler, and Matthew Flatt.
+\newblock {\em Semantics Engineering with PLT Redex}.
+\newblock {MIT Press}, 2009.
+
+\bibitem{felleisen:state}
+Matthias Felleisen and Robert Hieb.
+\newblock The revised report on the syntactic theories of sequential control
+  and state.
+\newblock {\em {Theoretical Computer Science}}, 103(2), 1992.
+
+\bibitem{pyflakes}
+Phil Frost.
+\newblock Pyflakes 0.6.1, 2013.
+
+\bibitem{guha:js-essence}
+Arjun Guha, Claudiu Saftoiu, and Shriram Krishnamurthi.
+\newblock {The Essence of JavaScript}.
+\newblock In {\em {European Conference on Object-Oriented Programming}}, 2010.
+
+\bibitem{pycharm}
+JetBrains.
+\newblock Pycharm, 2013.
+
+\bibitem{pox}
+James McCauley.
+\newblock About pox, 2013.
+
+\bibitem{pychecker}
+Neal Norwitz.
+\newblock Pychecker 0.8.12, 2013.
+
+\bibitem{politz:s5}
+Joe~Gibbs Politz, Matthew~J. Carroll, Benjamin~S. Lerner, Justin Pombrio, and
+  Shriram Krishnamurthi.
+\newblock {A Tested Semantics for Getters, Setters, and Eval in JavaScript}.
+\newblock In {\em {Dynamic Languages Symposium}}, 2012.
+
+\bibitem{pep8}
+Johann~C. Rocholl.
+\newblock Pep 8 1.4.5, 2013.
+
+\bibitem{sec-python}
+{Securities and Exchange Commission}.
+\newblock Release nos. 33-9117; 34-61858; file no. s7-08-10, 2010.
+\newblock RIN 3235-AK37.
+
+\bibitem{smeding:python-semantics}
+Gideon~Joachim Smeding.
+\newblock An executable operational semantics for python.
+\newblock Master's thesis, Universiteit Utrecht, January 2009.
+
+\bibitem{pylint}
+Sylvain Thenault.
+\newblock Pylint 0.27.0, 2013.
+
+\bibitem{wingware}
+Wingware.
+\newblock Wingware python ide, 2013.
+
+\bibitem{yee:nonlocal}
+Ka-Ping Yee.
+\newblock Access to names in outer spaces, 2009.
+
+\end{thebibliography}
