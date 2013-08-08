@@ -62,6 +62,7 @@ that might be considered orthogonal.
 }
 
 @category["J.3" "Life and Medical Sciences" "Biology and Genetics"]
+
 @keywords["serpents"]
 
 @section[#:tag "s:motivation"]{Motivation and Contributions}
@@ -72,10 +73,10 @@ it now has several third-party tools, including analyzers
 that check for various potential error patterns@~cite["pylint" "pyflakes" "pep8" "pychecker"].
 It also features interactive development environments@~cite["pycharm" "pydev" "wingware"]
 that offer a variety of features such as variable-renaming
-refactorings and code completion. Unfortunately, all these tools are
+refactorings and code completion. Unfortunately, these tools are
 unsound: for instance, the simple eight-line program shown in the appendix uses no
 ``dynamic'' features and confuses the variable renaming feature
-of all these environments.
+of these environments.
 
 The difficulty of reasoning about Python becomes even more pressing as
 the language is adopted in increasingly important domains. For
@@ -89,7 +90,7 @@ This paper presents a semantics for much of Python (@secref["s:engineering"]).
 To make the semantics tractable for tools and proofs, we divide
 it into two parts: a core language, @(lambda-py), with a
 small number of constructs, and a desugaring function that translates
-source programs into the core.@note{The term @emph{desugaring} is slightly misleading, because ours is really
+source programs into the core.@note{The term @emph{desugaring} is evocative but slightly misleading, because ours is really
 a compiler to a slightly different language. Nevertheless, it is
 more suggestive than a general term like ``compiler''. We blame Arjun
 Guha for the confusing terminology.} The
@@ -107,9 +108,9 @@ carefully adjusting the core and desugaring, we have achieved high
 fidelity with CPython. Therefore, users can built tools atop
 @(lambda-py), confident that they are conformant with the actual language.
 
-In the course of creating this high-fidelity semantics, we have also
+In the course of creating this high-fidelity semantics, we
 identified some peculiar corners of the language.
-In particular, scope proves to be
+In particular, scope is
 non-trivial and interacts with perhaps unexpected features. Our
 exposition focuses on these aspects.
 
@@ -126,7 +127,7 @@ In sum, this paper makes the following contributions:
   implemented in Racket;}
 
   @item{a demonstration of @emph{conformance} of the composition of
-  desugaring with @(lambda-interp) to a real Python implementation; and,}
+  desugaring with @(lambda-interp) to CPython; and,}
 
   @item{@emph{insights} about Python gained from this process.}
 
@@ -401,8 +402,8 @@ verbose detail in the iteration over @(lp-term (id dict local)) by using the
 @centered{
   @(lp-term
     (assign (id %type global) :=
-      (fun (classname bases dict)
-        (let (newcls local = (alloc (obj-val %type (meta-class classname) ()))) in
+      (fun (cls bases dict)
+        (let (newcls local = (alloc (obj-val %type (meta-class cls) ()))) in
           (seq
           (set-attr (id newcls local) (object %str (meta-str "__mro__")) :=
             (builtin-prim "type-buildmro" (newcls bases)))
@@ -519,10 +520,11 @@ When called, this function always returns @pyinline{1}.
 
 Changing @pyinline{return} to @pyinline{yield}
 turns this into a generator. As a result, applying @pyinline{f()} no longer
-immediately evaluates the body of the function; instead, it creates an 
+immediately evaluates the body; instead, it creates an 
 object whose @pyinline{next} method evaluates the body until the next
 @pyinline{yield} statement, stores its state for later resumption, and
 returns the yielded value:
+@element["newpage" ""]
 @pycode{
 def f():
   x = 0
@@ -741,7 +743,7 @@ scan the body of the function and accumulate all the variables on the left-hand
 side of assignment statements in the body.  These are let-bound at the top of
 the function to the special @(lp-term (undefined-val)) form, which evaluates to an
 exception in any context other than a @pyinline{let}-binding context (@secref["s:warmup"]).  We use
-@pyinline{x := e} as the expression form for variable assignment, which is not a
+@pyinline{x := e} as the form for variable assignment, which is not a
 binding form in the core.  Thus, in @(lambda-py), the example above rewrites to:
 @centered{
   @(lp-term
@@ -897,8 +899,8 @@ let-bind @(lp-term x) inside the body of the function assigned to @(lp-term h).
 
 }
 The assignment to @(lp-term x) inside the body of @(lp-term h) behaves as a
-typical assignment statement in a closure-based language like Scheme, ML, or
-JavaScript: it mutates the let-bound @(lp-term x) defined in @(lp-term g).
+typical assignment statement in a closure-based language like Scheme, mutating
+the let-bound @(lp-term x) defined in @(lp-term g).
 
 @subsubsection[#:tag "s:class-scope"]{Classes and Scope}
 
@@ -1256,9 +1258,9 @@ We implement as many libraries as possible in Python@note{We
  could not initially use existing implementations of these in Python
  for bootstrapping reasons: they required more of the language than we
  supported.}
-augmented with some macros recognized by the desugaring.
-For example, the builtin class for tuples is implemented mostly in Python, but
-for getting the length of a tuple defers to the δ function:
+augmented with some macros recognized by desugaring.
+For example, the builtin tuple class is implemented in Python, but
+getting the length of a tuple defers to the δ function:
 @pycode{
 class tuple(object):
   def __len__(self):
@@ -1297,16 +1299,16 @@ The full process for running a Python program in our semantics is:
   @item{Compose items 1-3 into a single @(lambda-py) expression}
   @item{Evaluate the @(lambda-py) expression}
 ]
-Parsing and desugaring for (1) takes a nontrivial amount of time (on the order of
-40 seconds on the first author's laptop).  Because this work is
+Parsing and desugaring for (1) takes a nontrivial amount of time (40 seconds on
+the first author's laptop).  Because this work is
 needlessly repeated for each test, we began caching the results of the
 desugared library files, which
-reduced the time to run our tests into the realm of feasibility for
+reduced the testing time into the realm of feasibility for
 rapid development.  When we first performed this optimization, it made
 running 100 tests drop from roughly 7 minutes to 22 seconds.  Subsequently,
-we moved more functionality out of the @(lambda-py) and into verbose but
+we moved more functionality out of @(lambda-py) and into verbose but
 straightforward
-desugaring, which caused a serious performance hit; running 100 tests now
+desugaring, causing serious performance hit; running 100 tests now
 takes on the order of 20 minutes, even with the optimization.
 
 @subsection{Testing}
