@@ -134,8 +134,9 @@ that are important or interesting. We first give an overview of
 @(lambda-py)'s value and object model. We then introduce desugaring
 through classes. We then discuss generators,
 classes, and their interaction with scope. Finally, we describe the
-results of testing our semantics against CPython.  All of our code
-is available online at @url{https://www.github.com/brownplt/lambda-py}.
+results of testing our semantics against CPython.  All of our code, and an
+additional appendix including the full specification of the semantics,
+is available online at @url{http://cs.brown.edu/research/plt/dl/lambda-py/}.
 
 @section[#:tag "s:warmup"]{Warmup: A Quick Tour of @(lambda-py)}
 
